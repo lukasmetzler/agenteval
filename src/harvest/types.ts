@@ -21,7 +21,6 @@ export interface HarvestOptions {
 	outputDir?: string;
 	dryRun?: boolean;
 	force?: boolean;
-	format?: "yaml" | "json";
 	harness?: "claude-code" | "opencode" | "copilot" | "generic" | "auto";
 	timeout?: number;
 	minConfidence?: number;

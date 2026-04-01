@@ -77,7 +77,6 @@ function buildOptions(
 		outputDir: cli.output ?? config.harvest.outputDir,
 		dryRun: cli.dryRun ?? false,
 		force: cli.force ?? false,
-		format: (cli.format as "yaml" | "json") ?? "yaml",
 		harness:
 			(cli.harness as HarvestOptions["harness"]) ??
 			(config.harvest.defaultHarness as HarvestOptions["harness"]),

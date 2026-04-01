@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-04-01
+
+### Fixed
+
+- File rename handling in harvest diff stats: `{old => new}/file.ts` and `old => new` patterns now correctly extract the destination path
+- Malformed co-author trailers now emit a warning instead of being silently dropped
+- NaN `--min-confidence` validation (already shipped in v0.3.0 but untested for the warning path)
+
+### Changed
+
+- Removed `format` field from `HarvestOptions` type (presentation concern, only used at CLI level)
+- Extracted `parseNumstat()` as a testable function for diff stat parsing
+
+### Added
+
+- 6 new tests: `parseNumstat` rename handling (4), malformed trailer warning (1), `noreply@github.com` false positive (already existed but verified)
+
 ## [0.3.1] - 2026-04-01
 
 ### Fixed

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-01
+
+Phase 3 begins. Mine your git history for AI-involved commits and generate eval benchmarks from real work.
+
+### Added
+
+- `agenteval harvest` command: scan git history, detect AI-involved commits, emit TaskDefinition YAML files
+  - Detection heuristics: Co-authored-by trailers (Claude, Copilot, Cursor, Devin, Aider), author email patterns, commit message patterns
+  - Confidence scoring per detection method (0.6-0.9), configurable threshold via `--min-confidence`
+  - Prompt inference from commit messages with conventional-commit prefix stripping and past-tense to imperative conversion
+  - `--dry-run` scorecard mode: list detected commits without writing files
+  - `--since`, `--until`, `--commit` date/hash filtering
+  - `--output`, `--force`, `--format json`, `--harness`, `--timeout` options
+  - Idempotent: skips existing files unless `--force` is passed
+  - Emitted YAML is compatible with `agenteval run --task`
+- `harvest` section in `agenteval.yaml` config schema: `outputDir`, `minConfidence`, `defaultHarness`, `defaultTimeout`
+- TODOS.md for tracking future work (CI integration)
+- 39 new tests (193 total): real repo detection, synthetic fixtures for all AI tool patterns, error edge cases
+
+### Fixed
+
+- False positive: `noreply@github.com` co-author no longer detected as Copilot unless the name also contains "copilot" (prevents flagging human squash-merge commits)
+- NaN `--min-confidence` values now correctly rejected instead of silently filtering all commits
+- Write failures in task YAML generation now log the actual error instead of silently returning null
+
 ## [0.2.1] - 2026-04-02
 
 ### Fixed

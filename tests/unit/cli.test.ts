@@ -46,7 +46,7 @@ describe("CLI", () => {
 	});
 
 	test("harvest subcommand exists", async () => {
-		const result = await $`bun run src/cli.ts harvest`.text();
-		expect(result).toContain("not yet implemented");
+		const result = await $`bun run src/cli.ts harvest --dry-run`.text();
+		expect(result).toContain("Harvest Dry Run");
 	});
 });

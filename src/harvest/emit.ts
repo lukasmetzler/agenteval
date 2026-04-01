@@ -1,0 +1,114 @@
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { stringify as yamlStringify } from "yaml";
+import type { TaskDefinition } from "../run/types.js";
+import type { AICommit, HarvestOptions } from "./types.js";
+
+/** Conventional commit prefixes to strip from prompts. */
+const COMMIT_PREFIX =
+	/^(feat|fix|chore|refactor|docs|test|ci|style|perf|build|revert)(\(.+?\))?:\s*/i;
+
+/** Simple past-tense to imperative conversions. */
+const PAST_TO_IMPERATIVE: [RegExp, string][] = [
+	[/^added\b/i, "Add"],
+	[/^fixed\b/i, "Fix"],
+	[/^updated\b/i, "Update"],
+	[/^removed\b/i, "Remove"],
+	[/^changed\b/i, "Change"],
+	[/^implemented\b/i, "Implement"],
+	[/^refactored\b/i, "Refactor"],
+	[/^created\b/i, "Create"],
+	[/^improved\b/i, "Improve"],
+	[/^moved\b/i, "Move"],
+	[/^renamed\b/i, "Rename"],
+	[/^extracted\b/i, "Extract"],
+	[/^replaced\b/i, "Replace"],
+	[/^enabled\b/i, "Enable"],
+	[/^disabled\b/i, "Disable"],
+	[/^wired\b/i, "Wire"],
+];
+
+/**
+ * Infer a task prompt from a commit message.
+ * Strips conventional-commit prefix, converts past-tense to imperative,
+ * and appends diff summary if the result is too terse.
+ */
+function inferPrompt(commit: AICommit): string {
+	let prompt = commit.message.replace(COMMIT_PREFIX, "").trim();
+
+	// Convert past-tense to imperative
+	for (const [pattern, replacement] of PAST_TO_IMPERATIVE) {
+		if (pattern.test(prompt)) {
+			prompt = prompt.replace(pattern, replacement);
+			break;
+		}
+	}
+
+	// Capitalize first letter
+	if (prompt.length > 0) {
+		prompt = prompt.charAt(0).toUpperCase() + prompt.slice(1);
+	}
+
+	// If terse, append diff summary for context
+	if (prompt.length < 20) {
+		const { additions, deletions, filesChanged } = commit.diffStat;
+		prompt += `\n\nFiles changed: ${filesChanged}. +${additions}/-${deletions} lines.`;
+	}
+
+	return prompt;
+}
+
+/**
+ * Convert an AICommit into a TaskDefinition object.
+ */
+export function emitTaskYaml(
+	commit: AICommit,
+	options: Pick<HarvestOptions, "harness" | "timeout">,
+): TaskDefinition {
+	const assertions = commit.filesChanged.map((file) => ({
+		type: "files-changed" as const,
+		pattern: file,
+	}));
+
+	return {
+		name: `harvest-${commit.shortHash}`,
+		description: commit.message,
+		prompt: inferPrompt(commit),
+		harness: options.harness ?? "auto",
+		timeout: options.timeout ?? 300,
+		assertions,
+		scoring: {
+			correctness: 0.5,
+			precision: 0.3,
+			efficiency: 0.1,
+			conventions: 0.1,
+		},
+	};
+}
+
+/**
+ * Write a TaskDefinition to a YAML file.
+ * Returns the file path on success, null if skipped (file exists + no force).
+ */
+export function writeTaskFile(
+	task: TaskDefinition,
+	outputDir: string,
+	force: boolean,
+): string | null {
+	mkdirSync(outputDir, { recursive: true });
+
+	const filePath = join(outputDir, `${task.name}.yaml`);
+
+	if (existsSync(filePath) && !force) {
+		return null;
+	}
+
+	try {
+		writeFileSync(filePath, yamlStringify(task), "utf-8");
+		return filePath;
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		process.stderr.write(`Warning: failed to write ${filePath}: ${msg}\n`);
+		return null;
+	}
+}

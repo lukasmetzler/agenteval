@@ -32,6 +32,13 @@ const HarnessConfigSchema = z.object({
 	instructionPath: z.string().optional(),
 });
 
+const HarvestConfigSchema = z.object({
+	outputDir: z.string().default("tasks/harvested"),
+	minConfidence: z.number().min(0).max(1).default(0.5),
+	defaultHarness: z.enum(["claude-code", "opencode", "copilot", "generic", "auto"]).default("auto"),
+	defaultTimeout: z.number().min(1).default(300),
+});
+
 const LintConfigSchema = z.object({
 	overlapThreshold: z.number().min(0).max(1).default(0.3),
 	bloatThreshold: z.number().min(0).max(1).default(0.5),
@@ -57,6 +64,7 @@ export const ConfigSchema = z.object({
 	contextBudget: z.number().min(0).max(1).default(0.3),
 	lint: LintConfigSchema.default({}),
 	run: RunConfigSchema.default({}),
+	harvest: HarvestConfigSchema.default({}),
 	harnesses: z.record(z.string(), HarnessConfigSchema).default({}),
 });
 

@@ -17,6 +17,15 @@ export const defaultConfig: Config = {
 		antiPatterns: [],
 		ignore: [],
 	},
+	run: {
+		timeout: 300,
+		tokensBudget: 50_000,
+		resultsDir: ".agenteval/results",
+		worktreesDir: ".agenteval/worktrees",
+		staleWorktreeMaxAge: 3_600_000,
+		resultRetention: "90d",
+	},
+	harnesses: {},
 };
 
 export function makeParsedFile(content: string, path = "test.md"): ParsedFile {

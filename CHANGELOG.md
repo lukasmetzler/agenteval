@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-04-02
+
+### Added
+
+- Run engine: git worktree management (create, remove, stale cleanup)
+- Assertion evaluator: files-changed, files-unchanged, test-pass, no-new-warnings, convention
+- Scorer: correctness, precision, efficiency, conventions with weighted overall score
+- Precision handles zero-files-changed edge case and weight renormalization
+- Claude Code harness adapter (CLI spawning, token parsing from output)
+- Generic harness adapter (configurable command, args, instruction path)
+- Mock harness adapter for deterministic testing (no real agent spawned)
+- Harness registry with auto-detection from instruction file presence
+- Run orchestrator: worktree lifecycle, adapter dispatch, scoring pipeline
+- minimatch dependency for glob pattern matching in assertions
+- 20 new tests (assertions, scorer, registry)
+
 ## [0.1.2] - 2026-04-02
 
 ### Added

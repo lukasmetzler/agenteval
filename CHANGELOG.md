@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-02
+
+### Added
+
+- Phase 2 type definitions: TaskDefinition, InstructionSet, StoredResult, RunMetrics, RawRunResult
+- HarnessAdapter interface for pluggable agent execution
+- Store types: ComparisonReport, ResultQuery
+- Task loader with Zod validation (YAML file, name lookup, inline ad-hoc tasks)
+- Config schema extensions: `run:` section (timeout, tokensBudget, resultsDir) and `harnesses:` section
+- Task fixture files for testing (example, minimal, invalid)
+- 13 new tests for task loading and config schema validation
+
 ## [0.1.1] - 2026-04-02
 
 ### Fixed

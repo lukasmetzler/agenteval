@@ -17,6 +17,21 @@ const InstructionSourceSchema = z.object({
 
 export type InstructionSource = z.infer<typeof InstructionSourceSchema>;
 
+const RunConfigSchema = z.object({
+	timeout: z.number().min(1).default(300),
+	tokensBudget: z.number().default(50_000),
+	resultsDir: z.string().default(".agenteval/results"),
+	worktreesDir: z.string().default(".agenteval/worktrees"),
+	staleWorktreeMaxAge: z.number().default(3_600_000),
+	resultRetention: z.string().default("90d"),
+});
+
+const HarnessConfigSchema = z.object({
+	command: z.string(),
+	args: z.array(z.string()).default([]),
+	instructionPath: z.string().optional(),
+});
+
 const LintConfigSchema = z.object({
 	overlapThreshold: z.number().min(0).max(1).default(0.3),
 	bloatThreshold: z.number().min(0).max(1).default(0.5),
@@ -41,6 +56,8 @@ export const ConfigSchema = z.object({
 	model: z.string().default("claude-sonnet-4-20250514"),
 	contextBudget: z.number().min(0).max(1).default(0.3),
 	lint: LintConfigSchema.default({}),
+	run: RunConfigSchema.default({}),
+	harnesses: z.record(z.string(), HarnessConfigSchema).default({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

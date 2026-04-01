@@ -1,14 +1,11 @@
 #!/usr/bin/env bun
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { Command } from "commander";
 import { registerCompareCommand } from "./commands/compare.js";
 import { registerHarvestCommand } from "./commands/harvest.js";
 import { registerLintCommand } from "./commands/lint.js";
 import { registerResultsCommand } from "./commands/results.js";
 import { registerRunCommand } from "./commands/run.js";
-
-const version = readFileSync(join(import.meta.dir, "../VERSION"), "utf-8").trim();
+import { version } from "./version.js";
 
 const program = new Command()
 	.name("agenteval")

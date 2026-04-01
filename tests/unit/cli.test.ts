@@ -16,9 +16,10 @@ describe("CLI", () => {
 		expect(result).toContain("Evaluate AI coding instruction quality");
 	});
 
-	test("lint subcommand exists", async () => {
-		const result = await $`bun run src/cli.ts lint`.text();
-		expect(result).toContain("not yet implemented");
+	test("lint subcommand runs", async () => {
+		const result = await $`bun run src/cli.ts lint --format json`.text();
+		const parsed = JSON.parse(result);
+		expect(parsed.stats).toBeDefined();
 	});
 
 	test("run subcommand exists", async () => {

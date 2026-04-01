@@ -55,6 +55,23 @@ agenteval results --export markdown  # Export as markdown
 agenteval results --prune            # Delete results older than retention period
 ```
 
+### `agenteval harvest` — Mine git history for eval datasets
+
+Scan your repo's git history for AI-involved commits and generate TaskDefinition YAML files.
+
+```bash
+agenteval harvest                              # Scan all commits, write YAML
+agenteval harvest --dry-run                    # Preview detected commits
+agenteval harvest --since 2025-01-01           # Filter by date
+agenteval harvest --commit abc123              # Single commit mode
+agenteval harvest --output tasks/harvested/    # Custom output directory
+agenteval harvest --min-confidence 0.3         # Lower detection threshold
+agenteval harvest --format json                # JSON output
+agenteval harvest --harness claude-code        # Set harness in emitted tasks
+```
+
+Detection heuristics: Co-authored-by trailers (Claude, Copilot, Cursor, Devin, Aider), author email patterns, commit message patterns. Each method has a confidence score (0.6-0.9). Emitted YAML is compatible with `agenteval run --task`.
+
 ### `agenteval compare` — Compare instruction versions
 
 ```bash
@@ -175,6 +192,12 @@ run:
   resultsDir: ".agenteval/results"
   resultRetention: "90d"
 
+harvest:
+  outputDir: "tasks/harvested"
+  minConfidence: 0.5
+  defaultHarness: auto
+  defaultTimeout: 300
+
 harnesses:
   claude-code:
     command: "claude"
@@ -192,14 +215,15 @@ Token counts use OpenAI's cl100k_base tokenizer (via js-tiktoken) for offline sp
 ## Roadmap
 
 - **v0.1.x** (shipped): Static linter with 7 rule categories, 24 rules
-- **v0.2.x** (current): Eval runner, harness adapters, result store, compare
-- **v0.3.0** (planned): Git history mining for eval datasets
+- **v0.2.x** (shipped): Eval runner, harness adapters, result store, compare
+- **v0.3.0** (current): Git history mining for eval datasets (`agenteval harvest`)
+- **v0.4.0** (planned): Live review mode, GitHub API enrichment, instruction snapshots
 
 ## Development
 
 ```bash
 bun install          # install dependencies
-bun test             # run all tests (154 tests)
+bun test             # run all tests (193 tests)
 bun run dev -- lint  # run CLI in dev mode
 bun run build        # compile to binary
 bun run check        # lint + typecheck + test

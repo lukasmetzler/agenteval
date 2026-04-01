@@ -6,11 +6,12 @@ A CLI tool that evaluates AI coding instruction quality. Built with Bun + TypeSc
 
 ```bash
 bun install             # install dependencies
-bun test                # run all tests (154 tests)
+bun test                # run all tests (193 tests)
 bun run dev -- lint     # lint instruction files
 bun run dev -- run      # run eval (needs --task flag)
 bun run dev -- results  # view stored results
 bun run dev -- compare  # compare two runs
+bun run dev -- harvest  # mine git history for eval datasets
 bun run build           # compile to binary
 bun run lint            # biome check
 bun run typecheck       # tsc --noEmit
@@ -25,6 +26,7 @@ src/
 ├── run/        # Eval runner, worktree, scorer (Phase 2)
 ├── harness/    # Adapter pattern: claude-code, generic, mock (Phase 2)
 ├── store/      # Result persistence + comparison (Phase 2)
+├── harvest/    # Git history mining: detect AI commits, emit task YAML (Phase 3)
 ├── config/     # Zod schema, YAML loader
 ├── markdown/   # Parser, section extractor, frontmatter
 ├── output/     # Console, JSON, markdown formatters
@@ -35,6 +37,8 @@ src/
 The lint pipeline: config -> glob files -> parse markdown -> count tokens -> run rules -> format output.
 
 The eval pipeline: load task -> create worktree -> inject instructions -> spawn agent -> capture diff -> score assertions -> store result.
+
+The harvest pipeline: git log -> parse commits -> detect AI signals (co-author, email, message) -> filter by confidence -> emit TaskDefinition YAML.
 
 All lint rules implement the `LintRule` interface in `src/lint/types.ts`.
 All harness adapters implement the `HarnessAdapter` interface in `src/harness/types.ts`.

@@ -22,19 +22,27 @@ describe("CLI", () => {
 		expect(parsed.stats).toBeDefined();
 	});
 
-	test("run subcommand exists", async () => {
-		const result = await $`bun run src/cli.ts run`.text();
-		expect(result).toContain("not yet implemented");
+	test("run --help shows options", async () => {
+		const result = await $`bun run src/cli.ts run --help`.text();
+		expect(result).toContain("--task");
+		expect(result).toContain("--harness");
 	});
 
-	test("results subcommand exists", async () => {
-		const result = await $`bun run src/cli.ts results`.text();
-		expect(result).toContain("not yet implemented");
+	test("results --help shows options", async () => {
+		const result = await $`bun run src/cli.ts results --help`.text();
+		expect(result).toContain("--prune");
+		expect(result).toContain("--export");
 	});
 
-	test("compare subcommand exists", async () => {
-		const result = await $`bun run src/cli.ts compare`.text();
-		expect(result).toContain("not yet implemented");
+	test("compare --help shows options", async () => {
+		const result = await $`bun run src/cli.ts compare --help`.text();
+		expect(result).toContain("runA");
+		expect(result).toContain("runB");
+	});
+
+	test("results --help shows export option", async () => {
+		const result = await $`bun run src/cli.ts results --help`.text();
+		expect(result).toContain("--export");
 	});
 
 	test("harvest subcommand exists", async () => {

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-02
+
+Phase 2 complete. Full eval loop: run agents, measure results, compare instruction versions.
+
+### Added
+
+- `agenteval run --task <task>` command: execute eval runs with harness adapters
+  - Supports YAML task files, task name lookup, and inline ad-hoc descriptions
+  - Git worktree isolation with automatic cleanup
+  - Claude Code adapter, generic adapter, mock adapter
+  - Scoring with correctness, precision, efficiency, conventions
+  - Results saved as JSON to `.agenteval/results/`
+- `agenteval results` command: list, filter, prune, and export stored results
+  - Filter by task, harness, status; limit results
+  - Export as JSON or markdown
+  - Prune by retention period
+- `agenteval compare <runA> <runB>` command: side-by-side comparison
+  - Console table, JSON, and markdown output formats
+  - Winner determination with metric deltas
+  - Handles failed/partial runs gracefully
+
+### Changed
+
+- `run`, `results`, `compare` commands are now fully implemented (were stubs since v0.0.1)
+
 ## [0.1.4] - 2026-04-02
 
 ### Added

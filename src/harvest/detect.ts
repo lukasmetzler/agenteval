@@ -57,8 +57,13 @@ function parseCoAuthors(raw: string): Array<{ name: string; email: string }> {
 	if (!raw.trim()) return [];
 
 	return raw.split("\x1E").flatMap((entry) => {
-		const match = /^(.+?)\s*<(.+?)>/.exec(entry.trim());
-		if (!match) return [];
+		const trimmed = entry.trim();
+		if (!trimmed) return [];
+		const match = /^(.+?)\s*<(.+?)>/.exec(trimmed);
+		if (!match) {
+			process.stderr.write(`Warning: malformed co-author trailer: "${trimmed}"\n`);
+			return [];
+		}
 		return [{ name: match[1].trim(), email: match[2].trim() }];
 	});
 }
@@ -126,6 +131,44 @@ export function detectSignals(
 }
 
 /**
+ * Parse git diff --numstat output lines into file list and stats.
+ * Handles renames: "old => new" and "{old => new}/file.ts".
+ */
+export function parseNumstat(lines: string[]): {
+	files: string[];
+	totalAdd: number;
+	totalDel: number;
+} {
+	const files: string[] = [];
+	let totalAdd = 0;
+	let totalDel = 0;
+
+	for (const line of lines) {
+		const parts = line.split("\t");
+		if (parts.length < 3) continue;
+		const add = Number.parseInt(parts[0], 10) || 0;
+		const del = Number.parseInt(parts[1], 10) || 0;
+		totalAdd += add;
+		totalDel += del;
+		let filePath = parts.slice(2).join("\t");
+		// Handle brace renames first: "src/{old => new}/file.ts" → "src/new/file.ts"
+		const braceMatch = /\{[^}]*\s*=>\s*([^}]*)\}/.exec(filePath);
+		if (braceMatch) {
+			filePath = filePath.replace(/\{[^}]*\s*=>\s*[^}]*\}/, braceMatch[1].trim());
+		} else {
+			// Handle full-path renames: "old/path => new/path"
+			const renameMatch = /^(.+?)\s*=>\s*(.+)$/.exec(filePath);
+			if (renameMatch) {
+				filePath = renameMatch[2].trim();
+			}
+		}
+		files.push(filePath);
+	}
+
+	return { files, totalAdd, totalDel };
+}
+
+/**
  * Get diff stats for a commit relative to its parent.
  * Returns file list + addition/deletion counts.
  */
@@ -148,19 +191,8 @@ async function getDiffStats(
 	const stdout = await new Response(proc.stdout).text();
 	const lines = stdout.trim().split("\n").filter(Boolean);
 
-	const files: string[] = [];
-	let totalAdd = 0;
-	let totalDel = 0;
-
-	for (const line of lines) {
-		const parts = line.split("\t");
-		if (parts.length < 3) continue;
-		const add = Number.parseInt(parts[0], 10) || 0;
-		const del = Number.parseInt(parts[1], 10) || 0;
-		totalAdd += add;
-		totalDel += del;
-		files.push(parts[2]);
-	}
+	const parsed = parseNumstat(lines);
+	const { files, totalAdd, totalDel } = parsed;
 
 	return {
 		filesChanged: files,

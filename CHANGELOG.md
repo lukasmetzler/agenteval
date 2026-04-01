@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-04-02
+
+### Fixed
+
+- DRY: extracted `basename()` to `src/utils/path.ts` (was duplicated in 3 files)
+- DRY: created shared test helpers in `tests/helpers.ts` (was duplicated in 6 test files)
+- Removed ~120 lines of duplicated test boilerplate
+
 ## [0.1.0] - 2026-04-01
 
 Phase 1 complete. First usable release of the `agenteval lint` command.

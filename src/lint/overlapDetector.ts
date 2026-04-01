@@ -1,3 +1,4 @@
+import { basename } from "../utils/path.js";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
 
 const DEFAULT_NGRAM_SIZE = 5;
@@ -76,8 +77,4 @@ export class OverlapDetectorRule implements LintRule {
 
 		return diagnostics;
 	}
-}
-
-function basename(path: string): string {
-	return path.split("/").pop() ?? path;
 }

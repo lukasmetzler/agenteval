@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { LintResult } from "../lint/types.js";
+import { basename } from "../utils/path.js";
 
 export interface OutputFormatter {
 	format(result: LintResult): string;
@@ -10,10 +11,6 @@ const SEVERITY_ICONS = {
 	warning: chalk.yellow("⚠ warn  "),
 	info: chalk.blue("ℹ info  "),
 } as const;
-
-function basename(path: string): string {
-	return path.split("/").pop() ?? path;
-}
 
 export class ConsoleFormatter implements OutputFormatter {
 	format(result: LintResult): string {

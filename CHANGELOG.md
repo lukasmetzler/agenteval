@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-04-01
+
+### Added
+
+- Lint orchestrator: wires all 7 rules together with suppression filtering
+- `agenteval lint` command fully functional (no longer a stub)
+- Console output formatter (colorized, severity icons, summary stats)
+- JSON output formatter (`--format json`)
+- Markdown report formatter (`--format markdown`)
+- `--severity` filter (info, warning, error)
+- `--quiet` flag (errors only)
+- `--fix` flag (accepted, prints "not yet implemented")
+- Exit code 1 on errors, 0 on clean, 2 on runtime error
+- No-files-found warning when globs match nothing
+- VERSION file as single source of truth for version string
+- 14 new tests (formatters + integration)
+
+### Changed
+
+- `agenteval lint` is now fully wired (was a stub in 0.0.1)
+- cli.ts reads version from VERSION file instead of hardcoded string
+- Version test reads from VERSION file (no more hardcoded assertions)
+
 ## [0.0.3] - 2026-04-01
 
 ### Added

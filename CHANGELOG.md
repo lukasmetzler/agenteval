@@ -5,28 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-04-01
+
+Phase 1 complete. First usable release of the `agenteval lint` command.
+
+### Added
+
+- `agenteval lint` command: analyze AI coding instruction files for quality issues
+- 7 lint rules:
+  - `token-count`: per-file and per-section token counting (~estimated via cl100k_base)
+  - `overlap`: cross-file n-gram Jaccard similarity detection
+  - `bloat`: information density scoring with filler phrase detection
+  - `anti-pattern`: 7 built-in patterns + custom regex + wall-of-text + contradiction detection
+  - `dead-ref`: broken markdown links and missing file reference detection
+  - `context-budget`: total instruction tokens vs model context window
+  - `skill`: Anthropic Agent Skills spec compliance (name, description, body length)
+- 3 output formats: console (colorized), JSON (`--format json`), markdown (`--format markdown`)
+- Inline suppression via `<!-- agenteval-disable [rule-id] -->` HTML comments
+- Config system (`agenteval.yaml`) with Zod validation, directory walk-up discovery
+- Harness mapping in config (claude-code, opencode, copilot, generic)
+- Skill frontmatter parsing (name, version, allowed-tools, hooks)
+- `--severity` filter, `--quiet` flag, `--fix` stub
+- Exit codes: 0 (clean), 1 (errors), 2 (runtime error)
+- CI pipeline (GitHub Actions): lint, typecheck, test, build binary
+- Release pipeline: tagged releases with pre-built binaries (linux-x64, darwin-arm64)
+- 102 tests across 13 test files
+- Synthetic calibration fixtures
+
+### Changed
+
+- VERSION file is single source of truth (cli.ts and tests read from it)
+
 ## [0.0.4] - 2026-04-01
 
 ### Added
 
-- Lint orchestrator: wires all 7 rules together with suppression filtering
-- `agenteval lint` command fully functional (no longer a stub)
-- Console output formatter (colorized, severity icons, summary stats)
-- JSON output formatter (`--format json`)
-- Markdown report formatter (`--format markdown`)
-- `--severity` filter (info, warning, error)
-- `--quiet` flag (errors only)
-- `--fix` flag (accepted, prints "not yet implemented")
-- Exit code 1 on errors, 0 on clean, 2 on runtime error
-- No-files-found warning when globs match nothing
-- VERSION file as single source of truth for version string
-- 14 new tests (formatters + integration)
-
-### Changed
-
-- `agenteval lint` is now fully wired (was a stub in 0.0.1)
-- cli.ts reads version from VERSION file instead of hardcoded string
-- Version test reads from VERSION file (no more hardcoded assertions)
+- Lint orchestrator wiring all 7 rules with suppression filtering
+- Console, JSON, and markdown output formatters
+- Full `agenteval lint` CLI command with flags
+- Integration tests against fixture directories
 
 ## [0.0.3] - 2026-04-01
 

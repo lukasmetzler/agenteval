@@ -7,7 +7,7 @@ function loadVersion(): string {
 	} catch {
 		// Fallback for compiled binary where VERSION file is not on disk.
 		// This value is updated by the bump-version script.
-		return "0.0.4";
+		return "0.1.0";
 	}
 }
 

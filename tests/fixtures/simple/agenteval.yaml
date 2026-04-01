@@ -1,0 +1,4 @@
+version: 1
+instructionGlobs:
+  - "CLAUDE.md"
+model: claude-sonnet-4-20250514

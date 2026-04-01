@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { detectAICommits, detectSignals, parseGitLog } from "../../src/harvest/detect.js";
+import {
+	detectAICommits,
+	detectSignals,
+	parseGitLog,
+	parseNumstat,
+} from "../../src/harvest/detect.js";
 import { emitTaskYaml, writeTaskFile } from "../../src/harvest/emit.js";
 import { harvest } from "../../src/harvest/index.js";
 import type { AICommit } from "../../src/harvest/types.js";
@@ -59,6 +64,42 @@ describe("parseGitLog", () => {
 			"hash2\x00h2\x00msg2\x00c@d.com\x002026-01-02T00:00:00+00:00\x00",
 		].join("\n");
 		expect(parseGitLog(lines)).toHaveLength(2);
+	});
+});
+
+// ──────────────────────────────────────────────
+// parseNumstat() — rename handling
+// ──────────────────────────────────────────────
+
+describe("parseNumstat", () => {
+	test("parses normal numstat output", () => {
+		const lines = ["10\t5\tsrc/auth.ts", "3\t1\ttests/auth.test.ts"];
+		const result = parseNumstat(lines);
+		expect(result.files).toEqual(["src/auth.ts", "tests/auth.test.ts"]);
+		expect(result.totalAdd).toBe(13);
+		expect(result.totalDel).toBe(6);
+	});
+
+	test("handles full-path renames (old => new)", () => {
+		const lines = ["0\t0\tsrc/old.ts => src/new.ts"];
+		const result = parseNumstat(lines);
+		expect(result.files).toEqual(["src/new.ts"]);
+	});
+
+	test("handles brace renames ({old => new}/file.ts)", () => {
+		const lines = ["5\t2\tsrc/{utils => helpers}/format.ts"];
+		const result = parseNumstat(lines);
+		expect(result.files).toEqual(["src/helpers/format.ts"]);
+	});
+
+	test("handles rename with empty destination (deletion side)", () => {
+		const lines = ["0\t0\tsrc/{ => new}/file.ts"];
+		const result = parseNumstat(lines);
+		expect(result.files).toEqual(["src/new/file.ts"]);
+	});
+
+	test("returns empty for no input", () => {
+		expect(parseNumstat([])).toEqual({ files: [], totalAdd: 0, totalDel: 0 });
 	});
 });
 
@@ -165,6 +206,15 @@ describe("detectSignals", () => {
 			authorEmail: "developer@company.com",
 			coAuthorRaw: "Colleague <colleague@company.com>",
 		});
+		expect(detectSignals(commit)).toBeNull();
+	});
+
+	test("malformed co-author trailer does not crash", () => {
+		// Trailers without angle brackets should be skipped (with a warning)
+		const commit = makeCommit({
+			coAuthorRaw: "Claude noreply@anthropic.com",
+		});
+		// No angle brackets = no email parsed = no detection
 		expect(detectSignals(commit)).toBeNull();
 	});
 });

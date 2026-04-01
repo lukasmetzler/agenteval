@@ -16,6 +16,17 @@ bun run build
 ./agenteval lint
 ```
 
+## Documentation
+
+| Guide | What it covers |
+|-------|---------------|
+| [Getting Started](docs/getting-started.md) | Installation, first run, overview of all features |
+| [Linting Guide](docs/lint.md) | All 24 lint rules, output formats, CI integration, inline suppression |
+| [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring, the full eval pipeline |
+| [Harvesting from Git History](docs/harvest.md) | AI commit detection, task generation, confidence tuning |
+| [Results & Comparison](docs/results.md) | Viewing, filtering, exporting, and comparing eval runs |
+| [Configuration Reference](docs/configuration.md) | Every config option with types, defaults, and examples |
+
 ## Commands
 
 ### `agenteval lint` — Static analysis

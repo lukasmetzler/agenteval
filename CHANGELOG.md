@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-04-02
+
+### Added
+
+- Result store: write, read, list, prune results as individual JSON files
+- Result listing with query filters (task, harness, status, limit) sorted by timestamp
+- Result pruning by retention period (e.g., "90d")
+- Comparison engine: side-by-side metric comparison with winner determination
+- One-sided null score handling (scored run beats failed run)
+- Console table formatter for comparisons
+- Markdown formatter for comparison reports
+- 18 new tests (store CRUD, filtering, pruning, comparison, formatting)
+
 ## [0.1.3] - 2026-04-02
 
 ### Added

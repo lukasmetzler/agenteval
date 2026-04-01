@@ -10,6 +10,7 @@
         "glob": "^11.0.0",
         "js-tiktoken": "^1.0.21",
         "mdast-util-to-string": "^4.0.0",
+        "minimatch": "^10.2.5",
         "remark-frontmatter": "^5.0.0",
         "remark-parse": "^11.0.0",
         "unified": "^11.0.5",

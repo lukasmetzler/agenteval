@@ -16,34 +16,59 @@ bun run build
 ./agenteval lint
 ```
 
-## Usage
+## Commands
+
+### `agenteval lint` — Static analysis
+
+Analyze instruction files for quality issues without running any agents.
 
 ```bash
-# Lint instruction files in current directory (auto-discovers CLAUDE.md, AGENTS.md, etc.)
-agenteval lint
+agenteval lint                          # Auto-discover and lint instruction files
+agenteval lint "CLAUDE.md" ".claude/**" # Lint specific files
+agenteval lint --format json            # JSON output for CI
+agenteval lint --format markdown        # Markdown report
+agenteval lint --severity error         # Only show errors
+agenteval lint --quiet                  # Errors only, minimal output
+```
 
-# Lint specific files
-agenteval lint "CLAUDE.md" ".claude/**/*.md"
+### `agenteval run` — Eval runner
 
-# JSON output (for CI pipelines)
-agenteval lint --format json
+Run an AI coding agent against a task and measure the outcome.
 
-# Markdown report
-agenteval lint --format markdown > report.md
+```bash
+agenteval run --task tasks/refactor.yaml             # Run from task YAML
+agenteval run --task "refactor the auth module"      # Ad-hoc inline task
+agenteval run --task refactor --harness claude-code  # Specify harness
+agenteval run --task tasks/auth.yaml --harness mock  # Test with mock adapter
+```
 
-# Only show errors (skip warnings and info)
-agenteval lint --severity error
+The runner creates an isolated git worktree, injects your instructions, spawns the agent, captures the git diff and test results, scores the outcome, and saves a structured result.
 
-# Quiet mode (errors only, minimal output)
-agenteval lint --quiet
+### `agenteval results` — View stored results
+
+```bash
+agenteval results                    # List all runs (table)
+agenteval results --task auth        # Filter by task name
+agenteval results --harness mock     # Filter by harness
+agenteval results --export json      # Export as JSON
+agenteval results --export markdown  # Export as markdown
+agenteval results --prune            # Delete results older than retention period
+```
+
+### `agenteval compare` — Compare instruction versions
+
+```bash
+agenteval compare run-A run-B                # Side-by-side console table
+agenteval compare run-A run-B --format json  # Machine-readable JSON
+agenteval compare run-A run-B --report       # Markdown report
 ```
 
 ### Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| 0 | No errors found |
-| 1 | Lint errors detected |
+| 0 | No errors found / run successful |
+| 1 | Lint errors detected / run failed |
 | 2 | Runtime/configuration error |
 
 ## Lint Rules
@@ -75,15 +100,48 @@ agenteval lint --quiet
 | `skill/description-second-person` | "You can..." in description | warning |
 | `skill/body-too-long` | SKILL.md body >500 lines | warning |
 
-## Inline Suppression
+## Harness Adapters
 
-Suppress rules for the next section using HTML comments:
+| Adapter | Harness | How it works |
+|---------|---------|-------------|
+| `claude-code` | Claude Code CLI | Spawns `claude --print --dangerously-skip-permissions` |
+| `generic` | Any CLI agent | Configurable command + args in agenteval.yaml |
+| `mock` | Testing | Deterministic file changes, no real agent |
+
+## Task Definition
+
+```yaml
+# tasks/refactor-auth.yaml
+name: refactor-auth
+description: "Refactor auth to use structured logger"
+prompt: "Replace console.log in src/auth/ with logger.info from src/utils/logger.ts"
+harness: auto
+timeout: 120
+
+assertions:
+  - type: files-changed
+    pattern: "src/auth/**"
+    expect: modified
+  - type: files-unchanged
+    pattern: "src/billing/**"
+  - type: test-pass
+    command: "bun test"
+  - type: convention
+    pattern: "logger\\.info"
+    expect: present-in-changes
+
+scoring:
+  correctness: 0.4
+  precision: 0.3
+  efficiency: 0.2
+  conventions: 0.1
+```
+
+## Inline Suppression
 
 ```markdown
 <!-- agenteval-disable token-count -->
 ## This Section Won't Trigger Token Warnings
-
-Large content here...
 
 <!-- agenteval-disable -->
 ## This Section Suppresses All Rules
@@ -91,48 +149,57 @@ Large content here...
 
 ## Configuration
 
-Create `agenteval.yaml` in your project root (optional, sensible defaults used if missing):
-
 ```yaml
+# agenteval.yaml
 version: 1
 
-# Glob patterns for instruction files
 instructionGlobs:
   - "CLAUDE.md"
   - "AGENTS.md"
   - ".github/copilot-instructions.md"
-  - ".claude/**/*.md"
 
-# Target model (determines context window size)
 model: claude-sonnet-4-20250514
-
-# Max fraction of context window for instructions
 contextBudget: 0.3
 
 lint:
-  overlapThreshold: 0.3    # Jaccard similarity threshold
-  bloatThreshold: 0.5      # Density score below this is flagged
-  maxTokensPerFile: 8000   # Per-file token limit
-  antiPatterns: []          # Additional regex patterns
-  ignore:                   # Files to skip
+  overlapThreshold: 0.3
+  bloatThreshold: 0.5
+  maxTokensPerFile: 8000
+  antiPatterns: []
+  ignore:
     - "docs/archive/**"
+
+run:
+  timeout: 300
+  tokensBudget: 50000
+  resultsDir: ".agenteval/results"
+  resultRetention: "90d"
+
+harnesses:
+  claude-code:
+    command: "claude"
+    args: ["--print", "--dangerously-skip-permissions"]
+  my-custom-agent:
+    command: "my-agent"
+    args: ["--run"]
+    instructionPath: "AGENTS.md"
 ```
 
 ## Token Counting
 
-Token counts use OpenAI's cl100k_base tokenizer (via js-tiktoken) for offline speed. Counts are labeled as `~estimated` since Claude uses a different tokenizer (~10-15% variance). Exact counting via Anthropic API is planned for a future release.
+Token counts use OpenAI's cl100k_base tokenizer (via js-tiktoken) for offline speed. Counts are labeled as `~estimated` since Claude uses a different tokenizer (~10-15% variance).
 
 ## Roadmap
 
-- **v0.1.0** (current): Static linter with 7 rule categories
-- **v0.2.0** (planned): Eval runner with harness adapters (Claude Code, OpenCode)
+- **v0.1.x** (shipped): Static linter with 7 rule categories, 24 rules
+- **v0.2.x** (current): Eval runner, harness adapters, result store, compare
 - **v0.3.0** (planned): Git history mining for eval datasets
 
 ## Development
 
 ```bash
 bun install          # install dependencies
-bun test             # run all tests (102 tests)
+bun test             # run all tests (154 tests)
 bun run dev -- lint  # run CLI in dev mode
 bun run build        # compile to binary
 bun run check        # lint + typecheck + test

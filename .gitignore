@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.agenteval/
+*.tgz
+agenteval
+agenteval-linux-*
+agenteval-darwin-*
+agenteval-windows-*
+.env
+.env.*
+*.log

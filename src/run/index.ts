@@ -214,8 +214,7 @@ async function runAssertionCommands(
 		if (assertion.type !== "test-pass" && assertion.type !== "no-new-warnings") continue;
 		if (!assertion.command) continue;
 
-		const parts = assertion.command.split(" ");
-		const proc = Bun.spawn(parts, {
+		const proc = Bun.spawn(["sh", "-c", assertion.command], {
 			cwd: worktreePath,
 			stdout: "pipe",
 			stderr: "pipe",

@@ -3,6 +3,7 @@ import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
 import { executeRun } from "../run/index.js";
 import { loadTask } from "../run/task-loader.js";
+import type { InstructionSet, StoredResult, TaskDefinition } from "../run/types.js";
 import { writeResult } from "../store/index.js";
 import { logger } from "../utils/logger.js";
 
@@ -12,6 +13,8 @@ interface RunOptions {
 	instructions?: string;
 	config?: string;
 }
+
+const VALID_HARNESSES = ["claude-code", "opencode", "copilot", "generic", "auto", "mock"];
 
 export function registerRunCommand(program: Command): void {
 	program
@@ -27,40 +30,59 @@ export function registerRunCommand(program: Command): void {
 				const config = loadConfig(options.config);
 				const task = loadTask(options.task, cwd);
 
-				if (options.harness) {
-					task.harness = options.harness as typeof task.harness;
-				}
-
-				const instructionFile = options.instructions ?? "CLAUDE.md";
-				const instructions = {
-					sourcePath: resolve(cwd, instructionFile),
-					targetFilename: instructionFile.split("/").pop() ?? "CLAUDE.md",
-				};
+				validateHarness(options, task);
+				const instructions = resolveInstructions(options, cwd);
 
 				logger.info(`Starting eval run: task="${task.name}" harness="${task.harness}"`);
-
 				const result = await executeRun(config, task, instructions, cwd);
 
 				const resultsDir = resolve(cwd, config.run.resultsDir);
 				writeResult(result, resultsDir);
-
-				if (result.status === "success") {
-					console.log(`\n✓ Run complete: ${result.id}`);
-					console.log(`  Score: ${result.scores.overall?.toFixed(2) ?? "N/A"}`);
-					console.log(`  Files changed: ${result.diffSummary}`);
-					if (result.metrics.tokensTotal !== null) {
-						console.log(`  Tokens: ~${result.metrics.tokensTotal}`);
-					}
-					console.log(`  Saved to: ${resultsDir}/${result.id}.json`);
-					process.exit(0);
-				}
-
-				console.error(`\n✗ Run ${result.status}: ${result.id}`);
-				console.error(`  ${result.error}`);
-				process.exit(1);
+				printResult(result, resultsDir);
 			} catch (err) {
 				logger.error(err instanceof Error ? err.message : String(err));
 				process.exit(2);
 			}
 		});
+}
+
+function validateHarness(options: RunOptions, task: TaskDefinition): void {
+	if (!options.harness) return;
+	if (!VALID_HARNESSES.includes(options.harness)) {
+		logger.error(`Unknown harness "${options.harness}". Valid: ${VALID_HARNESSES.join(", ")}`);
+		process.exit(2);
+	}
+	task.harness = options.harness as typeof task.harness;
+}
+
+function resolveInstructions(options: RunOptions, cwd: string): InstructionSet {
+	const instructionFile = options.instructions ?? "CLAUDE.md";
+	const resolvedPath = resolve(cwd, instructionFile);
+
+	if (!resolvedPath.startsWith(resolve(cwd))) {
+		logger.error(`Instruction path "${instructionFile}" escapes project directory`);
+		process.exit(2);
+	}
+
+	return {
+		sourcePath: resolvedPath,
+		targetFilename: instructionFile.split("/").pop() ?? "CLAUDE.md",
+	};
+}
+
+function printResult(result: StoredResult, resultsDir: string): void {
+	if (result.status === "success") {
+		console.log(`\n✓ Run complete: ${result.id}`);
+		console.log(`  Score: ${result.scores.overall?.toFixed(2) ?? "N/A"}`);
+		console.log(`  Files changed: ${result.diffSummary}`);
+		if (result.metrics.tokensTotal !== null) {
+			console.log(`  Tokens: ~${result.metrics.tokensTotal}`);
+		}
+		console.log(`  Saved to: ${resultsDir}/${result.id}.json`);
+		process.exit(0);
+	}
+
+	console.error(`\n✗ Run ${result.status}: ${result.id}`);
+	console.error(`  ${result.error}`);
+	process.exit(1);
 }

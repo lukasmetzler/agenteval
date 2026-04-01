@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { $ } from "bun";
+
+const expectedVersion = readFileSync(join(import.meta.dir, "../../VERSION"), "utf-8").trim();
 
 describe("CLI", () => {
 	test("--version prints version", async () => {
 		const result = await $`bun run src/cli.ts --version`.text();
-		expect(result.trim()).toBe("0.0.1");
+		expect(result.trim()).toBe(expectedVersion);
 	});
 
 	test("--help shows description", async () => {

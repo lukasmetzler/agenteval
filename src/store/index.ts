@@ -91,7 +91,7 @@ export function pruneResults(resultsDir: string, retentionDays: number): number 
 				logger.debug(`Pruned old result: ${file}`);
 			}
 		} catch {
-			// Skip corrupt files
+			logger.warn(`Skipping corrupt result file during prune: ${file}`);
 		}
 	}
 

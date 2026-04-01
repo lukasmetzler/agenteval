@@ -89,7 +89,17 @@ function evaluateTestPass(
 
 function evaluateConvention(assertion: TaskAssertion, diff: string): AssertionResult {
 	const pattern = assertion.pattern ?? "";
-	const regex = new RegExp(pattern);
+	let regex: RegExp;
+	try {
+		regex = new RegExp(pattern);
+	} catch {
+		return {
+			type: "convention",
+			expected: `valid regex: ${pattern}`,
+			actual: `invalid regex pattern: ${pattern}`,
+			passed: false,
+		};
+	}
 
 	// Check only added lines from the diff (lines starting with +, excluding +++ header)
 	const addedLines = diff

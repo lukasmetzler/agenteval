@@ -1,45 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import type { Config } from "../../src/config/schema.js";
 import {
 	DeadSectionAnalyzerRule,
 	extractFileReferences,
 	extractMarkdownLinks,
 } from "../../src/lint/deadSectionAnalyzer.js";
-import { countTokens } from "../../src/lint/tokenCounter.js";
-import type { LintContext, ParsedFile } from "../../src/lint/types.js";
-import { parseMarkdown } from "../../src/markdown/parser.js";
-import { extractSections, extractSuppressions } from "../../src/markdown/sections.js";
+import type { LintContext } from "../../src/lint/types.js";
+import { defaultConfig, makeParsedFile } from "../../tests/helpers.js";
 
 const fixturesDir = join(import.meta.dir, "../fixtures");
-
-function makeFile(content: string, path: string): ParsedFile {
-	const tree = parseMarkdown(content);
-	return {
-		path,
-		content,
-		tree,
-		sections: extractSections(tree, content),
-		suppressions: extractSuppressions(tree),
-		tokens: countTokens(content),
-		frontmatter: null,
-	};
-}
-
-const defaultConfig: Config = {
-	version: 1 as const,
-	instructionGlobs: [],
-	instructions: [],
-	model: "claude-sonnet-4-20250514",
-	contextBudget: 0.3,
-	lint: {
-		overlapThreshold: 0.3,
-		bloatThreshold: 0.5,
-		maxTokensPerFile: 8000,
-		antiPatterns: [],
-		ignore: [],
-	},
-};
 
 describe("extractMarkdownLinks", () => {
 	test("extracts relative links", () => {
@@ -87,7 +56,7 @@ describe("DeadSectionAnalyzerRule", () => {
 	const rule = new DeadSectionAnalyzerRule();
 
 	test("flags broken markdown links", async () => {
-		const file = makeFile(
+		const file = makeParsedFile(
 			"# Guide\n\nSee [missing guide](./nonexistent.md) for details.",
 			join(fixturesDir, "dead-refs/test.md"),
 		);
@@ -97,7 +66,7 @@ describe("DeadSectionAnalyzerRule", () => {
 	});
 
 	test("flags missing file references", async () => {
-		const file = makeFile(
+		const file = makeParsedFile(
 			"# Architecture\n\nSee the implementation in src/services/nonexistent.ts for details.",
 			join(fixturesDir, "dead-refs/CLAUDE.md"),
 		);
@@ -107,7 +76,7 @@ describe("DeadSectionAnalyzerRule", () => {
 	});
 
 	test("passes when referenced files exist", async () => {
-		const file = makeFile(
+		const file = makeParsedFile(
 			"# Fixtures\n\nSee [simple config](./simple/agenteval.yaml) for an example.",
 			join(fixturesDir, "test.md"),
 		);

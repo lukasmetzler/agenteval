@@ -1,9 +1,6 @@
 import type { Diagnostic, LintResult, Severity } from "../lint/types.js";
+import { basename } from "../utils/path.js";
 import type { OutputFormatter } from "./formatter.js";
-
-function basename(path: string): string {
-	return path.split("/").pop() ?? path;
-}
 
 function formatDiagnosticLine(d: Diagnostic): string {
 	return `- **${d.ruleId}** in \`${basename(d.filePath)}\`${d.line ? `:${d.line}` : ""} — ${d.message}`;

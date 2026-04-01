@@ -1,42 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { Config } from "../../src/config/schema.js";
 import {
 	OverlapDetectorRule,
 	computeNgrams,
 	jaccardSimilarity,
 } from "../../src/lint/overlapDetector.js";
-import { countTokens } from "../../src/lint/tokenCounter.js";
-import type { LintContext, ParsedFile } from "../../src/lint/types.js";
-import { parseMarkdown } from "../../src/markdown/parser.js";
-import { extractSections, extractSuppressions } from "../../src/markdown/sections.js";
-
-function makeFile(content: string, path: string): ParsedFile {
-	const tree = parseMarkdown(content);
-	return {
-		path,
-		content,
-		tree,
-		sections: extractSections(tree, content),
-		suppressions: extractSuppressions(tree),
-		tokens: countTokens(content),
-		frontmatter: null,
-	};
-}
-
-const defaultConfig: Config = {
-	version: 1 as const,
-	instructionGlobs: [],
-	instructions: [],
-	model: "claude-sonnet-4-20250514",
-	contextBudget: 0.3,
-	lint: {
-		overlapThreshold: 0.3,
-		bloatThreshold: 0.5,
-		maxTokensPerFile: 8000,
-		antiPatterns: [],
-		ignore: [],
-	},
-};
+import type { LintContext } from "../../src/lint/types.js";
+import { defaultConfig, makeParsedFile } from "../../tests/helpers.js";
 
 describe("computeNgrams", () => {
 	test("generates word-level n-grams", () => {
@@ -83,7 +52,7 @@ describe("OverlapDetectorRule", () => {
 	const rule = new OverlapDetectorRule();
 
 	test("returns empty for single file", async () => {
-		const file = makeFile(
+		const file = makeParsedFile(
 			"# Title\n\nSome content here with enough words to generate ngrams.",
 			"a.md",
 		);
@@ -95,8 +64,11 @@ describe("OverlapDetectorRule", () => {
 	test("detects overlap between similar files", async () => {
 		const sharedContent =
 			"Use TypeScript strict mode for all code. Prefer const over let. Use early returns for cleaner control flow. Always write unit tests for new functions.";
-		const a = makeFile(`# Backend\n\n${sharedContent}\n\nBackend specific stuff.`, "backend.md");
-		const b = makeFile(`# API\n\n${sharedContent}\n\nAPI specific stuff.`, "api.md");
+		const a = makeParsedFile(
+			`# Backend\n\n${sharedContent}\n\nBackend specific stuff.`,
+			"backend.md",
+		);
+		const b = makeParsedFile(`# API\n\n${sharedContent}\n\nAPI specific stuff.`, "api.md");
 
 		const ctx: LintContext = { config: defaultConfig, files: [a, b], cwd: "/tmp" };
 		const diags = await rule.run(ctx);
@@ -104,11 +76,11 @@ describe("OverlapDetectorRule", () => {
 	});
 
 	test("passes for completely different files", async () => {
-		const a = makeFile(
+		const a = makeParsedFile(
 			"# Authentication\n\nUse JWT tokens for session management. Validate on every request. Rotate keys monthly.",
 			"auth.md",
 		);
-		const b = makeFile(
+		const b = makeParsedFile(
 			"# Database\n\nUse PostgreSQL with connection pooling. Run migrations before deploy. Index foreign keys.",
 			"db.md",
 		);

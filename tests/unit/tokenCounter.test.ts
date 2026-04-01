@@ -1,49 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Config } from "../../src/config/schema.js";
 import { TokenCounterRule, countTokens } from "../../src/lint/tokenCounter.js";
-import type { LintContext, ParsedFile } from "../../src/lint/types.js";
-import { parseMarkdown } from "../../src/markdown/parser.js";
-import { extractSections, extractSuppressions } from "../../src/markdown/sections.js";
-
-function makeParsedFile(content: string, path = "test.md"): ParsedFile {
-	const tree = parseMarkdown(content);
-	const sections = extractSections(tree, content);
-	const tokens = countTokens(content);
-	for (const section of sections) {
-		section.tokens = countTokens(section.content);
-	}
-	return {
-		path,
-		content,
-		tree,
-		sections,
-		suppressions: extractSuppressions(tree),
-		tokens,
-		frontmatter: null,
-	};
-}
-
-function makeContext(files: ParsedFile[], overrides?: Partial<Config>): LintContext {
-	return {
-		config: {
-			version: 1 as const,
-			instructionGlobs: [],
-			instructions: [],
-			model: "claude-sonnet-4-20250514",
-			contextBudget: 0.3,
-			lint: {
-				overlapThreshold: 0.3,
-				bloatThreshold: 0.5,
-				maxTokensPerFile: 100,
-				antiPatterns: [],
-				ignore: [],
-			},
-			...overrides,
-		},
-		files,
-		cwd: "/tmp",
-	};
-}
+import { makeContext, makeParsedFile } from "../../tests/helpers.js";
 
 describe("countTokens", () => {
 	test("returns 0 for empty string", () => {

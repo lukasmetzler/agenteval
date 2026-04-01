@@ -1,0 +1,3 @@
+timeout: "not a number"
+assertions:
+  - type: "unknown-type"

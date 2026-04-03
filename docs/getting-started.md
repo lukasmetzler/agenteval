@@ -69,7 +69,7 @@ Run the help command to confirm everything works:
 agenteval --help
 ```
 
-You should see the list of available commands: `lint`, `run`, `harvest`, `results`, and `compare`.
+You should see the list of available commands: `lint`, `run`, `harvest`, `results`, `compare`, and `ci`.
 
 ## 5-Minute Quickstart
 
@@ -286,6 +286,39 @@ Export as JSON for further analysis:
 
 ```bash
 agenteval results --export json > results.json
+```
+
+### Step 6: Run CI regression checks
+
+Once you have harvested tasks, you can run all of them in one go and fail if any score drops below a threshold or regresses compared to the previous run:
+
+```bash
+agenteval ci
+```
+
+This is designed for CI pipelines. It discovers all YAML files in `tasks/harvested/`, runs each one, compares against the most recent previous result for the same task, and exits with code 1 if any task fails.
+
+Configure thresholds:
+
+```bash
+agenteval ci --min-score 0.7 --max-regression 0.05
+```
+
+Or set defaults in `agenteval.yaml`:
+
+```yaml
+ci:
+  tasksDir: "tasks/harvested"
+  minScore: 0.7
+  maxRegression: 0.05
+  instructions: "CLAUDE.md"
+```
+
+Example GitHub Actions step:
+
+```yaml
+- name: Eval regression check
+  run: agenteval ci
 ```
 
 ## Project Structure
@@ -507,4 +540,5 @@ The default retention is 90 days, configurable via `run.resultRetention` in `age
 | Run an AI agent against a task and score it | `agenteval run` | [Running Evals](run.md) |
 | View and filter stored results | `agenteval results` | [Results and Comparison](results.md) |
 | Compare two eval runs side-by-side | `agenteval compare` | [Results and Comparison](results.md) |
+| Run regression checks in CI | `agenteval ci` | [CI Guide](ci.md) |
 | Customize agenteval behavior | Edit `agenteval.yaml` | [Configuration Reference](configuration.md) |

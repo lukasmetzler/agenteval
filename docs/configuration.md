@@ -161,6 +161,22 @@ liveReview:
       enabled: true
       weight: 1.0
 
+# ─── CI Settings ─────────────────────────────────────────
+
+ci:
+  # Directory containing task YAML files to run.
+  tasksDir: "tasks/harvested"
+
+  # Minimum acceptable score (0-1). Tasks scoring below this fail.
+  minScore: 0.5
+
+  # Maximum allowed score regression vs the previous run (0-1).
+  # If a task's score drops more than this compared to its last run, it fails.
+  maxRegression: 0.1
+
+  # Instruction file to inject for all tasks.
+  instructions: "CLAUDE.md"
+
 # ─── Harness Adapters ─────────────────────────────────────
 
 # Custom harness configurations.
@@ -220,6 +236,15 @@ harnesses:
 | `minConfidence` | number | `0.5` | 0.0-1.0 | Detection confidence threshold. |
 | `defaultHarness` | string | `auto` | Valid harness name | Harness field in generated tasks. |
 | `defaultTimeout` | number | `300` | >= 1 | Timeout field in generated tasks (seconds). |
+
+### `ci` Section
+
+| Field | Type | Default | Validation | Description |
+|-------|------|---------|------------|-------------|
+| `tasksDir` | string | `tasks/harvested` | | Directory containing task YAML files to run. |
+| `minScore` | number | `0.5` | 0.0-1.0 | Minimum acceptable score. Tasks below this fail. |
+| `maxRegression` | number | `0.1` | 0.0-1.0 | Maximum allowed score drop vs previous run. |
+| `instructions` | string | `CLAUDE.md` | | Instruction file to inject for all tasks. |
 
 ### `liveReview` Section
 

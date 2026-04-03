@@ -49,6 +49,7 @@ You will see diagnostics like dead references, token bloat, and overlap between 
 | `agenteval run` | Run an agent against a task and score it | [Running Evals](docs/run.md) |
 | `agenteval results` | View and export stored eval results | [Results](docs/results.md) |
 | `agenteval compare` | Compare two runs side by side | [Results](docs/results.md) |
+| `agenteval ci` | Run all harvested tasks, fail on regression | [CI Guide](docs/ci.md) |
 
 ## Documentation
 

@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import { diffInstructionSnapshots } from "../harvest/snapshot.js";
 import type { StoredResult } from "../run/types.js";
 import type { ComparisonMetric, ComparisonReport } from "./types.js";
@@ -103,7 +104,7 @@ function formatScore(score: number | null): string {
 export function formatComparisonConsole(report: ComparisonReport): string {
 	const lines: string[] = [];
 
-	lines.push(`Comparing: ${report.runA.id} vs ${report.runB.id}`);
+	lines.push(`${chalk.bold("Comparing:")} ${report.runA.id} vs ${report.runB.id}`);
 	lines.push("");
 	lines.push(formatConsoleHeader(report));
 	lines.push(`  ${"─".repeat(60)}`);
@@ -162,7 +163,7 @@ export function formatComparisonMarkdown(report: ComparisonReport): string {
 }
 
 function formatConsoleHeader(report: ComparisonReport): string {
-	return `  ${"Metric".padEnd(20)} ${report.runA.id.padStart(12)} ${report.runB.id.padStart(12)}   Delta`;
+	return `  ${chalk.dim("Metric".padEnd(20))} ${report.runA.id.padStart(12)} ${report.runB.id.padStart(12)}   ${chalk.dim("Delta")}`;
 }
 
 function formatConsoleMetrics(report: ComparisonReport): string[] {
@@ -170,13 +171,19 @@ function formatConsoleMetrics(report: ComparisonReport): string[] {
 		const a = formatScore(m.valueA).padStart(12);
 		const b = formatScore(m.valueB).padStart(12);
 		const delta = m.delta !== null ? formatDelta(m.delta) : "";
-		const indicator = m.better === "a" ? " ◀" : m.better === "b" ? " ▶" : "";
+		let indicator = "";
+		if (m.better === "a") indicator = ` ${chalk.red("◀")}`;
+		else if (m.better === "b") indicator = ` ${chalk.green("▶")}`;
+		else if (m.better === "tie") indicator = ` ${chalk.dim("—")}`;
 		return `  ${m.name.padEnd(20)} ${a} ${b}${delta}${indicator}`;
 	});
 }
 
 function formatDelta(delta: number): string {
-	return `  ${delta > 0 ? "+" : ""}${delta.toFixed(2)}`;
+	const str = `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`;
+	if (delta > 0) return `  ${chalk.green(str)}`;
+	if (delta < 0) return `  ${chalk.red(str)}`;
+	return `  ${str}`;
 }
 
 function formatConsoleTokens(report: ComparisonReport): string {
@@ -197,6 +204,19 @@ function hasNonUnchanged(
 	return Object.values(diff).some((status) => status !== "unchanged");
 }
 
+function colorizeInstructionStatus(status: "added" | "removed" | "changed" | "unchanged"): string {
+	switch (status) {
+		case "added":
+			return chalk.green(status);
+		case "removed":
+			return chalk.red(status);
+		case "changed":
+			return chalk.yellow(status);
+		case "unchanged":
+			return chalk.dim(status);
+	}
+}
+
 function formatConsoleInstructionDiff(report: ComparisonReport): string[] {
 	if (!report.instructionDiff || !hasNonUnchanged(report.instructionDiff)) {
 		return [];
@@ -206,7 +226,7 @@ function formatConsoleInstructionDiff(report: ComparisonReport): string[] {
 	lines.push("  Instruction Changes");
 	lines.push(`  ${"─".repeat(40)}`);
 	for (const [file, status] of Object.entries(report.instructionDiff)) {
-		lines.push(`  ${file.padEnd(24)} ${status}`);
+		lines.push(`  ${file.padEnd(24)} ${colorizeInstructionStatus(status)}`);
 	}
 	return lines;
 }

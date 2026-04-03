@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
 import { listResults, parseRetention, pruneResults } from "../store/index.js";
@@ -80,6 +81,21 @@ function outputResults(
 	process.exit(0);
 }
 
+function colorizeResultScore(score: number | null): string {
+	if (score === null) return "N/A";
+	const str = score.toFixed(2);
+	if (score >= 0.7) return chalk.green(str);
+	if (score >= 0.4) return chalk.yellow(str);
+	return chalk.red(str);
+}
+
+function colorizeStatus(status: string): string {
+	if (status === "success") return chalk.green(status);
+	if (status === "error") return chalk.red(status);
+	if (status === "timeout") return chalk.yellow(status);
+	return status;
+}
+
 function printConsoleTable(
 	results: {
 		id: string;
@@ -91,14 +107,16 @@ function printConsoleTable(
 ): void {
 	console.log(`\n${results.length} result(s):\n`);
 	console.log(
-		`  ${"ID".padEnd(25)} ${"Task".padEnd(20)} ${"Harness".padEnd(14)} ${"Score".padEnd(8)} Status`,
+		chalk.dim(
+			`  ${"ID".padEnd(25)} ${"Task".padEnd(20)} ${"Harness".padEnd(14)} ${"Score".padEnd(8)} Status`,
+		),
 	);
 	console.log(`  ${"─".repeat(75)}`);
 
 	for (const r of results) {
-		const score = r.scores.overall !== null ? r.scores.overall.toFixed(2) : "N/A";
+		const score = colorizeResultScore(r.scores.overall).padEnd(8);
 		console.log(
-			`  ${r.id.padEnd(25)} ${r.task.padEnd(20)} ${r.harness.padEnd(14)} ${score.padEnd(8)} ${r.status}`,
+			`  ${r.id.padEnd(25)} ${r.task.padEnd(20)} ${r.harness.padEnd(14)} ${score} ${colorizeStatus(r.status)}`,
 		);
 	}
 	console.log("");

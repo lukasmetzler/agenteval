@@ -86,6 +86,76 @@ The `--task` value is resolved in this order:
 
 ---
 
+## Practical workflow: testing instruction changes
+
+This walkthrough shows how to use `agenteval run` to measure the impact of an instruction file change.
+
+### Step 1: Define a task
+
+Create `tasks/add-error-handling.yaml`:
+
+```yaml
+name: add-error-handling
+description: "Add try/catch error handling to all API route handlers"
+prompt: "Add proper error handling with try/catch to every route handler in src/api/. Return 500 with a JSON error body on failure. Log the error with logger.error."
+timeout: 180
+
+assertions:
+	- type: files-changed
+	  pattern: "src/api/**/*.ts"
+	- type: files-unchanged
+	  pattern: "src/models/**"
+	- type: test-pass
+	  command: "bun test"
+	- type: no-new-warnings
+	  command: "bun run lint"
+	- type: convention
+	  pattern: "catch\\s*\\("
+	  expect: present-in-changes
+	- type: convention
+	  pattern: "console\\.log"
+
+scoring:
+	correctness: 0.4
+	precision: 0.3
+	efficiency: 0.1
+	conventions: 0.2
+```
+
+### Step 2: Run the baseline
+
+```bash
+agenteval run --task add-error-handling
+```
+
+Note the run ID and score from the output.
+
+### Step 3: Edit your instructions
+
+Modify `CLAUDE.md` to add guidance about error handling patterns. For example, add a section explaining the project's error handling conventions.
+
+### Step 4: Run again
+
+```bash
+agenteval run --task add-error-handling
+```
+
+### Step 5: Compare
+
+```bash
+agenteval compare --baseline run-20260401-143022 --candidate run-20260401-144510
+```
+
+The comparison shows score deltas per dimension and highlights which assertions flipped between pass and fail.
+
+---
+
+## Reference
+
+The sections below are reference material. You don't need to read them all before running your first eval.
+
+---
+
 ## Task definition format
 
 A task YAML file describes what to ask the agent, how long to wait, what to check, and how to score the result.
@@ -549,70 +619,6 @@ run:
   resultsDir: ".agenteval/results"
   worktreesDir: ".agenteval/worktrees"
 ```
-
----
-
-## Practical workflow: testing instruction changes
-
-This walkthrough shows how to use `agenteval run` to measure the impact of an instruction file change.
-
-### Step 1: Define a task
-
-Create `tasks/add-error-handling.yaml`:
-
-```yaml
-name: add-error-handling
-description: "Add try/catch error handling to all API route handlers"
-prompt: "Add proper error handling with try/catch to every route handler in src/api/. Return 500 with a JSON error body on failure. Log the error with logger.error."
-timeout: 180
-
-assertions:
-  - type: files-changed
-    pattern: "src/api/**/*.ts"
-  - type: files-unchanged
-    pattern: "src/models/**"
-  - type: test-pass
-    command: "bun test"
-  - type: no-new-warnings
-    command: "bun run lint"
-  - type: convention
-    pattern: "catch\\s*\\("
-    expect: present-in-changes
-  - type: convention
-    pattern: "console\\.log"
-
-scoring:
-  correctness: 0.4
-  precision: 0.3
-  efficiency: 0.1
-  conventions: 0.2
-```
-
-### Step 2: Run the baseline
-
-```bash
-agenteval run --task add-error-handling
-```
-
-Note the run ID and score from the output.
-
-### Step 3: Edit your instructions
-
-Modify `CLAUDE.md` to add guidance about error handling patterns. For example, add a section explaining the project's error handling conventions.
-
-### Step 4: Run again
-
-```bash
-agenteval run --task add-error-handling
-```
-
-### Step 5: Compare
-
-```bash
-agenteval compare --baseline run-20260401-143022 --candidate run-20260401-144510
-```
-
-The comparison shows score deltas per dimension and highlights which assertions flipped between pass and fail.
 
 ---
 

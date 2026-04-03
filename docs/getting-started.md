@@ -1,5 +1,7 @@
 # Getting Started with agenteval
 
+New to agenteval? Read [Core Concepts](concepts.md) first to understand the terminology.
+
 ## The Problem
 
 Every team using AI coding tools has instruction files -- CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions.md -- but nobody tests them. You write a rule like "always use structured logging" and hope the agent follows it. You add a section about your testing conventions and have no idea if it changes the agent's behavior. Instructions accumulate, bloat, contradict each other, and rot.
@@ -177,7 +179,7 @@ tasks/harvested/
   refactor-db-connection-pool.yaml
 ```
 
-Each task file contains a prompt, expected file changes, and scoring weights derived from the original commit. You can edit these files to refine the assertions.
+Each task file contains a prompt, expected file changes, and scoring weights derived from the original commit. You can edit these files to refine the expected outcomes (called assertions).
 
 If no AI commits are detected, the tool suggests lowering the confidence threshold:
 
@@ -194,6 +196,8 @@ agenteval harvest --live                  # Heuristic rubrics (scope, tests, hyg
 agenteval harvest --live --analyze        # + LLM-assisted rubrics (conventions, scope)
 ```
 
+If you haven't used an AI coding tool yet, skip the harvest step. You can write task YAML files by hand instead -- see [Running Evals](run.md) for the task format.
+
 See the [Harvesting Guide](harvest.md) for full details on live review, GitHub enrichment (`--github`), and instruction snapshots.
 
 ### Step 3: Run an eval
@@ -206,7 +210,7 @@ agenteval run --task tasks/harvested/fix-auth-token-refresh.yaml
 
 What happens behind the scenes:
 
-1. agenteval creates an isolated git worktree (so your working tree is untouched)
+1. agenteval creates an isolated copy of your repo (a git worktree) so your working tree is untouched
 2. It copies your instruction file (default: `CLAUDE.md`) into the worktree
 3. It spawns the configured AI agent with the task prompt
 4. When the agent finishes (or times out), agenteval captures the diff
@@ -394,7 +398,7 @@ scoring:
 
 ## Supported Harnesses
 
-A harness is the adapter between agenteval and an AI coding tool. Each harness knows how to inject instructions and spawn the agent.
+A harness is the adapter between agenteval and your AI tool (called a "harness" because it wraps the tool in a standard interface). Each harness knows how to inject instructions and spawn the agent.
 
 | Harness | Tool | Status |
 |---|---|---|
@@ -497,6 +501,7 @@ The default retention is 90 days, configurable via `run.resultRetention` in `age
 
 | I want to... | Command | Guide |
 |---|---|---|
+| Understand the core concepts first | | [Core Concepts](concepts.md) |
 | Check instruction files for quality issues | `agenteval lint` | [Linting Guide](lint.md) |
 | Build eval tasks from git history | `agenteval harvest` | [Harvesting Guide](harvest.md) |
 | Run an AI agent against a task and score it | `agenteval run` | [Running Evals](run.md) |

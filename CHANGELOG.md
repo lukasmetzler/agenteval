@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-04-03
+
+Phase 3.1 "The Observatory". Instruction snapshots, live review, GitHub enrichment.
+
+### Added
+
+- **Instruction snapshotter**: every harvested task now captures the CLAUDE.md/AGENTS.md content that was in effect at the commit, stored inline as `instructionSnapshot` in the task YAML. Enables A/B comparison of instruction quality across commits.
+- **Live review mode** (`harvest --live`): analyze your current working tree diff against three heuristic rubrics:
+  - `scope-discipline` — measures change concentration across directories (0-10)
+  - `test-coverage` — ratio of test files to implementation files (0-10)
+  - `diff-hygiene` — detects console.log, debugger, formatting-only hunks (0-10)
+- **GitHub API enrichment** (`harvest --github`): optional flag enriches harvested tasks with PR body, URL, and labels via `gh` CLI. Terse commit messages get PR context appended to the task prompt. Zero new npm dependencies.
+- Extended `TaskDefinition` with optional fields: `sourceCommit`, `instructionSnapshot`, `prUrl`, `prBody`, `detectionConfidence`, `harvestDate`
+- `AICommit` now includes `detectedTool` field (e.g. "claude", "copilot", "cursor")
+- `detectSignals()` returns the matched tool name alongside method and confidence
+- Expanded AI tool detection to 14 tools (added Amazon Q, Gemini/Jules, Codeium/Windsurf, Tabnine, Sourcegraph Cody, Codex CLI, Sweep, Grit.io, Continue.dev)
+- Broadened message pattern detection for `auto-generated`, `ai-generated`, and co-author mentions of copilot/cursor/gemini/codex
+- Documentation quality gate: minor releases must ship with docs/ updates
+
+### Changed
+
+- `emitTaskYaml()` accepts optional metadata parameter for snapshots and PR info
+- `harvest()` now loads config to resolve `instructionGlobs` for snapshot capture
+- `RawCommit` type exported from `types.ts` (previously internal to `detect.ts`)
+- `HarvestResult` includes optional `liveReview` field for live mode results
+
 ## [0.3.2] - 2026-04-01
 
 ### Fixed

@@ -36,6 +36,8 @@ agenteval harvest [options]
 | `--harness <name>` | string | `auto` | Sets the `harness` field in every generated task file. Options: `claude-code`, `opencode`, `copilot`, `generic`, `auto`. |
 | `--timeout <seconds>` | integer | `300` | Sets the `timeout` field in every generated task file. |
 | `--min-confidence <n>` | float | `0.5` | Minimum detection confidence threshold (0.0 to 1.0). Lower values find more commits but increase false positives. |
+| `--github` | boolean | `false` | Enrich tasks with PR body, URL, and labels from GitHub. Requires `gh` CLI authenticated via `gh auth login`. |
+| `--live` | boolean | `false` | Review current working tree changes against heuristic rubrics instead of mining git history. See [Live Review Mode](#live-review-mode). |
 | `--config <path>`, `-c` | string | auto-discover | Path to `agenteval.yaml` configuration file. |
 
 ## Detection System
@@ -308,6 +310,79 @@ Running `harvest` multiple times is safe:
 - Use `--force` to regenerate all files (overwrites existing)
 - New commits since the last harvest are detected and new files are created
 - The `--since` flag lets you harvest only recent commits
+
+## Instruction Snapshots
+
+Every harvested task automatically captures the instruction files (CLAUDE.md, AGENTS.md, etc.) that were in effect at the parent commit. This is stored inline in the YAML as an `instructionSnapshot` map:
+
+```yaml
+name: harvest-abc123d
+prompt: Add user auth
+instructionSnapshot:
+  CLAUDE.md: |
+    # My Project
+    ## Conventions
+    - Use TypeScript strict mode
+    - All new features need tests
+sourceCommit: abc123def456789
+detectionConfidence: 0.9
+harvestDate: "2026-04-03T10:00:00Z"
+```
+
+This enables A/B comparison: change your CLAUDE.md, re-run the same harvested tasks, and measure whether the instruction changes improved agent performance.
+
+The snapshot uses the `instructionGlobs` from your `agenteval.yaml` config (defaults to CLAUDE.md, AGENTS.md, .github/copilot-instructions.md, etc.). Files that don't exist at that commit are silently skipped.
+
+## GitHub Enrichment
+
+The `--github` flag uses the `gh` CLI to fetch PR metadata for each detected commit:
+
+```bash
+agenteval harvest --github --dry-run
+```
+
+When a merged PR is found for a commit:
+- `prUrl` and `prBody` fields are added to the task YAML
+- If the commit message is terse (< 20 characters after prefix stripping), the PR body is appended to the task prompt as additional context
+
+**Requirements:**
+- `gh` CLI installed ([cli.github.com](https://cli.github.com/))
+- Authenticated via `gh auth login`
+- The repo must be hosted on GitHub
+
+If `gh` is not installed or not authenticated, the `--github` flag prints a clear error message.
+
+## Live Review Mode
+
+The `--live` flag analyzes your current working tree changes (staged + unstaged) against heuristic rubrics:
+
+```bash
+agenteval harvest --live
+```
+
+```
+  Live Review
+  ===========
+
+  Files analyzed: 7
+  Overall score:  7.3/10
+
+  Rubric              Score  Details
+  ──────────────────  ─────  ─────────────────────────────
+  scope-discipline     8/10  7 files across 2 directories
+  test-coverage        5/10  1 test file, 6 impl files
+  diff-hygiene         9/10  Found 1 console.log statement
+```
+
+### Rubrics
+
+**scope-discipline** (0-10): Measures change concentration. How many top-level directories are touched? Focused changes (1-2 directories) score high; scattered changes across 5+ directories score low.
+
+**test-coverage** (0-10): Ratio of test files to implementation files in the diff. Detects test files via `test`, `spec`, `__tests__` patterns. Score 0 if you changed 4+ implementation files with zero tests.
+
+**diff-hygiene** (0-10): Detects common issues in the diff: `console.log`/`debugger` statements, TODO/FIXME/HACK comments, and formatting-only hunks. Starts at 10, loses 1 point per issue found.
+
+All rubrics are pure functions with no external dependencies. Execution takes <1 second.
 
 ## Edge Cases and Limitations
 

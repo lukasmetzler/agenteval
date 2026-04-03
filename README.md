@@ -79,9 +79,11 @@ agenteval harvest --output tasks/harvested/    # Custom output directory
 agenteval harvest --min-confidence 0.3         # Lower detection threshold
 agenteval harvest --format json                # JSON output
 agenteval harvest --harness claude-code        # Set harness in emitted tasks
+agenteval harvest --github                     # Enrich with PR body/labels (requires gh CLI)
+agenteval harvest --live                       # Review working tree changes against rubrics
 ```
 
-Detection heuristics: Co-authored-by trailers (Claude, Copilot, Cursor, Devin, Aider), author email patterns, commit message patterns. Each method has a confidence score (0.6-0.9). Emitted YAML is compatible with `agenteval run --task`.
+Detects 14 AI coding tools via Co-authored-by trailers, author email patterns, and commit message patterns. Each method has a confidence score (0.6-0.9). Emitted YAML includes instruction snapshots (CLAUDE.md at commit time) and is compatible with `agenteval run --task`.
 
 ### `agenteval compare` — Compare instruction versions
 
@@ -227,14 +229,15 @@ Token counts use OpenAI's cl100k_base tokenizer (via js-tiktoken) for offline sp
 
 - **v0.1.x** (shipped): Static linter with 7 rule categories, 24 rules
 - **v0.2.x** (shipped): Eval runner, harness adapters, result store, compare
-- **v0.3.0** (current): Git history mining for eval datasets (`agenteval harvest`)
-- **v0.4.0** (planned): Live review mode, GitHub API enrichment, instruction snapshots
+- **v0.3.x** (shipped): Git history mining for eval datasets (`agenteval harvest`)
+- **v0.4.0** (current): Live review mode, GitHub API enrichment, instruction snapshots
+- **v0.5.0** (planned): LLM-assisted rubrics, detector plugin registry
 
 ## Development
 
 ```bash
 bun install          # install dependencies
-bun test             # run all tests (193 tests)
+bun test             # run all tests (254 tests)
 bun run dev -- lint  # run CLI in dev mode
 bun run build        # compile to binary
 bun run check        # lint + typecheck + test

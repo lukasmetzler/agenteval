@@ -85,6 +85,16 @@ export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
 		why: "Broken links signal unmaintained instructions.",
 		fix: "Fix the link target or remove the link.",
 	},
+	"dead-ref/broken-anchor": {
+		what: "Checks that heading anchors (#section-name) point to actual headings.",
+		why: "Broken heading links confuse readers and agents trying to navigate instructions.",
+		fix: "Fix the anchor to match an existing heading, or add the missing heading.",
+	},
+	"dead-ref/undefined-reference": {
+		what: "Checks that reference-style links [text][ref] have corresponding [ref]: url definitions.",
+		why: "Undefined references render as literal text instead of links.",
+		fix: "Add the missing reference definition or switch to inline link syntax.",
+	},
 	"context-budget/exceeded": {
 		what: "Checks if total instruction tokens exceed the configured context budget.",
 		why: "Instructions that exceed the budget leave insufficient room for the agent to work.",

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-04-03
+
+### Added
+
+- New `src/output/terminal.ts` shared formatting helpers: `stripAnsi`, ANSI-safe `padEnd`, `header`, `rule`, `kvLine`, `scoreColor`
+- Lint diagnostics grouped by file with tree-line prefix for visual structure
+- Box-drawing tables for live review, compare, and results commands
+- Separator row before "Overall" in comparison tables
+
+### Changed
+
+- All CLI output uses consistent visual language: same headers, indent levels, box characters
+- ANSI-safe column alignment throughout (fixes chalk-colored strings breaking padEnd)
+- Harvest dry-run uses key-value layout with counts in parentheses
+- Results listing rendered as proper box-drawing table
+
 ## [0.5.2] - 2026-04-03
 
 ### Added

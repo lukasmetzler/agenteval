@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { stripAnsi } from "../../src/output/terminal.js";
 import type { StoredResult } from "../../src/run/types.js";
 import {
 	compareResults,
@@ -142,10 +143,11 @@ describe("formatComparisonConsole", () => {
 		});
 
 		const output = formatComparisonConsole(compareResults(runA, runB));
-		expect(output).toContain("run-A");
-		expect(output).toContain("run-B");
-		expect(output).toContain("Winner");
-		expect(output).toContain("correctness");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("run-A");
+		expect(plain).toContain("run-B");
+		expect(plain).toContain("Winner");
+		expect(plain).toContain("Correctness");
 	});
 });
 
@@ -243,9 +245,10 @@ describe("snapshot-aware comparison", () => {
 		});
 
 		const output = formatComparisonConsole(compareResults(runA, runB));
-		expect(output).toContain("Instruction Changes");
-		expect(output).toContain("CLAUDE.md");
-		expect(output).toContain("changed");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("Instruction Changes");
+		expect(plain).toContain("CLAUDE.md");
+		expect(plain).toContain("changed");
 	});
 
 	test("console format omits instruction section when all unchanged", () => {
@@ -260,7 +263,8 @@ describe("snapshot-aware comparison", () => {
 		});
 
 		const output = formatComparisonConsole(compareResults(runA, runB));
-		expect(output).not.toContain("Instruction Changes");
+		const plain = stripAnsi(output);
+		expect(plain).not.toContain("Instruction Changes");
 	});
 
 	test("markdown format includes instruction changes table", () => {

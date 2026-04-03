@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
+import { header, padEnd, scoreColor } from "../output/terminal.js";
 import { listResults, parseRetention, pruneResults } from "../store/index.js";
 import { logger } from "../utils/logger.js";
 
@@ -83,10 +84,7 @@ function outputResults(
 
 function colorizeResultScore(score: number | null): string {
 	if (score === null) return "N/A";
-	const str = score.toFixed(2);
-	if (score >= 0.7) return chalk.green(str);
-	if (score >= 0.4) return chalk.yellow(str);
-	return chalk.red(str);
+	return scoreColor(score, 1);
 }
 
 function colorizeStatus(status: string): string {
@@ -105,21 +103,32 @@ function printConsoleTable(
 		status: string;
 	}[],
 ): void {
-	console.log(`\n${results.length} result(s):\n`);
+	const idW = 26;
+	const taskW = 18;
+	const harnessW = 13;
+	const scoreW = 7;
+	const statusW = 9;
+
+	const border = (left: string, mid: string, right: string) =>
+		`  ${chalk.dim(`${left}${"─".repeat(idW)}${mid}${"─".repeat(taskW)}${mid}${"─".repeat(harnessW)}${mid}${"─".repeat(scoreW)}${mid}${"─".repeat(statusW)}${right}`)}`;
+
+	console.log(header(`Results (${results.length})`));
+	console.log(border("┌", "┬", "┐"));
 	console.log(
-		chalk.dim(
-			`  ${"ID".padEnd(25)} ${"Task".padEnd(20)} ${"Harness".padEnd(14)} ${"Score".padEnd(8)} Status`,
-		),
+		`  ${chalk.dim("│")} ${padEnd("ID", idW - 2)} ${chalk.dim("│")} ${padEnd("Task", taskW - 2)} ${chalk.dim("│")} ${padEnd("Harness", harnessW - 2)} ${chalk.dim("│")} ${padEnd("Score", scoreW - 2)} ${chalk.dim("│")} ${padEnd("Status", statusW - 2)} ${chalk.dim("│")}`,
 	);
-	console.log(`  ${"─".repeat(75)}`);
+	console.log(border("├", "┼", "┤"));
 
 	for (const r of results) {
-		const score = colorizeResultScore(r.scores.overall).padEnd(8);
+		const score = colorizeResultScore(r.scores.overall);
+		const status = colorizeStatus(r.status);
 		console.log(
-			`  ${r.id.padEnd(25)} ${r.task.padEnd(20)} ${r.harness.padEnd(14)} ${score} ${colorizeStatus(r.status)}`,
+			`  ${chalk.dim("│")} ${padEnd(r.id, idW - 2)} ${chalk.dim("│")} ${padEnd(r.task, taskW - 2)} ${chalk.dim("│")} ${padEnd(r.harness, harnessW - 2)} ${chalk.dim("│")} ${padEnd(score, scoreW - 2)} ${chalk.dim("│")} ${padEnd(status, statusW - 2)} ${chalk.dim("│")}`,
 		);
 	}
-	console.log("");
+
+	console.log(border("└", "┴", "┘"));
+	console.log();
 }
 
 function formatResultsMarkdown(

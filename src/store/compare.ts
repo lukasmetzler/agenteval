@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { diffInstructionSnapshots } from "../harvest/snapshot.js";
+import { header, padEnd } from "../output/terminal.js";
 import type { StoredResult } from "../run/types.js";
 import type { ComparisonMetric, ComparisonReport } from "./types.js";
 
@@ -104,14 +105,36 @@ function formatScore(score: number | null): string {
 export function formatComparisonConsole(report: ComparisonReport): string {
 	const lines: string[] = [];
 
-	lines.push(`${chalk.bold("Comparing:")} ${report.runA.id} vs ${report.runB.id}`);
+	lines.push(header("Comparison"));
+	lines.push(`  ${report.runA.id}  ${chalk.dim("vs")}  ${report.runB.id}`);
 	lines.push("");
-	lines.push(formatConsoleHeader(report));
-	lines.push(`  ${"─".repeat(60)}`);
-	lines.push(...formatConsoleMetrics(report));
-	lines.push("");
-	lines.push(formatConsoleTokens(report));
-	lines.push(formatConsoleStatus(report));
+
+	const metricW = 14;
+	const runW = 8;
+	const deltaW = 9;
+
+	const border = (left: string, mid: string, right: string) =>
+		`  ${chalk.dim(`${left}${"─".repeat(metricW)}${mid}${"─".repeat(runW)}${mid}${"─".repeat(runW)}${mid}${"─".repeat(deltaW)}${right}`)}`;
+
+	lines.push(border("┌", "┬", "┐"));
+	lines.push(
+		`  ${chalk.dim("│")} ${padEnd("Metric", metricW - 2)} ${chalk.dim("│")} ${padEnd("Run A", runW - 2)} ${chalk.dim("│")} ${padEnd("Run B", runW - 2)} ${chalk.dim("│")} ${padEnd("Delta", deltaW - 2)} ${chalk.dim("│")}`,
+	);
+	lines.push(border("├", "┼", "┤"));
+
+	const nonOverall = report.metrics.filter((m) => m.name !== "overall");
+	const overallMetric = report.metrics.find((m) => m.name === "overall");
+
+	for (const m of nonOverall) {
+		lines.push(formatTableRow(m, metricW, runW, deltaW));
+	}
+
+	if (overallMetric) {
+		lines.push(border("├", "┼", "┤"));
+		lines.push(formatTableRow(overallMetric, metricW, runW, deltaW));
+	}
+
+	lines.push(border("└", "┴", "┘"));
 
 	const instrLines = formatConsoleInstructionDiff(report);
 	if (instrLines.length > 0) {
@@ -120,7 +143,7 @@ export function formatComparisonConsole(report: ComparisonReport): string {
 	}
 
 	lines.push("");
-	lines.push(`  Winner: ${report.summary}`);
+	lines.push(`  ${chalk.bold("Winner:")} ${report.summary}`);
 
 	return lines.join("\n");
 }
@@ -162,40 +185,29 @@ export function formatComparisonMarkdown(report: ComparisonReport): string {
 	return lines.join("\n");
 }
 
-function formatConsoleHeader(report: ComparisonReport): string {
-	return `  ${chalk.dim("Metric".padEnd(20))} ${report.runA.id.padStart(12)} ${report.runB.id.padStart(12)}   ${chalk.dim("Delta")}`;
+function formatDelta(m: ComparisonMetric): string {
+	if (m.delta === null) return chalk.dim("\u2014");
+
+	const raw = `${m.delta > 0 ? "+" : ""}${m.delta.toFixed(2)}`;
+	const colored = m.delta > 0 ? chalk.green(raw) : m.delta < 0 ? chalk.red(raw) : raw;
+
+	const indicators: Record<string, string> = { b: " \u25B6", a: " \u25C0", tie: " \u2014" };
+	const indicator = indicators[m.better] ?? "";
+	return `${colored}${indicator ? chalk.dim(indicator) : ""}`;
 }
 
-function formatConsoleMetrics(report: ComparisonReport): string[] {
-	return report.metrics.map((m) => {
-		const a = formatScore(m.valueA).padStart(12);
-		const b = formatScore(m.valueB).padStart(12);
-		const delta = m.delta !== null ? formatDelta(m.delta) : "";
-		let indicator = "";
-		if (m.better === "a") indicator = ` ${chalk.red("◀")}`;
-		else if (m.better === "b") indicator = ` ${chalk.green("▶")}`;
-		else if (m.better === "tie") indicator = ` ${chalk.dim("—")}`;
-		return `  ${m.name.padEnd(20)} ${a} ${b}${delta}${indicator}`;
-	});
-}
+function formatTableRow(
+	m: ComparisonMetric,
+	metricW: number,
+	runW: number,
+	deltaW: number,
+): string {
+	const label = m.name.charAt(0).toUpperCase() + m.name.slice(1);
+	const a = formatScore(m.valueA);
+	const b = formatScore(m.valueB);
+	const deltaStr = formatDelta(m);
 
-function formatDelta(delta: number): string {
-	const str = `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`;
-	if (delta > 0) return `  ${chalk.green(str)}`;
-	if (delta < 0) return `  ${chalk.red(str)}`;
-	return `  ${str}`;
-}
-
-function formatConsoleTokens(report: ComparisonReport): string {
-	const tokensA = report.runA.metrics.tokensTotal;
-	const tokensB = report.runB.metrics.tokensTotal;
-	const tA = tokensA !== null ? `~${tokensA}` : "N/A";
-	const tB = tokensB !== null ? `~${tokensB}` : "N/A";
-	return `  ${"Tokens".padEnd(20)} ${tA.padStart(12)} ${tB.padStart(12)}`;
-}
-
-function formatConsoleStatus(report: ComparisonReport): string {
-	return `  ${"Status".padEnd(20)} ${report.runA.status.padStart(12)} ${report.runB.status.padStart(12)}`;
+	return `  ${chalk.dim("\u2502")} ${padEnd(label, metricW - 2)} ${chalk.dim("\u2502")} ${padEnd(a, runW - 2)} ${chalk.dim("\u2502")} ${padEnd(b, runW - 2)} ${chalk.dim("\u2502")} ${padEnd(deltaStr, deltaW - 2)} ${chalk.dim("\u2502")}`;
 }
 
 function hasNonUnchanged(
@@ -223,10 +235,10 @@ function formatConsoleInstructionDiff(report: ComparisonReport): string[] {
 	}
 
 	const lines: string[] = [];
-	lines.push("  Instruction Changes");
-	lines.push(`  ${"─".repeat(40)}`);
+	lines.push(`  ${chalk.bold("Instruction Changes")}`);
+	lines.push(`  ${chalk.dim("\u2500".repeat(19))}`);
 	for (const [file, status] of Object.entries(report.instructionDiff)) {
-		lines.push(`  ${file.padEnd(24)} ${colorizeInstructionStatus(status)}`);
+		lines.push(`  ${padEnd(file, 24)} ${colorizeInstructionStatus(status)}`);
 	}
 	return lines;
 }

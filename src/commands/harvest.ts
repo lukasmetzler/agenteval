@@ -3,6 +3,7 @@ import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
 import { harvest } from "../harvest/index.js";
 import type { HarvestOptions, HarvestResult, LiveReviewResult } from "../harvest/types.js";
+import { header, kvLine, padEnd, scoreColor } from "../output/terminal.js";
 import { logger } from "../utils/logger.js";
 
 interface HarvestCliOptions {
@@ -127,22 +128,21 @@ function validateOptions(options: HarvestOptions, cli: HarvestCliOptions): void 
 }
 
 function printDryRun(result: HarvestResult): void {
-	console.log(`\n  ${chalk.bold("Harvest Dry Run")}`);
-	console.log("  ═══════════════\n");
-	console.log(`  Commits scanned:   ${chalk.cyan(result.commitsScanned)}`);
-	console.log(`  AI commits found:  ${chalk.cyan(result.aiCommitsDetected)}`);
+	console.log(header("Harvest · Dry Run"));
+	console.log(kvLine("Scanned", chalk.cyan(String(result.commitsScanned))));
+	console.log(kvLine("Detected", `${chalk.cyan(String(result.aiCommitsDetected))} AI-assisted`));
 
 	if (result.tasks.length > 0) {
-		console.log("\n  Detected tasks:");
+		console.log(`\n  ${chalk.bold(`Detected tasks (${result.tasks.length})`)}`);
 		for (const name of result.tasks) {
-			console.log(`    ${chalk.green("•")} ${name}`);
+			console.log(`    ${chalk.green(name)}`);
 		}
 	}
 
 	if (result.skipped.length > 0) {
-		console.log(`\n  Skipped: ${result.skipped.length}`);
+		console.log(`\n  ${chalk.dim(`Skipped (${result.skipped.length})`)}`);
 		for (const { hash, reason } of result.skipped) {
-			console.log(`    • ${chalk.dim(`${hash}: ${reason}`)}`);
+			console.log(`    ${chalk.dim(`${hash} · ${reason}`)}`);
 		}
 	}
 
@@ -156,20 +156,19 @@ function printDryRun(result: HarvestResult): void {
 }
 
 function printSummary(result: HarvestResult): void {
-	console.log(`\n  ${chalk.green.bold("Harvest Complete")}`);
-	console.log("  ════════════════\n");
-	console.log(`  Commits scanned:   ${chalk.cyan(result.commitsScanned)}`);
-	console.log(`  AI commits found:  ${chalk.cyan(result.aiCommitsDetected)}`);
-	console.log(`  Tasks emitted:     ${chalk.green(result.tasksEmitted)}`);
+	console.log(header("Harvest Complete"));
+	console.log(kvLine("Scanned", chalk.cyan(String(result.commitsScanned))));
+	console.log(kvLine("Detected", `${chalk.cyan(String(result.aiCommitsDetected))} AI-assisted`));
+	console.log(kvLine("Emitted", chalk.green(String(result.tasksEmitted))));
 
 	if (result.skipped.length > 0) {
-		console.log(`  Skipped:           ${chalk.yellow(result.skipped.length)}`);
+		console.log(kvLine("Skipped", chalk.yellow(String(result.skipped.length))));
 	}
 
 	if (result.tasks.length > 0) {
-		console.log("\n  Written files:");
+		console.log(`\n  ${chalk.bold("Written files")}`);
 		for (const path of result.tasks) {
-			console.log(`    • ${chalk.cyan(path)}`);
+			console.log(`    ${chalk.cyan(path)}`);
 		}
 	}
 
@@ -182,17 +181,10 @@ function printSummary(result: HarvestResult): void {
 	console.log();
 }
 
-function colorizeScore(score: number): string {
-	if (score >= 8) return chalk.green(String(score));
-	if (score >= 5) return chalk.yellow(String(score));
-	return chalk.red(String(score));
-}
-
 function printLiveReview(result: LiveReviewResult): void {
-	console.log(`\n  ${chalk.bold("Live Review")}`);
-	console.log("  ═══════════\n");
-	console.log(`  Files analyzed: ${result.filesAnalyzed}`);
-	console.log(`  Overall score:  ${colorizeScore(result.overallScore)}/10`);
+	console.log(header("Live Review"));
+	console.log(kvLine("Files", String(result.filesAnalyzed)));
+	console.log(kvLine("Score", `${scoreColor(result.overallScore)}/10`));
 
 	if (result.rubrics.length === 0) {
 		console.log(`\n  ${result.summary}`);
@@ -200,18 +192,17 @@ function printLiveReview(result: LiveReviewResult): void {
 		return;
 	}
 
-	const nameWidth = 21;
+	const nameWidth = 22;
 	const scoreWidth = 7;
-	const detailWidth = 33;
+	const detailWidth = 34;
 
-	const pad = (s: string, w: number) => s.padEnd(w);
 	const border = (left: string, mid: string, right: string) =>
 		`  ${chalk.dim(`${left}${"─".repeat(nameWidth)}${mid}${"─".repeat(scoreWidth)}${mid}${"─".repeat(detailWidth)}${right}`)}`;
 
 	console.log();
 	console.log(border("┌", "┬", "┐"));
 	console.log(
-		`  ${chalk.dim("│")}${pad(" Rubric", nameWidth)}${chalk.dim("│")}${pad(" Score", scoreWidth)}${chalk.dim("│")}${pad(" Details", detailWidth)}${chalk.dim("│")}`,
+		`  ${chalk.dim("│")} ${padEnd("Rubric", nameWidth - 2)} ${chalk.dim("│")} ${padEnd("Score", scoreWidth - 2)} ${chalk.dim("│")} ${padEnd("Details", detailWidth - 2)} ${chalk.dim("│")}`,
 	);
 	console.log(border("├", "┼", "┤"));
 
@@ -220,13 +211,12 @@ function printLiveReview(result: LiveReviewResult): void {
 			.split("-")
 			.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 			.join(" ");
-		const scoreColor =
-			rubric.score >= 8 ? chalk.green : rubric.score >= 5 ? chalk.yellow : chalk.red;
-		const scoreStr = scoreColor(`${rubric.score}/${rubric.maxScore}`);
+		const colorFn = rubric.score >= 8 ? chalk.green : rubric.score >= 5 ? chalk.yellow : chalk.red;
+		const scoreStr = colorFn(`${rubric.score}/${rubric.maxScore}`);
 		const detailStr = rubric.details.join("; ");
 
 		console.log(
-			`  ${chalk.dim("│")} ${chalk.bold(displayName).padEnd(nameWidth - 1)}${chalk.dim("│")} ${scoreStr.padEnd(scoreWidth - 1)}${chalk.dim("│")}${pad(` ${detailStr}`, detailWidth)}${chalk.dim("│")}`,
+			`  ${chalk.dim("│")} ${padEnd(chalk.bold(displayName), nameWidth - 2)} ${chalk.dim("│")} ${padEnd(scoreStr, scoreWidth - 2)} ${chalk.dim("│")} ${padEnd(detailStr, detailWidth - 2)} ${chalk.dim("│")}`,
 		);
 	}
 

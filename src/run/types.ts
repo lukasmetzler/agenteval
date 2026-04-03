@@ -75,6 +75,7 @@ export interface ResultScores {
 	efficiency: number | null;
 	conventions: number | null;
 	overall: number | null;
+	confidenceAdjustedOverall?: number | null;
 }
 
 export interface AssertionResult {

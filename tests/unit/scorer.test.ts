@@ -125,6 +125,131 @@ describe("scoreRun", () => {
 		expect(assertionResults).toHaveLength(0);
 	});
 
+	test("high confidence (0.9) adjusts overall score", () => {
+		const { scores } = scoreRun({
+			assertions: [
+				{ type: "files-changed", pattern: "src/**", expect: "modified" },
+				{ type: "test-pass", command: "bun test" },
+			],
+			weights: defaultWeights,
+			changedFiles: ["src/auth.ts"],
+			diff: "+logger.info('test')",
+			testResults: new Map([["bun test", { passed: true, output: "ok" }]]),
+			metrics: availableMetrics,
+			tokensBudget: 50_000,
+			expectedFilePatterns: ["src/**"],
+			detectionConfidence: 0.9,
+		});
+
+		expect(scores.overall).toBeGreaterThan(0.8);
+		expect(scores.overall).not.toBeNull();
+		const overall09 = scores.overall as number;
+		expect(scores.confidenceAdjustedOverall).toBeCloseTo(overall09 * 0.9);
+	});
+
+	test("low confidence (0.6) adjusts overall score", () => {
+		const { scores } = scoreRun({
+			assertions: [
+				{ type: "files-changed", pattern: "src/**", expect: "modified" },
+				{ type: "test-pass", command: "bun test" },
+			],
+			weights: defaultWeights,
+			changedFiles: ["src/auth.ts"],
+			diff: "+logger.info('test')",
+			testResults: new Map([["bun test", { passed: true, output: "ok" }]]),
+			metrics: availableMetrics,
+			tokensBudget: 50_000,
+			expectedFilePatterns: ["src/**"],
+			detectionConfidence: 0.6,
+		});
+
+		expect(scores.overall).toBeGreaterThan(0.8);
+		expect(scores.overall).not.toBeNull();
+		const overall06 = scores.overall as number;
+		expect(scores.confidenceAdjustedOverall).toBeCloseTo(overall06 * 0.6);
+	});
+
+	test("no confidence -> confidenceAdjustedOverall is undefined", () => {
+		const { scores } = scoreRun({
+			assertions: [
+				{ type: "files-changed", pattern: "src/**", expect: "modified" },
+				{ type: "test-pass", command: "bun test" },
+			],
+			weights: defaultWeights,
+			changedFiles: ["src/auth.ts"],
+			diff: "+logger.info('test')",
+			testResults: new Map([["bun test", { passed: true, output: "ok" }]]),
+			metrics: availableMetrics,
+			tokensBudget: 50_000,
+			expectedFilePatterns: ["src/**"],
+		});
+
+		expect(scores.confidenceAdjustedOverall).toBeUndefined();
+	});
+
+	test("partial score with confidence: 0.7 overall * 0.8 confidence = 0.56", () => {
+		// Build a scenario that yields overall ~0.7
+		// correctness=0.5, precision=1.0, efficiency high, no conventions
+		// With defaultWeights: 0.5*0.4 + 1.0*0.3 + ~0.84*0.2 = 0.2+0.3+0.168 = 0.668 / (0.4+0.3+0.2) = ~0.742
+		const { scores } = scoreRun({
+			assertions: [
+				{ type: "files-changed", pattern: "src/**", expect: "modified" },
+				{ type: "test-pass", command: "bun test" },
+			],
+			weights: defaultWeights,
+			changedFiles: ["src/auth.ts"],
+			diff: "+change",
+			testResults: new Map([["bun test", { passed: false, output: "fail" }]]),
+			metrics: availableMetrics,
+			tokensBudget: 50_000,
+			expectedFilePatterns: ["src/**"],
+			detectionConfidence: 0.8,
+		});
+
+		expect(scores.overall).not.toBeNull();
+		const overall08 = scores.overall as number;
+		expect(scores.confidenceAdjustedOverall).toBeCloseTo(overall08 * 0.8);
+	});
+
+	test("confidence does not affect individual dimension scores", () => {
+		const withConfidence = scoreRun({
+			assertions: [
+				{ type: "files-changed", pattern: "src/**", expect: "modified" },
+				{ type: "test-pass", command: "bun test" },
+				{ type: "convention", pattern: "logger\\.info", expect: "present-in-changes" },
+			],
+			weights: defaultWeights,
+			changedFiles: ["src/auth.ts"],
+			diff: "+logger.info('test')",
+			testResults: new Map([["bun test", { passed: true, output: "ok" }]]),
+			metrics: availableMetrics,
+			tokensBudget: 50_000,
+			expectedFilePatterns: ["src/**"],
+			detectionConfidence: 0.5,
+		});
+
+		const withoutConfidence = scoreRun({
+			assertions: [
+				{ type: "files-changed", pattern: "src/**", expect: "modified" },
+				{ type: "test-pass", command: "bun test" },
+				{ type: "convention", pattern: "logger\\.info", expect: "present-in-changes" },
+			],
+			weights: defaultWeights,
+			changedFiles: ["src/auth.ts"],
+			diff: "+logger.info('test')",
+			testResults: new Map([["bun test", { passed: true, output: "ok" }]]),
+			metrics: availableMetrics,
+			tokensBudget: 50_000,
+			expectedFilePatterns: ["src/**"],
+		});
+
+		expect(withConfidence.scores.correctness).toBe(withoutConfidence.scores.correctness);
+		expect(withConfidence.scores.precision).toBe(withoutConfidence.scores.precision);
+		expect(withConfidence.scores.efficiency).toBe(withoutConfidence.scores.efficiency);
+		expect(withConfidence.scores.conventions).toBe(withoutConfidence.scores.conventions);
+		expect(withConfidence.scores.overall).toBe(withoutConfidence.scores.overall);
+	});
+
 	test("convention assertions scored separately", () => {
 		const diff = "+logger.info('hello')";
 		const { scores } = scoreRun({

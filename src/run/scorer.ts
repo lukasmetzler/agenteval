@@ -17,6 +17,7 @@ interface ScoreRunInput {
 	metrics: RunMetrics;
 	tokensBudget: number;
 	expectedFilePatterns: string[];
+	detectionConfidence?: number;
 }
 
 export function scoreRun(input: ScoreRunInput): {
@@ -53,8 +54,11 @@ export function scoreRun(input: ScoreRunInput): {
 		input.weights,
 	);
 
+	const confidenceAdjustedOverall =
+		input.detectionConfidence !== undefined ? overall * input.detectionConfidence : undefined;
+
 	return {
-		scores: { correctness, precision, efficiency, conventions, overall },
+		scores: { correctness, precision, efficiency, conventions, overall, confidenceAdjustedOverall },
 		assertionResults,
 	};
 }

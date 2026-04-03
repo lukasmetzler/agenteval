@@ -661,7 +661,7 @@ describe("harvest", () => {
 			expect(summary.confidence).toBeGreaterThan(0);
 			expect(typeof summary.message).toBe("string");
 			expect(summary.message.length).toBeGreaterThan(0);
-			expect(summary.message.length).toBeLessThanOrEqual(50);
+			expect(summary.message.length).toBeLessThanOrEqual(42);
 		}
 	});
 

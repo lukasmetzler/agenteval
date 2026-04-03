@@ -100,7 +100,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 			shortHash: c.shortHash,
 			tool: c.detectedTool ?? "unknown",
 			confidence: c.confidence,
-			message: c.message.length > 50 ? `${c.message.slice(0, 47)}...` : c.message,
+			message: c.message.length > 42 ? `${c.message.slice(0, 39)}...` : c.message,
 		}));
 		for (const commit of filtered) {
 			const snapshot = await getInstructionSnapshot(

@@ -53,6 +53,7 @@ export class SkillValidatorRule implements LintRule {
 				message: `Skill name "${name}" exceeds ${NAME_MAX_LENGTH} character limit (${name.length} chars)`,
 				filePath,
 				meta: { length: name.length, limit: NAME_MAX_LENGTH },
+				suggestion: "Shorten to under 64 characters",
 			});
 		}
 
@@ -62,6 +63,7 @@ export class SkillValidatorRule implements LintRule {
 				severity: "error",
 				message: `Skill name "${name}" must contain only lowercase letters, numbers, and hyphens`,
 				filePath,
+				suggestion: "Use only lowercase letters, numbers, and hyphens",
 			});
 		}
 
@@ -72,6 +74,7 @@ export class SkillValidatorRule implements LintRule {
 					severity: "error",
 					message: `Skill name "${name}" contains reserved word "${reserved}"`,
 					filePath,
+					suggestion: "Choose a name that doesn't contain 'anthropic' or 'claude'",
 				});
 			}
 		}
@@ -98,6 +101,7 @@ export class SkillValidatorRule implements LintRule {
 				severity: "error",
 				message: "Skill must have a non-empty description",
 				filePath,
+				suggestion: "Add a description field to the YAML frontmatter",
 			});
 			return diagnostics;
 		}
@@ -128,6 +132,7 @@ export class SkillValidatorRule implements LintRule {
 				message:
 					'Description should use third person (e.g., "Processes files") not first person (e.g., "I can process files")',
 				filePath,
+				suggestion: "Rewrite as 'Generates...' instead of 'I generate...'",
 			});
 		}
 
@@ -138,6 +143,7 @@ export class SkillValidatorRule implements LintRule {
 				message:
 					'Description should use third person (e.g., "Processes files") not second person (e.g., "You can process files")',
 				filePath,
+				suggestion: "Rewrite as 'Generates...' instead of 'You can...'",
 			});
 		}
 
@@ -157,6 +163,7 @@ export class SkillValidatorRule implements LintRule {
 					message: `SKILL.md body is ${bodyLines} lines (recommended max: ${MAX_BODY_LINES}). Consider splitting into separate files.`,
 					filePath,
 					meta: { lines: bodyLines, limit: MAX_BODY_LINES },
+					suggestion: "Move detailed content to linked files or reduce verbosity",
 				},
 			];
 		}

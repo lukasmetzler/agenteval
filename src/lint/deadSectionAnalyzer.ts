@@ -68,6 +68,7 @@ export class DeadSectionAnalyzerRule implements LintRule {
 						filePath: file.path,
 						line: link.line,
 						meta: { href: link.href, resolved },
+						suggestion: "Fix the link target or remove the link",
 					});
 				}
 			}
@@ -83,6 +84,7 @@ export class DeadSectionAnalyzerRule implements LintRule {
 						filePath: file.path,
 						line: ref.line,
 						meta: { referencedPath: ref.path, resolved },
+						suggestion: "Remove the reference or create the missing file",
 					});
 				}
 			}

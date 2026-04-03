@@ -70,6 +70,7 @@ export class OverlapDetectorRule implements LintRule {
 							otherFile: b.path,
 							similarity: Math.round(similarity * 100) / 100,
 						},
+						suggestion: "Consolidate into one file or extract shared content",
 					});
 				}
 			}

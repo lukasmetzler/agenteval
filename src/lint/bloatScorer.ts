@@ -89,6 +89,7 @@ export class BloatScorerRule implements LintRule {
 						line: section.startLine,
 						section: section.heading,
 						meta: { ...metrics },
+						suggestion: "Remove filler phrases and tighten the language",
 					});
 				}
 
@@ -101,6 +102,7 @@ export class BloatScorerRule implements LintRule {
 						line: section.startLine,
 						section: section.heading,
 						meta: { fillerPhraseCount: metrics.fillerPhraseCount },
+						suggestion: "Rewrite without phrases like 'make sure to', 'it is important that'",
 					});
 				}
 			}

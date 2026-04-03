@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-04-03
+
+### Added
+
+- `agenteval update` command: self-update to the latest release. Detects platform, downloads binary, replaces itself.
+- Background version check: once per day, checks GitHub for newer versions. Shows a one-time notification when an update is available.
+- Compiled binary now shows correct version (`--version` was showing "unknown")
+
+### Fixed
+
+- Version embedding: build script injects version at compile time instead of reading files at runtime
+
 ## [0.7.2] - 2026-04-03
 
 Skill validation rules inspired by the superpowers repo (94% PR rejection rate).

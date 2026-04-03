@@ -48,6 +48,26 @@ describe("loadTask", () => {
 		expect(task.prompt).toBe("A minimal task with only required fields");
 	});
 
+	test("loads harvested task with extended fields", () => {
+		const task = loadTask(join(tasksDir, "harvested.yaml"), fixturesDir);
+		expect(task.name).toBe("harvest-abc123d");
+		expect(task.sourceCommit).toBe("abc123def456");
+		expect(task.detectionConfidence).toBe(0.9);
+		expect(task.harvestDate).toBe("2026-01-15T10:00:00Z");
+		expect(task.prUrl).toBe("https://github.com/example/repo/pull/42");
+		expect(task.prBody).toContain("JWT-based authentication");
+		expect(task.instructionSnapshot).toBeDefined();
+		expect(task.instructionSnapshot?.["CLAUDE.md"]).toContain("TypeScript strict mode");
+	});
+
+	test("extended fields are optional (existing tasks still load)", () => {
+		const task = loadTask(join(tasksDir, "example.yaml"), fixturesDir);
+		expect(task.sourceCommit).toBeUndefined();
+		expect(task.instructionSnapshot).toBeUndefined();
+		expect(task.prUrl).toBeUndefined();
+		expect(task.detectionConfidence).toBeUndefined();
+	});
+
 	test("assertion types are validated", () => {
 		const task = loadTask(join(tasksDir, "example.yaml"), fixturesDir);
 		const types = task.assertions.map((a) => a.type);

@@ -1,13 +1,4 @@
-import type { AICommit, DetectionMethod } from "./types.js";
-
-interface RawCommit {
-	hash: string;
-	shortHash: string;
-	subject: string;
-	authorEmail: string;
-	date: string;
-	coAuthorRaw: string;
-}
+import type { AICommit, DetectionMethod, RawCommit } from "./types.js";
 
 /** Known AI co-author email patterns. */
 const AI_EMAIL_PATTERNS: Array<{ pattern: RegExp; tool: string; nameRequired?: RegExp }> = [
@@ -111,45 +102,52 @@ function matchCoAuthorAI(coAuthors: Array<{ name: string; email: string }>): str
 
 /**
  * Check if an author email matches known AI bot patterns.
+ * Returns the matched tool name or null.
  */
-function matchAuthorEmailAI(email: string): boolean {
-	for (const { pattern } of AI_EMAIL_PATTERNS) {
-		if (pattern.test(email)) return true;
+function matchAuthorEmailAI(email: string): string | null {
+	for (const { pattern, tool } of AI_EMAIL_PATTERNS) {
+		if (pattern.test(email)) return tool;
 	}
-	return false;
+	return null;
 }
 
 /**
- * Detect AI signals on a single commit. Returns detection method + confidence,
- * or null if no AI signal detected.
+ * Detect AI signals on a single commit. Returns detection method, confidence,
+ * and tool name, or null if no AI signal detected.
  */
 export function detectSignals(
 	commit: RawCommit,
-): { method: DetectionMethod; confidence: number } | null {
+): { method: DetectionMethod; confidence: number; tool: string } | null {
 	const coAuthors = parseCoAuthors(commit.coAuthorRaw);
 	let bestMethod: DetectionMethod | null = null;
 	let bestConfidence = 0;
+	let bestTool = "unknown";
 
 	// 1. Co-author tag match (confidence 0.9)
-	if (matchCoAuthorAI(coAuthors)) {
+	const coAuthorTool = matchCoAuthorAI(coAuthors);
+	if (coAuthorTool) {
 		bestMethod = "co-author-tag";
 		bestConfidence = 0.9;
+		bestTool = coAuthorTool;
 	}
 
 	// 2. Author email match (confidence 0.8)
-	if (matchAuthorEmailAI(commit.authorEmail) && 0.8 > bestConfidence) {
+	const emailTool = matchAuthorEmailAI(commit.authorEmail);
+	if (emailTool && 0.8 > bestConfidence) {
 		bestMethod = "author-email";
 		bestConfidence = 0.8;
+		bestTool = emailTool;
 	}
 
 	// 3. Message pattern match (confidence 0.6)
 	if (MESSAGE_PATTERNS.test(commit.subject) && 0.6 > bestConfidence) {
 		bestMethod = "message-pattern";
 		bestConfidence = 0.6;
+		bestTool = "unknown";
 	}
 
 	if (bestMethod) {
-		return { method: bestMethod, confidence: bestConfidence };
+		return { method: bestMethod, confidence: bestConfidence, tool: bestTool };
 	}
 	return null;
 }
@@ -300,6 +298,7 @@ export async function detectAICommits(
 			author: raw.authorEmail,
 			coAuthors: coAuthors.map((a) => `${a.name} <${a.email}>`),
 			detectionMethod: signal.method,
+			detectedTool: signal.tool,
 			confidence: signal.confidence,
 			timestamp: new Date(raw.date),
 			filesChanged: diff.filesChanged,

@@ -26,6 +26,12 @@ const TaskDefinitionSchema = z.object({
 	timeout: z.number().min(1).default(300),
 	assertions: z.array(TaskAssertionSchema).default([]),
 	scoring: ScoringWeightsSchema.default({}),
+	sourceCommit: z.string().optional(),
+	instructionSnapshot: z.record(z.string(), z.string()).optional(),
+	prUrl: z.string().optional(),
+	prBody: z.string().optional(),
+	detectionConfidence: z.number().min(0).max(1).optional(),
+	harvestDate: z.string().optional(),
 });
 
 /**

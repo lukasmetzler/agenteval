@@ -281,6 +281,30 @@ describe("detectSignals", () => {
 		expect(detectSignals(commit)).toBeNull();
 	});
 
+	test("returns tool name for Claude co-author", () => {
+		const commit = makeCommit({
+			coAuthorRaw: "Claude <noreply@anthropic.com>",
+		});
+		const signal = detectSignals(commit);
+		expect(signal?.tool).toBe("claude");
+	});
+
+	test("returns tool name for Copilot co-author", () => {
+		const commit = makeCommit({
+			coAuthorRaw: "GitHub Copilot <noreply@github.com>",
+		});
+		const signal = detectSignals(commit);
+		expect(signal?.tool).toBe("copilot");
+	});
+
+	test("returns 'unknown' tool for message-pattern detection", () => {
+		const commit = makeCommit({
+			subject: "🤖 auto-fix lint errors",
+		});
+		const signal = detectSignals(commit);
+		expect(signal?.tool).toBe("unknown");
+	});
+
 	test("malformed co-author trailer does not crash", () => {
 		// Trailers without angle brackets should be skipped (with a warning)
 		const commit = makeCommit({

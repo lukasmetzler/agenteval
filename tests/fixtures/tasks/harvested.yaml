@@ -1,0 +1,29 @@
+name: harvest-abc123d
+description: "feat: add user authentication module"
+prompt: "Add user authentication module"
+harness: auto
+timeout: 300
+
+assertions:
+  - type: files-changed
+    pattern: "src/auth.ts"
+  - type: files-changed
+    pattern: "tests/auth.test.ts"
+
+scoring:
+  correctness: 0.5
+  precision: 0.3
+  efficiency: 0.1
+  conventions: 0.1
+
+sourceCommit: abc123def456
+detectionConfidence: 0.9
+harvestDate: "2026-01-15T10:00:00Z"
+prUrl: "https://github.com/example/repo/pull/42"
+prBody: "Adds JWT-based authentication with session management"
+instructionSnapshot:
+  CLAUDE.md: |
+    # Example Project
+    ## Conventions
+    - Use TypeScript strict mode
+    - All new features need tests

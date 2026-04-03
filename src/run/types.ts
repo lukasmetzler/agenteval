@@ -13,6 +13,12 @@ export interface TaskDefinition {
 	timeout: number;
 	assertions: TaskAssertion[];
 	scoring: ScoringWeights;
+	sourceCommit?: string;
+	instructionSnapshot?: Record<string, string>;
+	prUrl?: string;
+	prBody?: string;
+	detectionConfidence?: number;
+	harvestDate?: string;
 }
 
 export interface TaskAssertion {

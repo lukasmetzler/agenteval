@@ -49,6 +49,66 @@ describe("ConsoleFormatter", () => {
 		const output = fmt.format(emptyResult);
 		expect(output).toContain("No issues found");
 	});
+
+	test("renders suggestion line when diagnostic has suggestion", () => {
+		const resultWithSuggestion: LintResult = {
+			diagnostics: [
+				{
+					ruleId: "dead-ref/missing-file",
+					severity: "error",
+					message: 'Referenced file "src/old.ts" does not exist',
+					filePath: "/tmp/CLAUDE.md",
+					line: 15,
+					suggestion: "Remove the reference or create the missing file",
+				},
+			],
+			stats: { filesAnalyzed: 1, totalTokens: 500, duration: 5 },
+		};
+		const output = fmt.format(resultWithSuggestion);
+		expect(output).toContain("→ Remove the reference or create the missing file");
+	});
+
+	test("does not render suggestion line when diagnostic has no suggestion", () => {
+		const resultWithoutSuggestion: LintResult = {
+			diagnostics: [
+				{
+					ruleId: "token-count/file-too-large",
+					severity: "error",
+					message: "~9500 tokens exceeds 8000",
+					filePath: "/tmp/CLAUDE.md",
+				},
+			],
+			stats: { filesAnalyzed: 1, totalTokens: 9500, duration: 5 },
+		};
+		const output = fmt.format(resultWithoutSuggestion);
+		expect(output).not.toContain("→");
+	});
+
+	test("shows error guidance when errors exist", () => {
+		const output = fmt.format(sampleResult);
+		expect(output).toContain("Fix the errors above");
+	});
+
+	test("shows warning guidance when only warnings exist", () => {
+		const warningOnly: LintResult = {
+			diagnostics: [
+				{
+					ruleId: "overlap/high-similarity",
+					severity: "warning",
+					message: "45% overlap",
+					filePath: "/tmp/api.md",
+				},
+			],
+			stats: { filesAnalyzed: 1, totalTokens: 500, duration: 5 },
+		};
+		const output = fmt.format(warningOnly);
+		expect(output).toContain("Warnings suggest improvements");
+	});
+
+	test("shows all-clear guidance when no issues", () => {
+		const output = fmt.format(emptyResult);
+		expect(output).toContain("All clear");
+	});
 });
 
 describe("JsonFormatter", () => {

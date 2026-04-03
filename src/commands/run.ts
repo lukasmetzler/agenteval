@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
 import { executeRun } from "../run/index.js";
@@ -70,10 +71,18 @@ function resolveInstructions(options: RunOptions, cwd: string): InstructionSet {
 	};
 }
 
+function colorizeRunScore(score: number | null | undefined): string {
+	if (score === null || score === undefined) return "N/A";
+	const str = score.toFixed(2);
+	if (score >= 0.7) return chalk.green(str);
+	if (score >= 0.4) return chalk.yellow(str);
+	return chalk.red(str);
+}
+
 function printResult(result: StoredResult, resultsDir: string): void {
 	if (result.status === "success") {
-		console.log(`\n✓ Run complete: ${result.id}`);
-		console.log(`  Score: ${result.scores.overall?.toFixed(2) ?? "N/A"}`);
+		console.log(`\n${chalk.green(`✓ Run complete: ${result.id}`)}`);
+		console.log(`  Score: ${colorizeRunScore(result.scores.overall)}`);
 		console.log(`  Files changed: ${result.diffSummary}`);
 		if (result.metrics.tokensTotal !== null) {
 			console.log(`  Tokens: ~${result.metrics.tokensTotal}`);
@@ -82,7 +91,7 @@ function printResult(result: StoredResult, resultsDir: string): void {
 		process.exit(0);
 	}
 
-	console.error(`\n✗ Run ${result.status}: ${result.id}`);
-	console.error(`  ${result.error}`);
+	console.error(`\n${chalk.red(`✗ Run ${result.status}: ${result.id}`)}`);
+	console.error(`  ${chalk.dim(result.error)}`);
 	process.exit(1);
 }

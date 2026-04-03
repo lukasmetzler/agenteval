@@ -1,3 +1,5 @@
+import chalk from "chalk";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 const levels: Record<LogLevel, number> = {
@@ -16,7 +18,7 @@ class Logger {
 
 	debug(msg: string, ...args: unknown[]): void {
 		if (this.shouldLog("debug")) {
-			console.debug(`[debug] ${msg}`, ...args);
+			console.debug(`${chalk.dim("[debug]")} ${msg}`, ...args);
 		}
 	}
 
@@ -28,13 +30,13 @@ class Logger {
 
 	warn(msg: string, ...args: unknown[]): void {
 		if (this.shouldLog("warn")) {
-			console.warn(`[warn] ${msg}`, ...args);
+			console.warn(`${chalk.yellow("[warn]")} ${msg}`, ...args);
 		}
 	}
 
 	error(msg: string, ...args: unknown[]): void {
 		if (this.shouldLog("error")) {
-			console.error(`[error] ${msg}`, ...args);
+			console.error(`${chalk.red("[error]")} ${msg}`, ...args);
 		}
 	}
 }

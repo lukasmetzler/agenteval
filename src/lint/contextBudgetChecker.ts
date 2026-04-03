@@ -21,6 +21,7 @@ export class ContextBudgetCheckerRule implements LintRule {
 				message: `Total instruction tokens (~${totalTokens}) exceed budget of ${budgetTokens} (${ctx.config.contextBudget * 100}% of ${modelWindow} context window)`,
 				filePath: "(all files)",
 				meta: { totalTokens, budgetTokens, modelWindow, ratio },
+				suggestion: "Remove low-value content or increase contextBudget in config",
 			});
 		} else if (ratio > 0.8) {
 			diagnostics.push({
@@ -29,6 +30,7 @@ export class ContextBudgetCheckerRule implements LintRule {
 				message: `Total instruction tokens (~${totalTokens}) are at ${Math.round(ratio * 100)}% of budget (${budgetTokens})`,
 				filePath: "(all files)",
 				meta: { totalTokens, budgetTokens, modelWindow, ratio },
+				suggestion: "Consider trimming before adding more instructions",
 			});
 		}
 

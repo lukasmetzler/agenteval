@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
 import { harvest } from "../harvest/index.js";
@@ -47,6 +48,10 @@ export function registerHarvestCommand(program: Command): void {
 				const options = buildOptions(cliOptions, config);
 
 				validateOptions(options, cliOptions);
+
+				if (cliOptions.format !== "json" && !options.dryRun) {
+					process.stderr.write(chalk.dim("Scanning git history...\n"));
+				}
 
 				const result = await harvest(options);
 
@@ -122,66 +127,72 @@ function validateOptions(options: HarvestOptions, cli: HarvestCliOptions): void 
 }
 
 function printDryRun(result: HarvestResult): void {
-	console.log("\n  Harvest Dry Run");
+	console.log(`\n  ${chalk.bold("Harvest Dry Run")}`);
 	console.log("  ═══════════════\n");
-	console.log(`  Commits scanned:   ${result.commitsScanned}`);
-	console.log(`  AI commits found:  ${result.aiCommitsDetected}`);
+	console.log(`  Commits scanned:   ${chalk.cyan(result.commitsScanned)}`);
+	console.log(`  AI commits found:  ${chalk.cyan(result.aiCommitsDetected)}`);
 
 	if (result.tasks.length > 0) {
 		console.log("\n  Detected tasks:");
 		for (const name of result.tasks) {
-			console.log(`    • ${name}`);
+			console.log(`    ${chalk.green("•")} ${name}`);
 		}
 	}
 
 	if (result.skipped.length > 0) {
 		console.log(`\n  Skipped: ${result.skipped.length}`);
 		for (const { hash, reason } of result.skipped) {
-			console.log(`    • ${hash}: ${reason}`);
+			console.log(`    • ${chalk.dim(`${hash}: ${reason}`)}`);
 		}
 	}
 
 	if (result.aiCommitsDetected === 0) {
-		console.log("\n  No AI-involved commits detected.");
-		console.log("  Try --min-confidence 0.3 to lower the threshold,");
-		console.log("  or check that your AI tool adds Co-authored-by trailers.");
+		console.log(`\n  ${chalk.yellow("No AI-involved commits detected.")}`);
+		console.log(chalk.dim("  Try --min-confidence 0.3 to lower the threshold,"));
+		console.log(chalk.dim("  or check that your AI tool adds Co-authored-by trailers."));
 	}
 
 	console.log();
 }
 
 function printSummary(result: HarvestResult): void {
-	console.log("\n  Harvest Complete");
+	console.log(`\n  ${chalk.green.bold("Harvest Complete")}`);
 	console.log("  ════════════════\n");
-	console.log(`  Commits scanned:   ${result.commitsScanned}`);
-	console.log(`  AI commits found:  ${result.aiCommitsDetected}`);
-	console.log(`  Tasks emitted:     ${result.tasksEmitted}`);
+	console.log(`  Commits scanned:   ${chalk.cyan(result.commitsScanned)}`);
+	console.log(`  AI commits found:  ${chalk.cyan(result.aiCommitsDetected)}`);
+	console.log(`  Tasks emitted:     ${chalk.green(result.tasksEmitted)}`);
 
 	if (result.skipped.length > 0) {
-		console.log(`  Skipped:           ${result.skipped.length}`);
+		console.log(`  Skipped:           ${chalk.yellow(result.skipped.length)}`);
 	}
 
 	if (result.tasks.length > 0) {
 		console.log("\n  Written files:");
 		for (const path of result.tasks) {
-			console.log(`    • ${path}`);
+			console.log(`    • ${chalk.cyan(path)}`);
 		}
 	}
 
 	if (result.aiCommitsDetected === 0) {
-		console.log("\n  No AI-involved commits detected.");
-		console.log("  Try --min-confidence 0.3 to lower the threshold,");
-		console.log("  or check that your AI tool adds Co-authored-by trailers.");
+		console.log(`\n  ${chalk.yellow("No AI-involved commits detected.")}`);
+		console.log(chalk.dim("  Try --min-confidence 0.3 to lower the threshold,"));
+		console.log(chalk.dim("  or check that your AI tool adds Co-authored-by trailers."));
 	}
 
 	console.log();
 }
 
+function colorizeScore(score: number): string {
+	if (score >= 8) return chalk.green(String(score));
+	if (score >= 5) return chalk.yellow(String(score));
+	return chalk.red(String(score));
+}
+
 function printLiveReview(result: LiveReviewResult): void {
-	console.log("\n  Live Review");
+	console.log(`\n  ${chalk.bold("Live Review")}`);
 	console.log("  ═══════════\n");
 	console.log(`  Files analyzed: ${result.filesAnalyzed}`);
-	console.log(`  Overall score:  ${result.overallScore}/10`);
+	console.log(`  Overall score:  ${colorizeScore(result.overallScore)}/10`);
 
 	if (result.rubrics.length === 0) {
 		console.log(`\n  ${result.summary}`);
@@ -195,12 +206,12 @@ function printLiveReview(result: LiveReviewResult): void {
 
 	const pad = (s: string, w: number) => s.padEnd(w);
 	const border = (left: string, mid: string, right: string) =>
-		`  ${left}${"─".repeat(nameWidth)}${mid}${"─".repeat(scoreWidth)}${mid}${"─".repeat(detailWidth)}${right}`;
+		`  ${chalk.dim(`${left}${"─".repeat(nameWidth)}${mid}${"─".repeat(scoreWidth)}${mid}${"─".repeat(detailWidth)}${right}`)}`;
 
 	console.log();
 	console.log(border("┌", "┬", "┐"));
 	console.log(
-		`  │${pad(" Rubric", nameWidth)}│${pad(" Score", scoreWidth)}│${pad(" Details", detailWidth)}│`,
+		`  ${chalk.dim("│")}${pad(" Rubric", nameWidth)}${chalk.dim("│")}${pad(" Score", scoreWidth)}${chalk.dim("│")}${pad(" Details", detailWidth)}${chalk.dim("│")}`,
 	);
 	console.log(border("├", "┼", "┤"));
 
@@ -209,11 +220,13 @@ function printLiveReview(result: LiveReviewResult): void {
 			.split("-")
 			.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 			.join(" ");
-		const scoreStr = `${rubric.score}/${rubric.maxScore}`;
+		const scoreColor =
+			rubric.score >= 8 ? chalk.green : rubric.score >= 5 ? chalk.yellow : chalk.red;
+		const scoreStr = scoreColor(`${rubric.score}/${rubric.maxScore}`);
 		const detailStr = rubric.details.join("; ");
 
 		console.log(
-			`  │${pad(` ${displayName}`, nameWidth)}│${pad(` ${scoreStr}`, scoreWidth)}│${pad(` ${detailStr}`, detailWidth)}│`,
+			`  ${chalk.dim("│")} ${chalk.bold(displayName).padEnd(nameWidth - 1)}${chalk.dim("│")} ${scoreStr.padEnd(scoreWidth - 1)}${chalk.dim("│")}${pad(` ${detailStr}`, detailWidth)}${chalk.dim("│")}`,
 		);
 	}
 

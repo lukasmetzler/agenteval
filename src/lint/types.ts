@@ -12,6 +12,7 @@ export interface Diagnostic {
 	line?: number;
 	section?: string;
 	meta?: Record<string, unknown>;
+	suggestion?: string;
 }
 
 export interface LintResult {

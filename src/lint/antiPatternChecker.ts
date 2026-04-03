@@ -5,6 +5,7 @@ export interface AntiPattern {
 	description: string;
 	pattern: RegExp;
 	severity: Severity;
+	suggestion?: string;
 }
 
 export const BUILTIN_PATTERNS: AntiPattern[] = [
@@ -13,18 +14,21 @@ export const BUILTIN_PATTERNS: AntiPattern[] = [
 		description: 'Role-playing preambles like "You are an expert..."',
 		pattern: /^(you are|act as|pretend to be|imagine you are|assume the role)\b/im,
 		severity: "warning",
+		suggestion: "Remove the preamble — models already know how to code",
 	},
 	{
 		id: "vague-instruction",
 		description: "Vague instructions without specifics",
 		pattern: /\b(be careful|write good code|make sure to|try your best|do your best)\b/i,
 		severity: "info",
+		suggestion: "Replace with a specific example or threshold",
 	},
 	{
 		id: "todo-in-instructions",
 		description: "Draft artifacts left in instructions",
 		pattern: /\b(TODO|FIXME|HACK|XXX)\b/,
 		severity: "warning",
+		suggestion: "Either complete the TODO or remove it",
 	},
 	{
 		id: "meta-instruction",
@@ -32,6 +36,7 @@ export const BUILTIN_PATTERNS: AntiPattern[] = [
 		pattern:
 			/\b(read this carefully|follow these instructions|pay attention to|important to understand)\b/i,
 		severity: "info",
+		suggestion: "Delete — the model reads all instructions by default",
 	},
 	{
 		id: "redundant-with-default",
@@ -39,6 +44,7 @@ export const BUILTIN_PATTERNS: AntiPattern[] = [
 		pattern:
 			/\b(write valid|use proper syntax|follow best practices|write clean code|be consistent)\b/i,
 		severity: "info",
+		suggestion: "Remove — this is already the model's default behavior",
 	},
 	{
 		id: "time-sensitive",
@@ -46,6 +52,7 @@ export const BUILTIN_PATTERNS: AntiPattern[] = [
 		pattern:
 			/\b(as of (january|february|march|april|may|june|july|august|september|october|november|december) 20\d{2}|before (january|february|march|april|may|june|july|august|september|october|november|december)|after (january|february|march|april|may|june|july|august|september|october|november|december)|starting in 20\d{2}|until 20\d{2})\b/i,
 		severity: "warning",
+		suggestion: "Replace with a relative reference or remove the date",
 	},
 ];
 
@@ -73,6 +80,7 @@ export class AntiPatternCheckerRule implements LintRule {
 							line: section.startLine,
 							section: section.heading,
 							meta: { match: match[0], patternId: ap.id },
+							suggestion: ap.suggestion,
 						});
 					}
 				}
@@ -102,6 +110,7 @@ export class AntiPatternCheckerRule implements LintRule {
 						line: section.startLine,
 						section: section.heading,
 						meta: { wordCount },
+						suggestion: "Break into sections with headers, or use bullet points",
 					});
 				}
 			}
@@ -126,6 +135,7 @@ export class AntiPatternCheckerRule implements LintRule {
 					message: `Contradictory rules: both "always ${item}" and "never ${item}" found`,
 					filePath: file.path,
 					meta: { item },
+					suggestion: "Remove one of the contradicting rules",
 				});
 			}
 		}

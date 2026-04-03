@@ -27,6 +27,7 @@ export class TokenCounterRule implements LintRule {
 					message: `~${file.tokens} tokens exceeds limit of ${maxPerFile}`,
 					filePath: file.path,
 					meta: { tokens: file.tokens, limit: maxPerFile },
+					suggestion: "Split into multiple instruction files or remove low-value sections",
 				});
 			}
 
@@ -44,6 +45,7 @@ export class TokenCounterRule implements LintRule {
 							fileTokens: file.tokens,
 							ratio: section.tokens / file.tokens,
 						},
+						suggestion: "Break this section into subsections or move detail to a linked doc",
 					});
 				}
 			}

@@ -50,8 +50,8 @@ export function registerHarvestCommand(program: Command): void {
 
 				validateOptions(options, cliOptions);
 
-				if (cliOptions.format !== "json" && !options.dryRun) {
-					process.stderr.write(chalk.dim("Scanning git history...\n"));
+				if (cliOptions.format !== "json" && !options.dryRun && !options.live) {
+					process.stderr.write(chalk.dim("  Scanning git history...\n"));
 				}
 
 				const result = await harvest(options);
@@ -128,69 +128,92 @@ function validateOptions(options: HarvestOptions, cli: HarvestCliOptions): void 
 }
 
 function printDryRun(result: HarvestResult): void {
-	console.log(header("Harvest · Dry Run"));
-	console.log(kvLine("Scanned", chalk.cyan(String(result.commitsScanned))));
-	console.log(kvLine("Detected", `${chalk.cyan(String(result.aiCommitsDetected))} AI-assisted`));
+	const rate =
+		result.commitsScanned > 0
+			? Math.round((result.aiCommitsDetected / result.commitsScanned) * 100)
+			: 0;
 
-	if (result.tasks.length > 0) {
-		console.log(`\n  ${chalk.bold(`Detected tasks (${result.tasks.length})`)}`);
-		for (const name of result.tasks) {
-			console.log(`    ${chalk.green(name)}`);
-		}
-	}
+	console.log(header("agenteval harvest · dry run"));
+	console.log(kvLine("Commits scanned", chalk.cyan(String(result.commitsScanned))));
+	console.log(
+		kvLine(
+			"AI-assisted",
+			`${chalk.green.bold(String(result.aiCommitsDetected))} ${chalk.dim(`(${rate}%)`)}`,
+		),
+	);
+	console.log(kvLine("Tasks to emit", chalk.cyan(String(result.tasks.length))));
 
 	if (result.skipped.length > 0) {
-		console.log(`\n  ${chalk.dim(`Skipped (${result.skipped.length})`)}`);
-		for (const { hash, reason } of result.skipped) {
-			console.log(`    ${chalk.dim(`${hash} · ${reason}`)}`);
+		console.log(kvLine("Skipped", chalk.dim(String(result.skipped.length))));
+	}
+
+	if (result.tasks.length > 0) {
+		const MAX_SHOWN = 10;
+		const shown = result.tasks.slice(0, MAX_SHOWN);
+		const remaining = result.tasks.length - MAX_SHOWN;
+		console.log("");
+		for (const name of shown) {
+			console.log(`    ${chalk.dim("·")} ${chalk.green(name)}`);
+		}
+		if (remaining > 0) {
+			console.log(`    ${chalk.dim(`... and ${remaining} more`)}`);
 		}
 	}
 
 	if (result.aiCommitsDetected === 0) {
 		console.log(`\n  ${chalk.yellow("No AI-involved commits detected.")}`);
-		console.log(chalk.dim("  Try --min-confidence 0.3 to lower the threshold,"));
-		console.log(chalk.dim("  or check that your AI tool adds Co-authored-by trailers."));
+		console.log(
+			chalk.dim("  Try --min-confidence 0.3 or check your AI tool adds Co-authored-by trailers."),
+		);
 	}
 
 	console.log();
 }
 
 function printSummary(result: HarvestResult): void {
-	console.log(header("Harvest Complete"));
-	console.log(kvLine("Scanned", chalk.cyan(String(result.commitsScanned))));
-	console.log(kvLine("Detected", `${chalk.cyan(String(result.aiCommitsDetected))} AI-assisted`));
-	console.log(kvLine("Emitted", chalk.green(String(result.tasksEmitted))));
+	console.log(header("agenteval harvest"));
+	console.log(kvLine("Commits scanned", chalk.cyan(String(result.commitsScanned))));
+	console.log(kvLine("AI-assisted", chalk.green.bold(String(result.aiCommitsDetected))));
+	console.log(kvLine("Tasks written", chalk.green.bold(String(result.tasksEmitted))));
 
 	if (result.skipped.length > 0) {
-		console.log(kvLine("Skipped", chalk.yellow(String(result.skipped.length))));
+		console.log(kvLine("Skipped", chalk.dim(String(result.skipped.length))));
 	}
 
 	if (result.tasks.length > 0) {
-		console.log(`\n  ${chalk.bold("Written files")}`);
-		for (const path of result.tasks) {
-			console.log(`    ${chalk.cyan(path)}`);
+		const MAX_SHOWN = 10;
+		const shown = result.tasks.slice(0, MAX_SHOWN);
+		const remaining = result.tasks.length - MAX_SHOWN;
+		console.log("");
+		for (const path of shown) {
+			console.log(`    ${chalk.dim("→")} ${chalk.cyan(path)}`);
+		}
+		if (remaining > 0) {
+			console.log(`    ${chalk.dim(`... and ${remaining} more`)}`);
 		}
 	}
 
 	if (result.aiCommitsDetected === 0) {
 		console.log(`\n  ${chalk.yellow("No AI-involved commits detected.")}`);
-		console.log(chalk.dim("  Try --min-confidence 0.3 to lower the threshold,"));
-		console.log(chalk.dim("  or check that your AI tool adds Co-authored-by trailers."));
+		console.log(
+			chalk.dim("  Try --min-confidence 0.3 or check your AI tool adds Co-authored-by trailers."),
+		);
 	}
 
 	console.log();
 }
 
 function printLiveReview(result: LiveReviewResult): void {
-	console.log(header("Live Review"));
-	console.log(kvLine("Files", String(result.filesAnalyzed)));
-	console.log(kvLine("Score", `${scoreColor(result.overallScore)}/10`));
+	console.log(header("agenteval review"));
 
 	if (result.rubrics.length === 0) {
-		console.log(`\n  ${result.summary}`);
+		console.log(`  ${chalk.green("✓")} ${chalk.dim("No uncommitted changes to review")}`);
 		console.log();
 		return;
 	}
+
+	console.log(kvLine("Files analyzed", chalk.cyan(String(result.filesAnalyzed))));
+	console.log(kvLine("Overall score", `${scoreColor(result.overallScore)}${chalk.dim("/10")}`));
 
 	const nameWidth = 22;
 	const scoreWidth = 7;

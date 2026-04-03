@@ -105,8 +105,8 @@ function formatScore(score: number | null): string {
 export function formatComparisonConsole(report: ComparisonReport): string {
 	const lines: string[] = [];
 
-	lines.push(header("Comparison"));
-	lines.push(`  ${report.runA.id}  ${chalk.dim("vs")}  ${report.runB.id}`);
+	lines.push(header("agenteval compare"));
+	lines.push(`  ${chalk.cyan(report.runA.id)}  ${chalk.dim("vs")}  ${chalk.cyan(report.runB.id)}`);
 	lines.push("");
 
 	const metricW = 14;

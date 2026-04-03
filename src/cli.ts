@@ -10,6 +10,8 @@ import { registerLintCommand } from "./commands/lint.js";
 import { registerResultsCommand } from "./commands/results.js";
 import { registerRunCommand } from "./commands/run.js";
 import { registerTrendsCommand } from "./commands/trends.js";
+import { registerUpdateCommand } from "./commands/update.js";
+import { checkForUpdate } from "./update-check.js";
 import { version } from "./version.js";
 
 const program = new Command()
@@ -28,6 +30,9 @@ registerCompareCommand(program);
 registerHarvestCommand(program);
 registerCICommand(program);
 registerTrendsCommand(program);
+registerUpdateCommand(program);
+
+await checkForUpdate();
 
 try {
 	await program.parseAsync(process.argv);

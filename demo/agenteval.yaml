@@ -1,6 +1,11 @@
 version: 1
+
 instructionGlobs:
   - "demo/CLAUDE.md"
   - "demo/AGENTS.md"
+  - "demo/.github/copilot-instructions.md"
+  - "demo/.github/instructions/*.md"
+  - "demo/.claude/**/*.md"
+
 contextBudget: 0.3
 model: claude-sonnet-4-6

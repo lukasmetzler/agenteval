@@ -8,6 +8,8 @@ Your CLAUDE.md is untested. So is your AGENTS.md. agenteval fixes that -- it lin
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1.svg)](https://bun.sh)
 
+![agenteval demo](demo/demo.gif)
+
 ## The Problem
 
 Every team using AI coding tools writes instruction files. CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions.md -- whatever your tool calls them. You spend hours crafting these files, change a paragraph, and then... hope it works better. Maybe it does. Maybe you just broke something else. You have no way to know.

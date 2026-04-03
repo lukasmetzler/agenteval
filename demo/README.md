@@ -1,33 +1,49 @@
 # agenteval Demo
 
-Try agenteval on these sample instruction files. They contain intentional problems that agenteval will catch.
+Sample instruction files covering every format agenteval understands.
 
-## Quick test
+## Files included
 
-```bash
-# From the repo root:
-agenteval lint -c demo/agenteval.yaml
-agenteval lint -c demo/agenteval.yaml --explain
-agenteval harvest --dry-run
-agenteval doctor
+```
+demo/
+  CLAUDE.md                                      # Claude Code instructions (intentional issues)
+  AGENTS.md                                      # Generic agent instructions (overlaps with CLAUDE.md)
+  .github/copilot-instructions.md                # GitHub Copilot instructions (meta + vague)
+  .github/instructions/backend.instructions.md   # Scoped GitHub instructions
+  .claude/skills/deploy/SKILL.md                 # Anthropic skill file (first-person description)
+  agenteval.yaml                                 # Config pointing at all demo files
 ```
 
-Or with bun:
+## Try it
+
+From the repo root:
 
 ```bash
+# Lint all demo instruction files
 bun run dev -- lint -c demo/agenteval.yaml
+
+# Same, with full rule explanations
 bun run dev -- lint -c demo/agenteval.yaml --explain
+
+# Check your environment
+bun run dev -- doctor
+
+# Preview AI commits in this repo
+bun run dev -- harvest --dry-run
 ```
 
 ## What you'll see
 
-The sample CLAUDE.md has intentional issues:
+The demo files have intentional issues:
 
-- A section that uses too many tokens (the API Guidelines section is bloated)
-- A dead file reference (docs/schema.md, openapi.yaml do not exist)
-- Filler phrases that waste context ("thoroughly test everything", "comprehensive coverage", "in a robust manner")
-- Vague instructions mixed in with concrete ones
+| Issue | File | Rule |
+|-------|------|------|
+| Dead file reference (`docs/schema.md`) | CLAUDE.md | dead-ref/missing-file |
+| Dead file reference (`openapi.yaml`) | CLAUDE.md | dead-ref/missing-file |
+| Filler phrases ("make sure to") | CLAUDE.md | bloat/filler-phrases |
+| Vague instruction ("Be careful") | copilot-instructions.md | anti-pattern/vague-instruction |
+| Meta-instruction ("Read this carefully") | copilot-instructions.md | anti-pattern/meta-instruction |
+| Content overlap (language, testing) | CLAUDE.md + AGENTS.md | overlap/high-similarity |
+| First-person skill description | SKILL.md | skill/description-first-person |
 
-The sample AGENTS.md overlaps with CLAUDE.md on language, testing, and code review sections. agenteval flags this because duplicated instructions waste context budget and risk contradictions when one copy gets updated but the other does not.
-
-These are the kinds of problems agenteval catches before they waste your AI agent's context window.
+These are the kinds of problems that waste your AI agent's context window or produce unpredictable behavior.

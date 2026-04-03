@@ -14,6 +14,7 @@ bun run dev -- run      # run eval (needs --task flag)
 bun run dev -- results  # view stored results
 bun run dev -- compare  # compare two runs
 bun run dev -- harvest  # mine git history for eval datasets
+bun run dev -- trends  # score history and trend analysis
 bun run dev -- ci       # run all harvested tasks, fail on regression
 bun run build           # compile to binary
 bun run lint            # biome check

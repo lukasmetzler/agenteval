@@ -69,7 +69,7 @@ Run the help command to confirm everything works:
 agenteval --help
 ```
 
-You should see the list of available commands: `lint`, `run`, `harvest`, `results`, `compare`, and `ci`.
+You should see the list of available commands: `lint`, `run`, `harvest`, `results`, `compare`, `trends`, and `ci`.
 
 ## 5-Minute Quickstart
 
@@ -540,5 +540,6 @@ The default retention is 90 days, configurable via `run.resultRetention` in `age
 | Run an AI agent against a task and score it | `agenteval run` | [Running Evals](run.md) |
 | View and filter stored results | `agenteval results` | [Results and Comparison](results.md) |
 | Compare two eval runs side-by-side | `agenteval compare` | [Results and Comparison](results.md) |
+| Track score history and trends over time | `agenteval trends` | [Trends](trends.md) |
 | Run regression checks in CI | `agenteval ci` | [CI Guide](ci.md) |
 | Customize agenteval behavior | Edit `agenteval.yaml` | [Configuration Reference](configuration.md) |

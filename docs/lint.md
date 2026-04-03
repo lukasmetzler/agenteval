@@ -68,6 +68,22 @@ Running `agenteval lint` on a project with several issues produces output like t
   2 files analyzed · ~72000 tokens · 3 errors · 4 warnings · 2 info · 48ms
 ```
 
+## Quick Overview
+
+agenteval lint runs 24 rules across 7 categories. Here is what each category checks:
+
+| Category | What it catches |
+|----------|----------------|
+| **TokenCounter** | Files or sections that are too large and waste context window space |
+| **OverlapDetector** | Duplicated content across multiple instruction files |
+| **BloatScorer** | Low-density prose, filler phrases, and repetitive wording |
+| **AntiPatternChecker** | Role-play preambles, vague instructions, contradictions, TODOs |
+| **DeadSectionAnalyzer** | References to files or links that no longer exist |
+| **ContextBudgetChecker** | Total instruction tokens exceeding your model's context budget |
+| **SkillValidator** | Invalid metadata in skill definition files (frontmatter) |
+
+Run `agenteval lint` and read the output -- it explains each issue it finds. The detailed rule reference below is for when you want to understand a specific rule in depth.
+
 ## Flag Reference
 
 | Flag | Short | Default | Description |
@@ -82,6 +98,8 @@ Running `agenteval lint` on a project with several issues produces output like t
 The `--severity` flag filters the output after all rules have run. Setting `--severity warning` hides info-level diagnostics. Setting `--severity error` shows only errors.
 
 The `--quiet` flag is more aggressive: it suppresses all logger output (debug messages, file counts) in addition to filtering to errors only.
+
+## Rules Reference
 
 ## Rules Reference
 

@@ -28,6 +28,8 @@ All other fields have defaults. You only need to specify what you want to change
 
 ## Complete Configuration
 
+You don't need most of these options. The complete example below shows every available setting -- most have sensible defaults.
+
 ```yaml
 version: 1
 

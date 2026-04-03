@@ -20,6 +20,7 @@ bun run build
 
 | Guide | What it covers |
 |-------|---------------|
+| [Core Concepts](docs/concepts.md) | The 5 key ideas (instructions, tasks, assertions, harnesses, scoring) in plain English |
 | [Getting Started](docs/getting-started.md) | Installation, first run, overview of all features |
 | [Linting Guide](docs/lint.md) | All 24 lint rules, output formats, CI integration, inline suppression |
 | [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring, the full eval pipeline |

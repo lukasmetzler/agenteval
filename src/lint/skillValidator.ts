@@ -5,10 +5,34 @@ const NAME_MAX_LENGTH = 64;
 const NAME_PATTERN = /^[a-z0-9-]+$/;
 const RESERVED_WORDS = ["anthropic", "claude"];
 const DESCRIPTION_MAX_LENGTH = 1024;
+const DESCRIPTION_TRUNCATION_LENGTH = 250;
 const XML_TAG_PATTERN = /<\/?[a-zA-Z][^>]*>/;
 const FIRST_PERSON_PATTERN = /\b(I can|I will|I help|I am|I'll|I'm)\b/i;
 const SECOND_PERSON_PATTERN = /\b(You can|You will|You should|You'll|You're)\b/i;
 const MAX_BODY_LINES = 500;
+
+const VALID_SKILL_FIELDS = new Set([
+	"name",
+	"description",
+	"argument-hint",
+	"disable-model-invocation",
+	"user-invocable",
+	"allowed-tools",
+	"model",
+	"effort",
+	"context",
+	"agent",
+	"hooks",
+	"paths",
+	"shell",
+	"preamble-tier",
+	"metadata",
+	"version",
+]);
+
+const VALID_EFFORT_VALUES = new Set(["low", "medium", "high", "max"]);
+const VALID_CONTEXT_VALUES = new Set(["fork"]);
+const VALID_SHELL_VALUES = new Set(["bash", "powershell"]);
 
 export class SkillValidatorRule implements LintRule {
 	id = "skill";
@@ -24,6 +48,11 @@ export class SkillValidatorRule implements LintRule {
 
 			diagnostics.push(...this.validateName(fm, file.path));
 			diagnostics.push(...this.validateDescription(fm, file.path));
+			diagnostics.push(...this.validateUnknownFields(fm, file.path));
+			diagnostics.push(...this.validateEffort(fm, file.path));
+			diagnostics.push(...this.validateContext(fm, file.path));
+			diagnostics.push(...this.validateShell(fm, file.path));
+			diagnostics.push(...this.validateUnreachable(fm, file.path));
 			diagnostics.push(...this.validateBodyLength(file.content, file.path));
 		}
 
@@ -116,6 +145,16 @@ export class SkillValidatorRule implements LintRule {
 			});
 		}
 
+		if (desc.length > DESCRIPTION_TRUNCATION_LENGTH) {
+			diagnostics.push({
+				ruleId: "skill/description-truncation",
+				severity: "info",
+				message: "Description exceeds 250 characters and will be truncated in skill listings.",
+				filePath,
+				meta: { length: desc.length, limit: DESCRIPTION_TRUNCATION_LENGTH },
+			});
+		}
+
 		if (XML_TAG_PATTERN.test(desc)) {
 			diagnostics.push({
 				ruleId: "skill/description-xml-tags",
@@ -148,6 +187,81 @@ export class SkillValidatorRule implements LintRule {
 		}
 
 		return diagnostics;
+	}
+
+	private validateUnknownFields(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		const diagnostics: Diagnostic[] = [];
+		for (const key of Object.keys(fm)) {
+			if (!VALID_SKILL_FIELDS.has(key)) {
+				diagnostics.push({
+					ruleId: "skill/unknown-field",
+					severity: "warning",
+					message: `Unknown frontmatter field '${key}'. This may be a typo.`,
+					filePath,
+				});
+			}
+		}
+		return diagnostics;
+	}
+
+	private validateEffort(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		if (fm.effort === undefined) return [];
+		if (typeof fm.effort !== "string" || !VALID_EFFORT_VALUES.has(fm.effort)) {
+			return [
+				{
+					ruleId: "skill/invalid-effort",
+					severity: "error",
+					message: `Invalid effort value '${String(fm.effort)}'. Must be one of: low, medium, high, max.`,
+					filePath,
+				},
+			];
+		}
+		return [];
+	}
+
+	private validateContext(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		if (fm.context === undefined) return [];
+		if (typeof fm.context !== "string" || !VALID_CONTEXT_VALUES.has(fm.context)) {
+			return [
+				{
+					ruleId: "skill/invalid-context",
+					severity: "error",
+					message: `Invalid context value '${String(fm.context)}'. Only 'fork' is supported.`,
+					filePath,
+				},
+			];
+		}
+		return [];
+	}
+
+	private validateShell(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		if (fm.shell === undefined) return [];
+		if (typeof fm.shell !== "string" || !VALID_SHELL_VALUES.has(fm.shell)) {
+			return [
+				{
+					ruleId: "skill/invalid-shell",
+					severity: "error",
+					message: `Invalid shell value '${String(fm.shell)}'. Must be 'bash' or 'powershell'.`,
+					filePath,
+				},
+			];
+		}
+		return [];
+	}
+
+	private validateUnreachable(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		if (fm["disable-model-invocation"] === true && fm["user-invocable"] === false) {
+			return [
+				{
+					ruleId: "skill/unreachable",
+					severity: "warning",
+					message:
+						"Skill has both disable-model-invocation and user-invocable: false. It cannot be triggered.",
+					filePath,
+				},
+			];
+		}
+		return [];
 	}
 
 	private validateBodyLength(content: string, filePath: string): Diagnostic[] {

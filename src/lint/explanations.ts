@@ -155,4 +155,34 @@ export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
 		why: "Invalid skill metadata prevents the skill from being discovered and loaded.",
 		fix: "Follow the Anthropic skill specification for frontmatter fields.",
 	},
+	"skill/description-truncation": {
+		what: "Warns when a skill description exceeds 250 characters.",
+		why: "Descriptions longer than 250 characters are truncated in skill listings, potentially hiding important information.",
+		fix: "Shorten the description to 250 characters or less for full visibility in listings.",
+	},
+	"skill/unknown-field": {
+		what: "Detects frontmatter fields not in the Anthropic skill specification.",
+		why: "Unknown fields are likely typos or unsupported options that will be silently ignored.",
+		fix: "Remove the unknown field or correct the spelling to match a valid field name.",
+	},
+	"skill/invalid-effort": {
+		what: "Validates the effort field value against the Anthropic skill spec.",
+		why: "Invalid effort values are ignored, so the skill won't get the intended compute allocation.",
+		fix: "Set effort to one of: low, medium, high, max.",
+	},
+	"skill/invalid-context": {
+		what: "Validates the context field value against the Anthropic skill spec.",
+		why: "Invalid context values are ignored, so the skill won't run in the intended execution context.",
+		fix: "Set context to 'fork' or remove the field.",
+	},
+	"skill/invalid-shell": {
+		what: "Validates the shell field value against the Anthropic skill spec.",
+		why: "Invalid shell values may cause the skill to fail at runtime.",
+		fix: "Set shell to 'bash' or 'powershell'.",
+	},
+	"skill/unreachable": {
+		what: "Detects skills that cannot be triggered by any means.",
+		why: "A skill with both disable-model-invocation: true and user-invocable: false can never be invoked.",
+		fix: "Set at least one of disable-model-invocation to false or user-invocable to true.",
+	},
 };

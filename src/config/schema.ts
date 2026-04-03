@@ -122,10 +122,19 @@ export function getModelContextWindow(model: string): number {
  */
 export const SkillFrontmatterFields = [
 	"name",
-	"version",
 	"description",
-	"preamble-tier",
+	"argument-hint",
+	"disable-model-invocation",
+	"user-invocable",
 	"allowed-tools",
+	"model",
+	"effort",
+	"context",
+	"agent",
 	"hooks",
+	"paths",
+	"shell",
+	"preamble-tier",
 	"metadata",
+	"version",
 ] as const;

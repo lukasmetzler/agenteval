@@ -8,7 +8,7 @@ import {
 	parseGitLog,
 	parseNumstat,
 } from "../../src/harvest/detect.js";
-import { emitTaskYaml, writeTaskFile } from "../../src/harvest/emit.js";
+import { detectTestCommand, emitTaskYaml, writeTaskFile } from "../../src/harvest/emit.js";
 import { harvest } from "../../src/harvest/index.js";
 import type { AICommit } from "../../src/harvest/types.js";
 
@@ -409,10 +409,12 @@ describe("emitTaskYaml", () => {
 
 	test("generates files-changed assertions for each file in diff", () => {
 		const task = emitTaskYaml(sampleCommit, {});
-		expect(task.assertions).toHaveLength(2);
+		// 2 files-changed + 1 test-pass (sampleCommit includes tests/auth.test.ts)
+		expect(task.assertions).toHaveLength(3);
 		expect(task.assertions[0].type).toBe("files-changed");
 		expect(task.assertions[0].pattern).toBe("src/auth.ts");
 		expect(task.assertions[1].pattern).toBe("tests/auth.test.ts");
+		expect(task.assertions[2].type).toBe("test-pass");
 	});
 
 	test("strips conventional-commit prefix from prompt", () => {
@@ -473,6 +475,61 @@ describe("emitTaskYaml", () => {
 		expect(task.sourceCommit).toBeUndefined();
 		expect(task.detectionConfidence).toBeUndefined();
 		expect(task.harvestDate).toBeUndefined();
+	});
+
+	test("commit with test files gets test-pass assertion", () => {
+		const commit: AICommit = {
+			...sampleCommit,
+			filesChanged: ["src/auth.ts", "tests/auth.test.ts"],
+		};
+		const task = emitTaskYaml(commit, {});
+		const testPass = task.assertions.find((a) => a.type === "test-pass");
+		expect(testPass).toBeDefined();
+		expect(testPass?.command).toBeDefined();
+	});
+
+	test("commit without test files has no test-pass assertion", () => {
+		const commit: AICommit = {
+			...sampleCommit,
+			filesChanged: ["src/auth.ts", "src/utils.ts"],
+		};
+		const task = emitTaskYaml(commit, {});
+		const testPass = task.assertions.find((a) => a.type === "test-pass");
+		expect(testPass).toBeUndefined();
+	});
+
+	test("detects various test file patterns", () => {
+		const patterns = [
+			"tests/auth.test.ts",
+			"src/auth.spec.ts",
+			"__tests__/foo.ts",
+			"test/helpers.ts",
+		];
+		for (const file of patterns) {
+			const commit: AICommit = {
+				...sampleCommit,
+				filesChanged: [file],
+				diffStat: { additions: 10, deletions: 0, filesChanged: 1 },
+			};
+			const task = emitTaskYaml(commit, {});
+			const testPass = task.assertions.find((a) => a.type === "test-pass");
+			expect(testPass).toBeDefined();
+		}
+	});
+
+	test("detectTestCommand returns bun test for this repo", () => {
+		const cmd = detectTestCommand(repoRoot);
+		expect(cmd).toBe("bun test");
+	});
+
+	test("detectTestCommand returns fallback for non-existent path", () => {
+		const cmd = detectTestCommand("/non/existent/path");
+		expect(cmd).toBe("bun test");
+	});
+
+	test("detectTestCommand returns fallback when no repoPath given", () => {
+		const cmd = detectTestCommand();
+		expect(cmd).toBe("bun test");
 	});
 });
 

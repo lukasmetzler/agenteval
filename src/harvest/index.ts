@@ -106,6 +106,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 				commit,
 				{ harness: options.harness, timeout: options.timeout },
 				{ snapshot, prInfo: prInfoMap.get(commit.hash) },
+				options.repoPath,
 			);
 			result.tasks.push(task.name);
 		}
@@ -118,6 +119,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 			commit,
 			{ harness: options.harness, timeout: options.timeout },
 			{ snapshot, prInfo: prInfoMap.get(commit.hash) },
+			options.repoPath,
 		);
 
 		const filePath = writeTaskFile(task, outputDir, options.force ?? false);
@@ -138,7 +140,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 }
 
 export { detectAICommits } from "./detect.js";
-export { emitTaskYaml, writeTaskFile } from "./emit.js";
+export { detectTestCommand, emitTaskYaml, writeTaskFile } from "./emit.js";
 export { findPRForCommit, isGhAvailable } from "./github.js";
 export type { PRInfo } from "./github.js";
 export { diffInstructionSnapshots, getInstructionSnapshot } from "./snapshot.js";

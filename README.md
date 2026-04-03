@@ -1,6 +1,6 @@
 # agenteval
 
-Your CLAUDE.md is untested. So is your AGENTS.md. agenteval fixes that -- it lints, benchmarks, and scores your AI coding instructions so you stop guessing and start measuring.
+Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules. agenteval is a linter, benchmarker, and CI gate for AI coding instructions. Stop hoping your instructions work. Measure it.
 
 [![CI](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml/badge.svg)](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/release/lukasmetzler/agenteval?label=version)](https://github.com/lukasmetzler/agenteval/releases)
@@ -10,15 +10,27 @@ Your CLAUDE.md is untested. So is your AGENTS.md. agenteval fixes that -- it lin
 
 ![agenteval demo](demo/demo.gif)
 
-## The Problem
+## Get Started in 10 Seconds
 
-Every team using AI coding tools writes instruction files. CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions.md -- whatever your tool calls them. You spend hours crafting these files, change a paragraph, and then... hope it works better. Maybe it does. Maybe you just broke something else. You have no way to know.
+```bash
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+```
 
-That is not engineering. That is vibes.
+Then lint your instruction files:
 
-Your codebase has tests. Your APIs have contracts. Your AI instructions should have the same rigor.
+```bash
+agenteval lint
+```
 
-## What agenteval Does
+No Bun, no Node, no runtime. The binary is self-contained.
+
+## Why This Exists
+
+Your codebase has tests. Your APIs have contracts. Your AI instructions have... hope.
+
+Every team using AI coding tools writes instruction files. You change a paragraph, push it, and cross your fingers. Maybe the agent performs better. Maybe you just broke something. You have no way to know.
+
+agenteval gives you that way. Lint catches problems statically. Harvest builds benchmarks from your git history. Run scores agent performance. Compare tells you if your changes helped. CI gates regressions before they merge.
 
 ```mermaid
 flowchart LR
@@ -36,87 +48,72 @@ flowchart LR
     style J fill:#1a7f37,stroke:#2ea043,color:#fff
 ```
 
-- **lint** catches wasted context budget, contradictions, dead references, and filler before an agent ever reads your instructions
-- **harvest** turns your existing AI commits into replayable benchmarks -- no synthetic test cases needed
-- **run** gives a task to an AI agent in a sandbox and scores the output against ground truth
-- **compare** shows you exactly what improved (or regressed) when you changed your instructions
-- **ci** gates your PRs -- instruction quality regressions fail the build
-- **trends** tracks whether your team is getting better at writing instructions over time
+## What It Catches
 
-## Get Started in 10 Seconds
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
-```
-
-Then lint your instruction files:
-
-```bash
-agenteval lint
-```
-
-That's it. No Bun, no Node, no runtime needed. The binary is self-contained.
-
-See the [Getting Started guide](docs/getting-started.md) for the full walkthrough, or try it on the included [demo files](demo/).
+- Dead references to files that don't exist
+- Filler phrases that waste context tokens ("make sure to", "it is important that")
+- Contradictions ("always use X" and "never use X" in the same file)
+- Content overlap between instruction files
+- Token budget overruns that crowd out code context
+- Vague instructions without specifics ("be careful", "write good code")
+- Broken markdown links and heading anchors
+- Invalid skill metadata (per Anthropic spec)
 
 ## Commands
 
-| Command | What it does | Guide |
-|---------|-------------|-------|
-| `agenteval init` | Create starter agenteval.yaml config | [Configuration](docs/configuration.md) |
-| `agenteval doctor` | Environment health check | [Getting Started](docs/getting-started.md) |
-| `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
-| `agenteval harvest` | Mine git history for eval task YAML | [Harvesting](docs/harvest.md) |
-| `agenteval run` | Run an agent against a task and score it | [Running Evals](docs/run.md) |
-| `agenteval results` | View and export stored eval results | [Results](docs/results.md) |
-| `agenteval compare` | Compare two runs side by side | [Results](docs/results.md) |
-| `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
-| `agenteval ci` | Run all harvested tasks, fail on regression | [CI Guide](docs/ci.md) |
+| Command | What it does |
+|---------|-------------|
+| `agenteval lint` | Find quality issues in instruction files ([guide](docs/lint.md)) |
+| `agenteval lint --explain` | Same, but shows why each rule matters |
+| `agenteval harvest` | Build eval tasks from your AI commit history ([guide](docs/harvest.md)) |
+| `agenteval harvest --live` | Score your working tree changes before committing |
+| `agenteval run --task <file>` | Run an AI agent against a task, score the result ([guide](docs/run.md)) |
+| `agenteval compare <A> <B>` | Compare two runs side by side ([guide](docs/results.md)) |
+| `agenteval ci` | Run all tasks, fail on regressions ([guide](docs/ci.md)) |
+| `agenteval trends` | Score history and trend analysis ([guide](docs/trends.md)) |
+| `agenteval init` | Create a starter config ([guide](docs/configuration.md)) |
+| `agenteval doctor` | Check environment health |
+
+## Supports Every Instruction Format
+
+- `CLAUDE.md` (Claude Code)
+- `AGENTS.md` (OpenAI Codex, generic agents)
+- `.github/copilot-instructions.md` (GitHub Copilot)
+- `.github/instructions/*.instructions.md` (scoped Copilot instructions)
+- `.claude/skills/*/SKILL.md` (Anthropic skills)
+- `.cursorrules` and `.cursor/rules/*.mdc` (Cursor)
+
+Try it on the included [demo files](demo/) that cover all formats.
 
 ## Documentation
 
 | Guide | What it covers |
 |-------|---------------|
-| [Core Concepts](docs/concepts.md) | The 5 key ideas (instructions, tasks, assertions, harnesses, scoring) in plain English |
-| [Getting Started](docs/getting-started.md) | Installation, first run, overview of all features |
-| [Linting Guide](docs/lint.md) | All lint rules, output formats, CI integration, inline suppression |
-| [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring, the full eval pipeline |
-| [Harvesting from Git History](docs/harvest.md) | AI commit detection, task generation, confidence tuning |
-| [Results & Comparison](docs/results.md) | Viewing, filtering, exporting, and comparing eval runs |
-| [Trends](docs/trends.md) | Score history and trend analysis across tasks |
-| [CI Regression Detection](docs/ci.md) | Run tasks in CI, fail on quality regressions, threshold tuning |
-| [Configuration Reference](docs/configuration.md) | Every config option with types, defaults, and examples |
+| [Core Concepts](docs/concepts.md) | Instructions, tasks, assertions, harnesses, scoring |
+| [Getting Started](docs/getting-started.md) | Installation, first run, full walkthrough |
+| [Linting](docs/lint.md) | All lint rules, output formats, CI integration |
+| [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring pipeline |
+| [Harvesting](docs/harvest.md) | AI commit detection, task generation, live review |
+| [CI Guide](docs/ci.md) | Regression detection, thresholds, GitHub Actions example |
+| [Configuration](docs/configuration.md) | Every config option with types and defaults |
 
-## Other Installation Methods
+## Installation
 
-**Download binary directly** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) (Linux x64, macOS ARM64, macOS Intel).
+**Quick install** (Linux, macOS):
+```bash
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+```
+
+**Download binary** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases).
 
 **Build from source** (requires [Bun](https://bun.sh) v1.3+):
 ```bash
 git clone https://github.com/lukasmetzler/agenteval.git && cd agenteval && bun install && bun run build
 ```
 
-The binary is self-contained (~100MB). No runtime needed to run it.
-
-## Configuration
-
-agenteval works with zero configuration. When you need to customize, create `agenteval.yaml`:
-
-```yaml
-version: 1
-instructionGlobs: ["CLAUDE.md", "AGENTS.md"]
-contextBudget: 0.3
-```
-
-See [Configuration Reference](docs/configuration.md) for the full schema.
-
-## Who's Using This
-
-Using agenteval? [Open a PR](https://github.com/lukasmetzler/agenteval/pulls) to add yourself here.
-
 ## Contributing
 
-Contributions welcome. See the [contributing guidelines](CONTRIBUTING.md) for how to get started.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

@@ -52,7 +52,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 
 	if (options.live) {
 		const { runLiveReview } = await import("./live.js");
-		const liveResult = await runLiveReview(options.repoPath);
+		const liveResult = await runLiveReview(options.repoPath, options.analyze);
 		return {
 			commitsScanned: 0,
 			aiCommitsDetected: 0,

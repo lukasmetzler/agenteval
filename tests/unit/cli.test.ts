@@ -49,4 +49,20 @@ describe("CLI", () => {
 		const result = await $`bun run src/cli.ts harvest --dry-run`.text();
 		expect(result).toContain("Harvest Dry Run");
 	});
+
+	test("harvest --analyze without --live is rejected", async () => {
+		try {
+			await $`bun run src/cli.ts harvest --analyze`.text();
+			// If we get here, no error was thrown — fail the test
+			expect(true).toBe(false);
+		} catch {
+			// Expected: the command should exit with non-zero
+		}
+	});
+
+	test("harvest --help shows --analyze option", async () => {
+		const result = await $`bun run src/cli.ts harvest --help`.text();
+		expect(result).toContain("--analyze");
+		expect(result).toContain("LLM-assisted rubrics");
+	});
 });

@@ -36,6 +36,7 @@ export interface HarvestOptions {
 	minConfidence?: number;
 	github?: boolean;
 	live?: boolean;
+	analyze?: boolean;
 }
 
 export interface HarvestResult {

@@ -18,6 +18,7 @@ interface HarvestCliOptions {
 	github?: boolean;
 	config?: string;
 	live?: boolean;
+	analyze?: boolean;
 }
 
 const VALID_HARNESSES = ["claude-code", "opencode", "copilot", "generic", "auto"];
@@ -38,6 +39,7 @@ export function registerHarvestCommand(program: Command): void {
 		.option("--min-confidence <number>", "minimum confidence threshold (0-1)")
 		.option("--github", "enrich tasks with GitHub PR data (requires gh CLI)")
 		.option("--live", "review current working tree changes against heuristics")
+		.option("--analyze", "include LLM-assisted rubrics in live review (requires --live)")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (cliOptions: HarvestCliOptions) => {
 			try {
@@ -92,10 +94,15 @@ function buildOptions(
 			: config.harvest.minConfidence,
 		github: cli.github ?? false,
 		live: cli.live ?? false,
+		analyze: cli.analyze ?? false,
 	};
 }
 
 function validateOptions(options: HarvestOptions, cli: HarvestCliOptions): void {
+	if (cli.analyze && !cli.live) {
+		throw new Error("--analyze requires --live");
+	}
+
 	if (cli.harness && !VALID_HARNESSES.includes(cli.harness)) {
 		throw new Error(
 			`Invalid harness "${cli.harness}". Valid options: ${VALID_HARNESSES.join(", ")}`,

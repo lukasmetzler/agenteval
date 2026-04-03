@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
 
@@ -64,5 +65,40 @@ describe("CLI", () => {
 		const result = await $`bun run src/cli.ts harvest --help`.text();
 		expect(result).toContain("--analyze");
 		expect(result).toContain("LLM-assisted rubrics");
+	});
+
+	test("init subcommand appears in help", async () => {
+		const result = await $`bun run src/cli.ts --help`.text();
+		expect(result).toContain("init");
+	});
+
+	test("init creates agenteval.yaml", async () => {
+		const tmp = mkdtempSync(join(tmpdir(), "agenteval-init-"));
+		try {
+			const result =
+				await $`cd ${tmp} && bun run ${join(import.meta.dir, "../../src/cli.ts")} init`.text();
+			const configPath = join(tmp, "agenteval.yaml");
+			expect(existsSync(configPath)).toBe(true);
+			const content = readFileSync(configPath, "utf-8");
+			expect(content).toContain("version: 1");
+			expect(result).toContain("Created");
+		} finally {
+			rmSync(tmp, { recursive: true, force: true });
+		}
+	});
+
+	test("init refuses if file exists", async () => {
+		const tmp = mkdtempSync(join(tmpdir(), "agenteval-init-"));
+		try {
+			writeFileSync(join(tmp, "agenteval.yaml"), "version: 1\n", "utf-8");
+			const proc = await $`cd ${tmp} && bun run ${join(import.meta.dir, "../../src/cli.ts")} init`
+				.nothrow()
+				.quiet();
+			expect(proc.exitCode).not.toBe(0);
+			const stderr = proc.stderr.toString();
+			expect(stderr).toContain("already exists");
+		} finally {
+			rmSync(tmp, { recursive: true, force: true });
+		}
 	});
 });

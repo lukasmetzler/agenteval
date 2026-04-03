@@ -22,7 +22,7 @@ describe("parseConfigFile", () => {
 		const configPath = join(fixturesDir, "simple", "agenteval.yaml");
 		const config = parseConfigFile(configPath);
 		expect(config.version).toBe(1);
-		expect(config.model).toBe("claude-sonnet-4-20250514");
+		expect(config.model).toBe("claude-sonnet-4-6");
 		expect(config.instructionGlobs).toEqual(["CLAUDE.md"]);
 	});
 });
@@ -38,7 +38,7 @@ describe("loadConfig", () => {
 		const config = loadConfig("/tmp");
 		expect(config.version).toBe(1);
 		expect(config.instructionGlobs).toContain("CLAUDE.md");
-		expect(config.model).toBe("claude-sonnet-4-20250514");
+		expect(config.model).toBe("claude-sonnet-4-6");
 		expect(config.contextBudget).toBe(0.3);
 	});
 });

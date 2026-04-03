@@ -1,12 +1,24 @@
 import { z } from "zod";
 
 export const ModelContextWindows: Record<string, number> = {
+	// Anthropic — Claude 4.5/4.6 family
+	"claude-opus-4-6": 1_000_000,
+	"claude-sonnet-4-6": 200_000,
+	"claude-haiku-4-5": 200_000,
+	// Anthropic — Claude 4.x (legacy)
 	"claude-sonnet-4-20250514": 200_000,
 	"claude-opus-4-20250514": 200_000,
 	"claude-haiku-3-5-20241022": 200_000,
+	// OpenAI — GPT-5.x family
+	"gpt-5.4": 1_000_000,
+	"gpt-5.3": 1_000_000,
+	"gpt-5.3-codex": 1_000_000,
+	// OpenAI — GPT-4.x (legacy)
 	"gpt-4o": 128_000,
 	"gpt-4.1": 1_000_000,
 	o3: 200_000,
+	// Google — Gemini family
+	"gemini-3.1": 2_000_000,
 	"gemini-2.5-pro": 1_000_000,
 };
 
@@ -79,7 +91,7 @@ export const ConfigSchema = z.object({
 			".github/instructions/*.md",
 		]),
 	instructions: z.array(InstructionSourceSchema).default([]),
-	model: z.string().default("claude-sonnet-4-20250514"),
+	model: z.string().default("claude-sonnet-4-6"),
 	contextBudget: z.number().min(0).max(1).default(0.3),
 	lint: LintConfigSchema.default({}),
 	run: RunConfigSchema.default({}),

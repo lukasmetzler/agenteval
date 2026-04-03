@@ -436,7 +436,7 @@ Checks whether the total token count across all instruction files fits within th
 budget = modelContextWindow * contextBudget
 ```
 
-For example, with the default model (`claude-sonnet-4-20250514`, 200,000 token window) and default `contextBudget` (0.3), the budget is 60,000 tokens. If `lint.maxTotalTokens` is set, it overrides this calculation.
+For example, with the default model (`claude-sonnet-4-6`, 200,000 token window) and default `contextBudget` (0.3), the budget is 60,000 tokens. If `lint.maxTotalTokens` is set, it overrides this calculation.
 
 **Why it matters.** If instruction files consume too much of the context window, there is not enough room left for the codebase, conversation, and tool output. The agent's performance degrades because it cannot see the full picture.
 
@@ -629,7 +629,7 @@ instructionGlobs:
   - ".claude/**/*.md"
 
 # Model determines context window size for budget calculation
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 
 # What fraction of the context window instructions may consume (0-1)
 contextBudget: 0.3
@@ -898,7 +898,7 @@ lint:
 **Fix.** Check which model and budget fraction you have configured:
 
 ```yaml
-model: claude-sonnet-4-20250514   # 200,000 token window
+model: claude-sonnet-4-6   # 200,000 token window
 contextBudget: 0.3                 # 30% = 60,000 token budget
 ```
 

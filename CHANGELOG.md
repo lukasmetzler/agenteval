@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-03
+
+"Continuous Quality". Instruction quality regression detection in CI.
+
+### Added
+
+- `agenteval ci` command: runs all harvested eval tasks, scores each one, fails the build on regressions
+  - Absolute threshold: fail if score drops below `--min-score` (default 0.5)
+  - Relative threshold: fail if score regresses more than `--max-regression` vs previous run (default 0.1)
+  - Progress output showing each task with score, delta, and pass/fail status
+  - Summary with pass/fail counts, elapsed time, and failure details
+  - Configurable via `ci` section in agenteval.yaml or CLI flags
+- CI config section in agenteval.yaml: `tasksDir`, `minScore`, `maxRegression`, `instructions`
+- `docs/ci.md` with full CI guide, GitHub Actions example, threshold tuning tips
+- 7 new tests for CI config validation, previous-result lookup, and CLI integration
+
+### Changed
+
+- TODOS.md: removed `agenteval ci` item (now implemented)
+- README.md: added ci to commands table and documentation index
+- CLAUDE.md: added ci to command list
+- getting-started.md: added CI as Step 6 in the workflow
+
 ## [0.5.9] - 2026-04-03
 
 ### Added

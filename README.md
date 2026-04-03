@@ -61,6 +61,7 @@ You will see diagnostics like dead references, token bloat, and overlap between 
 | [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring, the full eval pipeline |
 | [Harvesting from Git History](docs/harvest.md) | AI commit detection, task generation, confidence tuning |
 | [Results & Comparison](docs/results.md) | Viewing, filtering, exporting, and comparing eval runs |
+| [CI Regression Detection](docs/ci.md) | Run tasks in CI, fail on quality regressions, threshold tuning |
 | [Configuration Reference](docs/configuration.md) | Every config option with types, defaults, and examples |
 
 ## Configuration

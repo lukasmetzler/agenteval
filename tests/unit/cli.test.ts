@@ -55,6 +55,10 @@ describe("CLI", () => {
 	test("harvest subcommand exists", async () => {
 		const result = await $`bun run src/cli.ts harvest --dry-run`.text();
 		expect(result).toContain("harvest");
+		expect(result).toContain("Hash");
+		expect(result).toContain("Tool");
+		expect(result).toContain("Conf");
+		expect(result).toContain("Message");
 	});
 
 	test("harvest --analyze without --live is rejected", async () => {

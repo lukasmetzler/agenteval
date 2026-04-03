@@ -644,6 +644,27 @@ describe("harvest", () => {
 		cleanup();
 	});
 
+	test("dry-run populates commitSummaries with required fields", async () => {
+		const result = await harvest({
+			repoPath: repoRoot,
+			dryRun: true,
+		});
+		const summaries = result.commitSummaries;
+		expect(summaries).toBeDefined();
+		expect(summaries?.length).toBeGreaterThan(0);
+		for (const summary of summaries ?? []) {
+			expect(typeof summary.shortHash).toBe("string");
+			expect(summary.shortHash.length).toBeGreaterThan(0);
+			expect(typeof summary.tool).toBe("string");
+			expect(summary.tool.length).toBeGreaterThan(0);
+			expect(typeof summary.confidence).toBe("number");
+			expect(summary.confidence).toBeGreaterThan(0);
+			expect(typeof summary.message).toBe("string");
+			expect(summary.message.length).toBeGreaterThan(0);
+			expect(summary.message.length).toBeLessThanOrEqual(50);
+		}
+	});
+
 	test("filters by minConfidence threshold", async () => {
 		// Confidence 1.0 should filter out everything (max is 0.9)
 		const result = await harvest({

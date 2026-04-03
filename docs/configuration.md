@@ -56,7 +56,7 @@ instructions:
 
 # Model name for context window calculations.
 # Used by the context budget checker to determine token limits.
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 
 # What fraction of the model's context window your instruction
 # files should consume (0.0 to 1.0).
@@ -187,7 +187,7 @@ harnesses:
 | `version` | integer | **required** | Must be `1` | Config schema version. |
 | `instructionGlobs` | string[] | `["CLAUDE.md", "AGENTS.md", ...]` | | Glob patterns for instruction file discovery. |
 | `instructions` | object[] | `[]` | Each must have `path` | Explicit instruction sources with optional harness binding. |
-| `model` | string | `claude-sonnet-4-20250514` | | Model name for context window lookup. |
+| `model` | string | `claude-sonnet-4-6` | | Model name for context window lookup. |
 | `contextBudget` | number | `0.3` | 0.0-1.0 | Fraction of context window budgeted for instructions. |
 
 ### `lint` Section
@@ -256,15 +256,18 @@ The model field determines the context window size used for budget calculations:
 
 | Model ID | Context Window | Provider |
 |----------|---------------|----------|
-| `claude-sonnet-4-20250514` | 200,000 | Anthropic |
-| `claude-opus-4-20250514` | 200,000 | Anthropic |
-| `claude-haiku-3-5-20241022` | 200,000 | Anthropic |
-| `gpt-4o` | 128,000 | OpenAI |
-| `gpt-4.1` | 1,000,000 | OpenAI |
-| `o3` | 200,000 | OpenAI |
+| `claude-opus-4-6` | 1,000,000 | Anthropic |
+| `claude-sonnet-4-6` | 200,000 | Anthropic |
+| `claude-haiku-4-5` | 200,000 | Anthropic |
+| `gpt-5.4` | 1,000,000 | OpenAI |
+| `gpt-5.3` | 1,000,000 | OpenAI |
+| `gpt-5.3-codex` | 1,000,000 | OpenAI |
+| `gemini-3.1` | 2,000,000 | Google |
 | `gemini-2.5-pro` | 1,000,000 | Google |
 
-Models not in this table default to 200,000 tokens. To use a different model, set the `model` field to any string. The context budget calculator will use 200,000 as the window size.
+Legacy models (`claude-sonnet-4-6`, `claude-opus-4-20250514`, `gpt-4o`, `gpt-4.1`, `o3`) are still recognized for backward compatibility.
+
+Models not in this table default to 200,000 tokens. Set the `model` field to any string and the context budget calculator will use 200,000 as the window size.
 
 ## Token Counting
 

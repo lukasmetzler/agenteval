@@ -49,7 +49,7 @@ describe("ConfigSchema Phase 2 extensions", () => {
 	test("full config with all sections", () => {
 		const config = ConfigSchema.parse({
 			version: 1,
-			model: "claude-opus-4-20250514",
+			model: "claude-opus-4-6",
 			instructionGlobs: ["CLAUDE.md"],
 			instructions: [{ path: "CLAUDE.md", harness: "claude-code" }],
 			lint: { bloatThreshold: 0.6 },
@@ -58,7 +58,7 @@ describe("ConfigSchema Phase 2 extensions", () => {
 				"claude-code": { command: "claude", args: ["--print", "--dangerously-skip-permissions"] },
 			},
 		});
-		expect(config.model).toBe("claude-opus-4-20250514");
+		expect(config.model).toBe("claude-opus-4-6");
 		expect(config.run.timeout).toBe(180);
 		expect(config.harnesses["claude-code"].args).toContain("--print");
 	});

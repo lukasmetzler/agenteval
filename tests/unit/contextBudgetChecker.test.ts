@@ -22,7 +22,7 @@ function makeConfig(overrides?: Partial<Config>): Config {
 		version: 1 as const,
 		instructionGlobs: [],
 		instructions: [],
-		model: "claude-sonnet-4-20250514",
+		model: "claude-sonnet-4-6",
 		contextBudget: 0.3,
 		lint: {
 			overlapThreshold: 0.3,

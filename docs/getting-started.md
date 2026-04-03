@@ -335,7 +335,7 @@ instructionGlobs:
   - ".github/copilot-instructions.md"
 
 # Target model for context budget calculations
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 
 # Max fraction of context window your instructions should consume
 contextBudget: 0.3

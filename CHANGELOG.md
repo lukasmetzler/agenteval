@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-04-03
+
+### Changed
+
+- Lint output: message-first layout with rule ID as dim parenthetical, branded "agenteval lint" header with stats
+- Harvest: branded headers, detection rate percentage (e.g., "37 AI-assisted (97%)"), task lists capped at 10 with "... and N more"
+- Live review: branded "agenteval review" header, clean empty state message
+- Run: branded header, task name shown, score displays with /1.0 suffix
+- Compare: branded header, run IDs highlighted in cyan
+- Fixed: `--live` no longer shows "Scanning git history" progress message
+
 ## [0.5.3] - 2026-04-03
 
 ### Added

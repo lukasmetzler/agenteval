@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stringify as yamlStringify } from "yaml";
 import type { TaskDefinition } from "../run/types.js";
@@ -59,6 +59,45 @@ function inferPrompt(commit: AICommit): string {
 	return prompt;
 }
 
+/** Test file detection pattern: matches test, spec, or __tests__ in the path. */
+const TEST_FILE_PATTERN = /(?:test|spec|__tests__)/;
+
+/**
+ * Detect the appropriate test command for a repository.
+ * Reads package.json scripts.test and checks for bun indicators.
+ * Falls back to "bun test" if detection fails.
+ */
+export function detectTestCommand(repoPath?: string): string {
+	const fallback = "bun test";
+	if (!repoPath) return fallback;
+
+	try {
+		const pkgPath = join(repoPath, "package.json");
+		if (!existsSync(pkgPath)) return fallback;
+
+		const raw = readFileSync(pkgPath, "utf-8");
+		const pkg = JSON.parse(raw) as {
+			scripts?: Record<string, string>;
+		};
+		const testScript = pkg.scripts?.test;
+
+		if (testScript) {
+			return testScript;
+		}
+
+		// No test script — check for bun indicators
+		const hasBun =
+			existsSync(join(repoPath, "bunfig.toml")) ||
+			existsSync(join(repoPath, "bun.lockb")) ||
+			existsSync(join(repoPath, "bun.lock"));
+		if (hasBun) return "bun test";
+
+		return "npm test";
+	} catch {
+		return fallback;
+	}
+}
+
 export interface EmitMetadata {
 	snapshot?: Record<string, string>;
 	prInfo?: PRInfo;
@@ -71,11 +110,21 @@ export function emitTaskYaml(
 	commit: AICommit,
 	options: Pick<HarvestOptions, "harness" | "timeout">,
 	metadata?: EmitMetadata,
+	repoPath?: string,
 ): TaskDefinition {
-	const assertions = commit.filesChanged.map((file) => ({
+	const assertions: TaskDefinition["assertions"] = commit.filesChanged.map((file) => ({
 		type: "files-changed" as const,
 		pattern: file,
 	}));
+
+	// Detect test files in the diff and add a test-pass assertion
+	const hasTestFiles = commit.filesChanged.some((f) => TEST_FILE_PATTERN.test(f));
+	if (hasTestFiles) {
+		assertions.push({
+			type: "test-pass" as const,
+			command: detectTestCommand(repoPath),
+		});
+	}
 
 	let prompt = inferPrompt(commit);
 

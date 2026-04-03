@@ -31,7 +31,7 @@ jobs:
         run: bun run test
 
       - name: Build binary
-        run: bun build src/cli.ts --compile --outfile=agenteval
+        run: ./scripts/build.sh
 
       - name: Smoke test
         run: ./agenteval --version

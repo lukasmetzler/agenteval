@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] - 2026-04-03
+
+### Added
+
+- `agenteval doctor` command: environment health check verifying git, config, instruction files, claude CLI, and gh CLI with pass/warn/fail checklist
+- Human-readable compare summary: "Run B scored 15% higher. Correctness improved from 0.60 to 0.90. Instruction changes: CLAUDE.md." replaces bare "Winner: Run B"
+- `generateSummary()` exported from compare module for programmatic access
+
+### Changed
+
+- Compare console output shows percentage change, best-improving dimension, and instruction file changes
+- Compare markdown output includes the summary as a bold line
+
 ## [0.5.6] - 2026-04-03
 
 ### Added

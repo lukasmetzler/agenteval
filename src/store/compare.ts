@@ -100,6 +100,78 @@ function formatScore(score: number | null): string {
 }
 
 /**
+ * Generate a human-readable summary sentence for a comparison report.
+ */
+export function generateSummary(report: ComparisonReport): string {
+	const overall = report.metrics.find((m) => m.name === "overall");
+
+	if (!overall || overall.valueA === null || overall.valueB === null) {
+		return "Scores could not be compared (missing data).";
+	}
+
+	if (report.winner === "tie") {
+		return appendInstructionChanges("Both runs scored identically.", report);
+	}
+
+	const sentence = buildWinnerSentence(report, overall.valueA, overall.valueB);
+	return appendInstructionChanges(sentence, report);
+}
+
+function buildWinnerSentence(report: ComparisonReport, scoreA: number, scoreB: number): string {
+	const isB = report.winner === "b";
+	const winnerScore = isB ? scoreB : scoreA;
+	const loserScore = isB ? scoreA : scoreB;
+
+	const pct =
+		loserScore !== 0 ? ((Math.abs(winnerScore - loserScore) / loserScore) * 100).toFixed(0) : "Inf";
+
+	const winnerLabel = isB ? "Run B" : "Run A";
+	let sentence = `${winnerLabel} scored ${pct}% higher.`;
+
+	const bestDim = findBestDimension(report.metrics, isB);
+	if (bestDim) {
+		sentence += ` ${formatDimensionImprovement(bestDim, isB)}`;
+	}
+
+	return sentence;
+}
+
+function findBestDimension(metrics: ComparisonMetric[], isB: boolean): ComparisonMetric | null {
+	let best: ComparisonMetric | null = null;
+	let bestDelta = 0;
+
+	for (const m of metrics) {
+		if (m.name === "overall" || m.delta === null) continue;
+		const effectiveDelta = isB ? m.delta : -m.delta;
+		if (effectiveDelta > bestDelta) {
+			bestDelta = effectiveDelta;
+			best = m;
+		}
+	}
+
+	return best;
+}
+
+function formatDimensionImprovement(dim: ComparisonMetric, isB: boolean): string {
+	if (dim.valueA === null || dim.valueB === null) return "";
+	const label = dim.name.charAt(0).toUpperCase() + dim.name.slice(1);
+	const [from, to] = isB ? [dim.valueA, dim.valueB] : [dim.valueB, dim.valueA];
+	return `${label} improved from ${from.toFixed(2)} to ${to.toFixed(2)}.`;
+}
+
+function appendInstructionChanges(sentence: string, report: ComparisonReport): string {
+	if (!report.instructionDiff) return sentence;
+
+	const changedFiles = Object.entries(report.instructionDiff)
+		.filter(([, status]) => status !== "unchanged")
+		.map(([file]) => file);
+
+	if (changedFiles.length === 0) return sentence;
+
+	return `${sentence} Instruction changes: ${changedFiles.join(", ")}.`;
+}
+
+/**
  * Format a comparison report as a console-friendly table string.
  */
 export function formatComparisonConsole(report: ComparisonReport): string {
@@ -142,8 +214,13 @@ export function formatComparisonConsole(report: ComparisonReport): string {
 		lines.push(...instrLines);
 	}
 
+	const summaryText = generateSummary(report);
+	const summaryLine =
+		report.winner === "tie" ? chalk.dim(summaryText) : chalk.green.bold(summaryText);
+
 	lines.push("");
-	lines.push(`  ${chalk.bold("Winner:")} ${report.summary}`);
+	lines.push(`  ${chalk.dim("\u2500".repeat(54))}`);
+	lines.push(`  ${summaryLine}`);
 
 	return lines.join("\n");
 }
@@ -180,7 +257,7 @@ export function formatComparisonMarkdown(report: ComparisonReport): string {
 	}
 
 	lines.push("");
-	lines.push(`**Winner:** ${report.summary}`);
+	lines.push(`**${generateSummary(report)}**`);
 
 	return lines.join("\n");
 }

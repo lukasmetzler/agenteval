@@ -2,6 +2,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { registerCompareCommand } from "./commands/compare.js";
+import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerHarvestCommand } from "./commands/harvest.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerLintCommand } from "./commands/lint.js";
@@ -15,6 +16,7 @@ const program = new Command()
 	.version(version);
 
 registerInitCommand(program);
+registerDoctorCommand(program);
 registerLintCommand(program);
 registerRunCommand(program);
 registerResultsCommand(program);

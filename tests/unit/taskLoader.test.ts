@@ -75,4 +75,18 @@ describe("loadTask", () => {
 		expect(types).toContain("test-pass");
 		expect(types).toContain("convention");
 	});
+
+	test("throws on nonexistent .yaml file reference", () => {
+		expect(() => loadTask("nonexistent.yaml", fixturesDir)).toThrow("Task file not found");
+	});
+
+	test("throws on nonexistent path with directory separator", () => {
+		expect(() => loadTask("tasks/missing/file.yaml", fixturesDir)).toThrow("Task file not found");
+	});
+
+	test("inline description still creates ad-hoc task (no regression)", () => {
+		const task = loadTask("refactor the auth module", fixturesDir);
+		expect(task.name).toBe("ad-hoc");
+		expect(task.prompt).toBe("refactor the auth module");
+	});
 });

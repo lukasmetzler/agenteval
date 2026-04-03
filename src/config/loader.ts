@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { logger } from "../utils/logger.js";
 import { type Config, ConfigSchema } from "./schema.js";
 
 const CONFIG_FILENAME = "agenteval.yaml";
@@ -38,6 +39,7 @@ export function loadConfig(cwd?: string): Config {
 	const configPath = findConfigFile(startDir);
 
 	if (!configPath) {
+		logger.debug("No agenteval.yaml found, using defaults. Run 'agenteval init' to create one.");
 		return ConfigSchema.parse({ version: 1 });
 	}
 

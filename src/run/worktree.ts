@@ -45,7 +45,9 @@ export async function createWorktree(
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
 		const stderr = await new Response(proc.stderr).text();
-		throw new Error(`Failed to create worktree: ${stderr.trim()}`);
+		throw new Error(
+			`Failed to create isolated worktree: ${stderr.trim()}\nThis can happen if git worktrees are disabled or the repo has uncommitted changes that conflict.`,
+		);
 	}
 
 	logger.debug(`Created worktree at ${worktreePath}`);

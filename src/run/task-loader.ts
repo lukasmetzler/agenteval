@@ -56,6 +56,13 @@ export function loadTask(taskRef: string, cwd: string): TaskDefinition {
 		}
 	}
 
+	// If it looks like a file reference, it's probably a typo — don't silently create ad-hoc
+	if (taskRef.endsWith(".yaml") || taskRef.endsWith(".yml") || taskRef.includes("/")) {
+		throw new Error(
+			`Task file not found: "${taskRef}". Check the path or list harvested tasks in tasks/harvested/`,
+		);
+	}
+
 	return createAdHocTask(taskRef);
 }
 

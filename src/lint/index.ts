@@ -58,7 +58,9 @@ export async function runLint(config: Config, cwd: string): Promise<LintResult> 
 	const filePaths = await resolveInstructionFiles(config.instructionGlobs, cwd, config.lint.ignore);
 
 	if (filePaths.length === 0) {
-		logger.warn("No instruction files found matching configured globs");
+		logger.warn(
+			`No instruction files found. Checked: ${config.instructionGlobs.join(", ")}. Create a CLAUDE.md in your project root or update instructionGlobs in agenteval.yaml.`,
+		);
 		return {
 			diagnostics: [
 				{

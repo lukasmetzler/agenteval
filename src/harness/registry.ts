@@ -37,7 +37,7 @@ export function getAdapter(name: string, config: Config): HarnessAdapter {
 				});
 			}
 			throw new Error(
-				`Unknown harness: "${name}". Configure it in agenteval.yaml under harnesses:`,
+				`Unknown harness: "${name}". Built-in: claude-code, generic, mock. Or define a custom one in agenteval.yaml:\n\n  harnesses:\n    ${name}:\n      command: "your-tool"\n      args: ["--run"]`,
 			);
 		}
 	}

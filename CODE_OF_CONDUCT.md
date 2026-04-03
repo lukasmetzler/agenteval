@@ -20,7 +20,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainer at lukas@lukasmetzler.com. All complaints will be reviewed.
+Instances of unacceptable behavior may be reported to the project maintainer at lukasxmetzler@gmail.com. All complaints will be reviewed.
 
 ## Attribution
 

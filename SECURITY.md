@@ -6,7 +6,7 @@ If you discover a security vulnerability in agenteval, please report it responsi
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, email: lukas@lukasmetzler.com (or use GitHub's private vulnerability reporting if enabled)
+Instead, email: lukasxmetzler@gmail.com (or use GitHub's private vulnerability reporting if enabled)
 
 ## What Counts as a Security Issue
 

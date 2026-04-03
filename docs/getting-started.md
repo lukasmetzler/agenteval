@@ -51,6 +51,18 @@ bun install
 bun run build
 ```
 
+### Updating
+
+Already have agenteval installed? Update to the latest version:
+
+```bash
+agenteval update
+```
+
+agenteval also checks for updates in the background (once per day) and shows a one-time notification when a new version is available.
+
+### Running
+
 After building, you can either run the binary directly:
 
 ```bash
@@ -72,7 +84,7 @@ agenteval --version
 Expected output:
 
 ```
-0.7.2
+0.7.3
 ```
 
 ### Verify the installation
@@ -556,4 +568,5 @@ The default retention is 90 days, configurable via `run.resultRetention` in `age
 | Compare two eval runs side-by-side | `agenteval compare` | [Results and Comparison](results.md) |
 | Track score history and trends over time | `agenteval trends` | [Trends](trends.md) |
 | Run regression checks in CI | `agenteval ci` | [CI Guide](ci.md) |
+| Update to the latest version | `agenteval update` | |
 | Customize agenteval behavior | Edit `agenteval.yaml` | [Configuration Reference](configuration.md) |

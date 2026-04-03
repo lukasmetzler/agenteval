@@ -1,5 +1,8 @@
+import { readFileSync } from "node:fs";
 import { loadConfig } from "../config/loader.js";
 import type { LiveReviewConfig } from "../config/schema.js";
+import { resolveInstructionFiles } from "../utils/glob.js";
+import { scoreConventionCompliance, scoreProgressiveDisclosure } from "./llm-rubrics.js";
 import { scoreDiffHygiene, scoreScopeDiscipline, scoreTestCoverage } from "./rubrics.js";
 import type { LiveReviewResult, RubricResult } from "./types.js";
 
@@ -56,13 +59,33 @@ export async function getWorkingDiff(repoPath: string): Promise<{ files: string[
 }
 
 /**
- * Pure function: select enabled rubrics, run them, and compute a weighted average.
+ * Read instruction files matching the configured globs.
  */
-export function selectAndScoreRubrics(
+export async function readInstructionFiles(repoPath: string, globs: string[]): Promise<string> {
+	const matched = await resolveInstructionFiles(globs, repoPath);
+	const contents: string[] = [];
+
+	for (const filePath of matched) {
+		try {
+			contents.push(readFileSync(filePath, "utf-8"));
+		} catch {
+			// Skip files that can't be read
+		}
+	}
+
+	return contents.join("\n\n---\n\n");
+}
+
+/**
+ * Pure function: select enabled rubrics, run them, and compute a weighted average.
+ * When analyze is true and LLM rubrics are enabled, includes them in results.
+ */
+export async function selectAndScoreRubrics(
 	files: string[],
 	diff: string,
 	config: LiveReviewConfig,
-): LiveReviewResult {
+	options?: { analyze?: boolean; instructions?: string },
+): Promise<LiveReviewResult> {
 	if (files.length === 0) {
 		return {
 			rubrics: [],
@@ -93,6 +116,25 @@ export function selectAndScoreRubrics(
 			result: scoreDiffHygiene(diff),
 			weight: config.rubrics.diffHygiene.weight,
 		});
+	}
+
+	// LLM-assisted rubrics: only run when analyze is true
+	if (options?.analyze && options.instructions) {
+		if (config.rubrics.conventionCompliance.enabled) {
+			const result = await scoreConventionCompliance(diff, options.instructions);
+			rubricEntries.push({
+				result,
+				weight: config.rubrics.conventionCompliance.weight,
+			});
+		}
+
+		if (config.rubrics.progressiveDisclosure.enabled) {
+			const result = await scoreProgressiveDisclosure(diff, options.instructions);
+			rubricEntries.push({
+				result,
+				weight: config.rubrics.progressiveDisclosure.weight,
+			});
+		}
 	}
 
 	if (rubricEntries.length === 0) {
@@ -132,10 +174,19 @@ export function selectAndScoreRubrics(
 
 /**
  * Run a live review of the current working tree against heuristic rubrics.
+ * When analyze is true, also runs LLM-assisted rubrics.
  */
-export async function runLiveReview(repoPath: string): Promise<LiveReviewResult> {
+export async function runLiveReview(
+	repoPath: string,
+	analyze?: boolean,
+): Promise<LiveReviewResult> {
 	const { files, diff } = await getWorkingDiff(repoPath);
 	const config = loadConfig(repoPath);
 
-	return selectAndScoreRubrics(files, diff, config.liveReview);
+	let instructions: string | undefined;
+	if (analyze) {
+		instructions = await readInstructionFiles(repoPath, config.instructionGlobs);
+	}
+
+	return selectAndScoreRubrics(files, diff, config.liveReview, { analyze, instructions });
 }

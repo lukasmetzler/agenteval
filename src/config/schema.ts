@@ -50,6 +50,8 @@ const LiveReviewConfigSchema = z.object({
 			scopeDiscipline: RubricConfigSchema.default({}),
 			testCoverage: RubricConfigSchema.default({}),
 			diffHygiene: RubricConfigSchema.default({}),
+			conventionCompliance: RubricConfigSchema.default({}),
+			progressiveDisclosure: RubricConfigSchema.default({}),
 		})
 		.default({}),
 });

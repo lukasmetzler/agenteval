@@ -5,6 +5,7 @@ import {
 	compareResults,
 	formatComparisonConsole,
 	formatComparisonMarkdown,
+	generateSummary,
 } from "../../src/store/compare.js";
 
 function makeResult(overrides: Partial<StoredResult> = {}): StoredResult {
@@ -146,7 +147,7 @@ describe("formatComparisonConsole", () => {
 		const plain = stripAnsi(output);
 		expect(plain).toContain("run-A");
 		expect(plain).toContain("run-B");
-		expect(plain).toContain("Winner");
+		expect(plain).toContain("Run B scored");
 		expect(plain).toContain("Correctness");
 	});
 });
@@ -159,7 +160,7 @@ describe("formatComparisonMarkdown", () => {
 		const output = formatComparisonMarkdown(compareResults(runA, runB));
 		expect(output).toContain("# Comparison Report");
 		expect(output).toContain("| Metric |");
-		expect(output).toContain("**Winner:**");
+		expect(output).toContain("**Both runs scored identically.**");
 	});
 });
 
@@ -233,7 +234,105 @@ describe("snapshot-aware comparison", () => {
 		const report = compareResults(runA, runB);
 		expect(report.instructionDiff).toBeUndefined();
 	});
+});
 
+describe("generateSummary", () => {
+	test("includes percentage and best dimension when clear winner", () => {
+		const runA = makeResult({
+			id: "run-A",
+			scores: {
+				correctness: 0.6,
+				precision: 0.7,
+				efficiency: 0.8,
+				conventions: 0.9,
+				overall: 0.7,
+			},
+		});
+		const runB = makeResult({
+			id: "run-B",
+			scores: {
+				correctness: 0.9,
+				precision: 0.8,
+				efficiency: 0.85,
+				conventions: 0.95,
+				overall: 0.85,
+			},
+		});
+
+		const report = compareResults(runA, runB);
+		const summary = generateSummary(report);
+		expect(summary).toContain("Run B scored");
+		expect(summary).toContain("% higher");
+		expect(summary).toContain("Correctness improved from 0.60 to 0.90");
+	});
+
+	test("says scored identically for ties", () => {
+		const runA = makeResult({ id: "run-A" });
+		const runB = makeResult({ id: "run-B" });
+
+		const report = compareResults(runA, runB);
+		const summary = generateSummary(report);
+		expect(summary).toBe("Both runs scored identically.");
+	});
+
+	test("includes instruction changes when diff has changed files", () => {
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: { "CLAUDE.md": "# Old" },
+			scores: {
+				correctness: 0.6,
+				precision: 0.7,
+				efficiency: 0.8,
+				conventions: 0.9,
+				overall: 0.7,
+			},
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: { "CLAUDE.md": "# New" },
+			scores: {
+				correctness: 0.9,
+				precision: 0.8,
+				efficiency: 0.85,
+				conventions: 0.95,
+				overall: 0.85,
+			},
+		});
+
+		const report = compareResults(runA, runB);
+		const summary = generateSummary(report);
+		expect(summary).toContain("Instruction changes: CLAUDE.md.");
+	});
+
+	test("produces graceful message when scores are null", () => {
+		const runA = makeResult({
+			id: "run-A",
+			scores: {
+				correctness: null,
+				precision: null,
+				efficiency: null,
+				conventions: null,
+				overall: null,
+			},
+		});
+		const runB = makeResult({
+			id: "run-B",
+			scores: {
+				correctness: null,
+				precision: null,
+				efficiency: null,
+				conventions: null,
+				overall: null,
+			},
+		});
+
+		const report = compareResults(runA, runB);
+		const summary = generateSummary(report);
+		expect(summary).toBe("Scores could not be compared (missing data).");
+	});
+});
+
+describe("snapshot-aware comparison (formatting)", () => {
 	test("console format shows instruction changes when diff has changes", () => {
 		const runA = makeResult({
 			id: "run-A",

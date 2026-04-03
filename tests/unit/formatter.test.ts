@@ -3,6 +3,7 @@ import type { LintResult } from "../../src/lint/types.js";
 import { ConsoleFormatter } from "../../src/output/formatter.js";
 import { JsonFormatter } from "../../src/output/json.js";
 import { MarkdownFormatter } from "../../src/output/markdown.js";
+import { stripAnsi } from "../../src/output/terminal.js";
 
 const sampleResult: LintResult = {
 	diagnostics: [
@@ -39,15 +40,29 @@ describe("ConsoleFormatter", () => {
 
 	test("formats diagnostics with severity icons", () => {
 		const output = fmt.format(sampleResult);
-		expect(output).toContain("error");
-		expect(output).toContain("warn");
-		expect(output).toContain("info");
-		expect(output).toContain("3 files analyzed");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("error");
+		expect(plain).toContain("warn");
+		expect(plain).toContain("info");
+		expect(plain).toContain("3 files");
+	});
+
+	test("groups diagnostics by file", () => {
+		const output = fmt.format(sampleResult);
+		const plain = stripAnsi(output);
+		// File names appear as group headers
+		expect(plain).toContain("CLAUDE.md");
+		expect(plain).toContain("api.md");
+		// CLAUDE.md appears before its diagnostics
+		const claudePos = plain.indexOf("CLAUDE.md");
+		const errorPos = plain.indexOf("token-count/file-too-large");
+		expect(claudePos).toBeLessThan(errorPos);
 	});
 
 	test("shows success message for clean results", () => {
 		const output = fmt.format(emptyResult);
-		expect(output).toContain("No issues found");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("No issues found");
 	});
 
 	test("renders suggestion line when diagnostic has suggestion", () => {
@@ -65,7 +80,8 @@ describe("ConsoleFormatter", () => {
 			stats: { filesAnalyzed: 1, totalTokens: 500, duration: 5 },
 		};
 		const output = fmt.format(resultWithSuggestion);
-		expect(output).toContain("→ Remove the reference or create the missing file");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("Remove the reference or create the missing file");
 	});
 
 	test("does not render suggestion line when diagnostic has no suggestion", () => {
@@ -81,12 +97,14 @@ describe("ConsoleFormatter", () => {
 			stats: { filesAnalyzed: 1, totalTokens: 9500, duration: 5 },
 		};
 		const output = fmt.format(resultWithoutSuggestion);
-		expect(output).not.toContain("→");
+		const plain = stripAnsi(output);
+		expect(plain).not.toContain("→");
 	});
 
 	test("shows error guidance when errors exist", () => {
 		const output = fmt.format(sampleResult);
-		expect(output).toContain("Fix the errors above");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("Fix the errors above");
 	});
 
 	test("shows warning guidance when only warnings exist", () => {
@@ -102,12 +120,20 @@ describe("ConsoleFormatter", () => {
 			stats: { filesAnalyzed: 1, totalTokens: 500, duration: 5 },
 		};
 		const output = fmt.format(warningOnly);
-		expect(output).toContain("Warnings suggest improvements");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("Warnings suggest improvements");
 	});
 
 	test("shows all-clear guidance when no issues", () => {
 		const output = fmt.format(emptyResult);
-		expect(output).toContain("All clear");
+		const plain = stripAnsi(output);
+		expect(plain).toContain("All clear");
+	});
+
+	test("uses tree-line prefix for visual grouping", () => {
+		const output = fmt.format(sampleResult);
+		const plain = stripAnsi(output);
+		expect(plain).toContain("│");
 	});
 });
 

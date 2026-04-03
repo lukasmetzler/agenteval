@@ -111,6 +111,7 @@ export async function executeRun(
 			metrics,
 			tokensBudget: config.run.tokensBudget,
 			expectedFilePatterns: expectedPatterns,
+			detectionConfidence: task.detectionConfidence,
 		});
 
 		return {

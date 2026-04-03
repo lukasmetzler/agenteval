@@ -1,8 +1,10 @@
 import { diffInstructionSnapshots } from "../harvest/snapshot.js";
-import type { ResultScores, StoredResult } from "../run/types.js";
+import type { StoredResult } from "../run/types.js";
 import type { ComparisonMetric, ComparisonReport } from "./types.js";
 
-const SCORE_KEYS: (keyof ResultScores)[] = [
+type CoreScoreKey = "correctness" | "precision" | "efficiency" | "conventions" | "overall";
+
+const SCORE_KEYS: CoreScoreKey[] = [
 	"correctness",
 	"precision",
 	"efficiency",

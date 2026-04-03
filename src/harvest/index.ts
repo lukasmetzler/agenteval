@@ -2,8 +2,10 @@ import { loadConfig } from "../config/loader.js";
 import { logger } from "../utils/logger.js";
 import { detectAICommits } from "./detect.js";
 import { emitTaskYaml, writeTaskFile } from "./emit.js";
+import type { PRInfo } from "./github.js";
+import { findPRForCommit, isGhAvailable } from "./github.js";
 import { getInstructionSnapshot } from "./snapshot.js";
-import type { HarvestOptions, HarvestResult } from "./types.js";
+import type { AICommit, HarvestOptions, HarvestResult } from "./types.js";
 
 /**
  * Validate that the given path is inside a git repository.
@@ -19,6 +21,27 @@ async function validateGitRepo(repoPath: string): Promise<void> {
 	if (exitCode !== 0) {
 		throw new Error("Not a git repository (or git not found).");
 	}
+}
+
+/**
+ * Fetch PR info for each commit via the GitHub CLI. Requires `gh` to be authenticated.
+ */
+async function fetchPRInfoMap(repoPath: string, commits: AICommit[]): Promise<Map<string, PRInfo>> {
+	const ghReady = await isGhAvailable();
+	if (!ghReady) {
+		throw new Error(
+			"--github requires the GitHub CLI (gh). Install it from https://cli.github.com/ and run 'gh auth login'.",
+		);
+	}
+	const prInfoMap = new Map<string, PRInfo>();
+	for (const commit of commits) {
+		const prInfo = await findPRForCommit(repoPath, commit.hash);
+		if (prInfo) {
+			prInfoMap.set(commit.hash, prInfo);
+			logger.debug(`Found PR #${prInfo.number} for ${commit.shortHash}`);
+		}
+	}
+	return prInfoMap;
 }
 
 /**
@@ -46,6 +69,11 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	const config = loadConfig(options.repoPath);
 	const instructionGlobs = config.instructionGlobs;
 
+	// GitHub enrichment: fetch PR data for each commit if --github is set
+	const prInfoMap = options.github
+		? await fetchPRInfoMap(options.repoPath, filtered)
+		: new Map<string, PRInfo>();
+
 	const result: HarvestResult = {
 		commitsScanned: scanned,
 		aiCommitsDetected: filtered.length,
@@ -55,7 +83,6 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	};
 
 	if (options.dryRun) {
-		// In dry-run mode, populate tasks with what would be generated but don't write
 		for (const commit of filtered) {
 			const snapshot = await getInstructionSnapshot(
 				options.repoPath,
@@ -65,7 +92,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 			const task = emitTaskYaml(
 				commit,
 				{ harness: options.harness, timeout: options.timeout },
-				{ snapshot },
+				{ snapshot, prInfo: prInfoMap.get(commit.hash) },
 			);
 			result.tasks.push(task.name);
 		}
@@ -77,7 +104,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 		const task = emitTaskYaml(
 			commit,
 			{ harness: options.harness, timeout: options.timeout },
-			{ snapshot },
+			{ snapshot, prInfo: prInfoMap.get(commit.hash) },
 		);
 
 		const filePath = writeTaskFile(task, outputDir, options.force ?? false);
@@ -99,5 +126,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 
 export { detectAICommits } from "./detect.js";
 export { emitTaskYaml, writeTaskFile } from "./emit.js";
+export { findPRForCommit, isGhAvailable } from "./github.js";
+export type { PRInfo } from "./github.js";
 export { diffInstructionSnapshots, getInstructionSnapshot } from "./snapshot.js";
 export type { AICommit, HarvestOptions, HarvestResult } from "./types.js";

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-04-03
+
+Skill validation rules inspired by the superpowers repo (94% PR rejection rate).
+
+### Added
+
+- `skill/description-not-trigger` — descriptions should start with "Use when..." to tell Claude WHEN to invoke the skill, not WHAT the workflow does
+- `skill/too-long-no-supporting-files` — SKILL.md over 300 lines should extract heavy content into supporting files
+- `skill/missing-overview-section` — good skills start with a `## Overview` section
+- `skill/first-person-body` — skill bodies should use imperative voice ("Deploy...") not first-person ("I deploy...")
+- 9 new tests (398 → 407)
+
 ## [0.7.1] - 2026-04-03
 
 Bulletproof linting. Based on in-depth research of Anthropic skills spec, GitHub Copilot instructions, AGENTS.md, and Cursor rules.

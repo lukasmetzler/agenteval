@@ -455,6 +455,25 @@ describe("emitTaskYaml", () => {
 		const task = emitTaskYaml(sampleCommit, { timeout: 600 });
 		expect(task.timeout).toBe(600);
 	});
+
+	test("includes snapshot metadata when provided", () => {
+		const snapshot = { "CLAUDE.md": "# Instructions\nDo the thing." };
+		const task = emitTaskYaml(sampleCommit, {}, { snapshot });
+		expect(task.instructionSnapshot).toEqual(snapshot);
+		expect(task.sourceCommit).toBe(sampleCommit.hash);
+		expect(task.detectionConfidence).toBe(0.9);
+		expect(task.harvestDate).toBeDefined();
+		// harvestDate should be a valid ISO string
+		expect(Number.isNaN(Date.parse(task.harvestDate as string))).toBe(false);
+	});
+
+	test("omits snapshot fields when no metadata provided", () => {
+		const task = emitTaskYaml(sampleCommit, {});
+		expect(task.instructionSnapshot).toBeUndefined();
+		expect(task.sourceCommit).toBeUndefined();
+		expect(task.detectionConfidence).toBeUndefined();
+		expect(task.harvestDate).toBeUndefined();
+	});
 });
 
 // ──────────────────────────────────────────────

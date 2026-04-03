@@ -1,6 +1,8 @@
+import { loadConfig } from "../config/loader.js";
 import { logger } from "../utils/logger.js";
 import { detectAICommits } from "./detect.js";
 import { emitTaskYaml, writeTaskFile } from "./emit.js";
+import { getInstructionSnapshot } from "./snapshot.js";
 import type { HarvestOptions, HarvestResult } from "./types.js";
 
 /**
@@ -41,6 +43,9 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 		logger.debug(`Filtered ${belowThreshold} commits below confidence threshold ${minConfidence}`);
 	}
 
+	const config = loadConfig(options.repoPath);
+	const instructionGlobs = config.instructionGlobs;
+
 	const result: HarvestResult = {
 		commitsScanned: scanned,
 		aiCommitsDetected: filtered.length,
@@ -52,20 +57,28 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	if (options.dryRun) {
 		// In dry-run mode, populate tasks with what would be generated but don't write
 		for (const commit of filtered) {
-			const task = emitTaskYaml(commit, {
-				harness: options.harness,
-				timeout: options.timeout,
-			});
+			const snapshot = await getInstructionSnapshot(
+				options.repoPath,
+				commit.hash,
+				instructionGlobs,
+			);
+			const task = emitTaskYaml(
+				commit,
+				{ harness: options.harness, timeout: options.timeout },
+				{ snapshot },
+			);
 			result.tasks.push(task.name);
 		}
 		return result;
 	}
 
 	for (const commit of filtered) {
-		const task = emitTaskYaml(commit, {
-			harness: options.harness,
-			timeout: options.timeout,
-		});
+		const snapshot = await getInstructionSnapshot(options.repoPath, commit.hash, instructionGlobs);
+		const task = emitTaskYaml(
+			commit,
+			{ harness: options.harness, timeout: options.timeout },
+			{ snapshot },
+		);
 
 		const filePath = writeTaskFile(task, outputDir, options.force ?? false);
 
@@ -86,4 +99,5 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 
 export { detectAICommits } from "./detect.js";
 export { emitTaskYaml, writeTaskFile } from "./emit.js";
+export { diffInstructionSnapshots, getInstructionSnapshot } from "./snapshot.js";
 export type { AICommit, HarvestOptions, HarvestResult } from "./types.js";

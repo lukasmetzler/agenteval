@@ -58,19 +58,24 @@ function inferPrompt(commit: AICommit): string {
 	return prompt;
 }
 
+export interface EmitMetadata {
+	snapshot?: Record<string, string>;
+}
+
 /**
  * Convert an AICommit into a TaskDefinition object.
  */
 export function emitTaskYaml(
 	commit: AICommit,
 	options: Pick<HarvestOptions, "harness" | "timeout">,
+	metadata?: EmitMetadata,
 ): TaskDefinition {
 	const assertions = commit.filesChanged.map((file) => ({
 		type: "files-changed" as const,
 		pattern: file,
 	}));
 
-	return {
+	const task: TaskDefinition = {
 		name: `harvest-${commit.shortHash}`,
 		description: commit.message,
 		prompt: inferPrompt(commit),
@@ -84,6 +89,15 @@ export function emitTaskYaml(
 			conventions: 0.1,
 		},
 	};
+
+	if (metadata?.snapshot) {
+		task.instructionSnapshot = metadata.snapshot;
+		task.sourceCommit = commit.hash;
+		task.detectionConfidence = commit.confidence;
+		task.harvestDate = new Date().toISOString();
+	}
+
+	return task;
 }
 
 /**

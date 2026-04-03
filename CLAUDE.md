@@ -20,6 +20,7 @@ bun run dev -- compare  # compare two runs
 bun run dev -- harvest  # mine git history for eval datasets
 bun run dev -- trends   # score history and trend analysis
 bun run dev -- ci       # run all harvested tasks, fail on regression
+bun run dev -- update   # self-update to the latest release
 bun run build           # compile to binary (current platform)
 bun run build:linux     # cross-compile linux-x64
 bun run build:darwin    # cross-compile darwin-arm64

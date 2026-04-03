@@ -72,6 +72,7 @@ flowchart LR
 | `agenteval ci` | Run all tasks, fail on regressions ([guide](docs/ci.md)) |
 | `agenteval trends` | Score history and trend analysis ([guide](docs/trends.md)) |
 | `agenteval init` | Create a starter config ([guide](docs/configuration.md)) |
+| `agenteval update` | Self-update to the latest version |
 | `agenteval doctor` | Check environment health |
 
 ## Supports Every Instruction Format

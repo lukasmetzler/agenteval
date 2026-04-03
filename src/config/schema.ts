@@ -70,6 +70,15 @@ const LiveReviewConfigSchema = z.object({
 
 export type LiveReviewConfig = z.infer<typeof LiveReviewConfigSchema>;
 
+const CIConfigSchema = z.object({
+	tasksDir: z.string().default("tasks/harvested"),
+	minScore: z.number().min(0).max(1).default(0.5),
+	maxRegression: z.number().min(0).max(1).default(0.1),
+	instructions: z.string().default("CLAUDE.md"),
+});
+
+export type CIConfig = z.infer<typeof CIConfigSchema>;
+
 const LintConfigSchema = z.object({
 	overlapThreshold: z.number().min(0).max(1).default(0.3),
 	bloatThreshold: z.number().min(0).max(1).default(0.5),
@@ -98,6 +107,7 @@ export const ConfigSchema = z.object({
 	harvest: HarvestConfigSchema.default({}),
 	harnesses: z.record(z.string(), HarnessConfigSchema).default({}),
 	liveReview: LiveReviewConfigSchema.default({}),
+	ci: CIConfigSchema.default({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

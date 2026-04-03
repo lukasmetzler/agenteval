@@ -200,10 +200,15 @@ Each JSON file contains:
 | `scores.efficiency` | number or null | 0.0-1.0, from token usage |
 | `scores.conventions` | number or null | 0.0-1.0, from convention assertions |
 | `scores.overall` | number or null | Weighted average of available dimensions |
+| `scores.confidenceAdjustedOverall` | number or null | Overall score multiplied by detection confidence (harvested tasks only) |
 | `assertions` | array | Each assertion with type, expected, actual, passed |
 | `diffSummary` | string | Summary of git diff (e.g., "3 files, +42/-8") |
 | `model` | string or null | Model used (if available from harness) |
 | `error` | string | Error message (only present when status is error/timeout) |
+| `sourceCommit` | string | Source commit hash (present for harvested tasks) |
+| `instructionSnapshot` | object | Map of instruction file contents at source commit (harvested tasks) |
+| `prUrl` | string | GitHub PR URL (present when harvested with `--github`) |
+| `detectionConfidence` | number | Detection confidence 0.0-1.0 (harvested tasks) |
 
 You can read these files directly for custom analysis, dashboards, or integration with other tools.
 

@@ -187,6 +187,15 @@ agenteval harvest --min-confidence 0.3
 
 The confidence threshold (0 to 1) controls how certain harvest needs to be that a commit involved an AI tool before generating a task from it.
 
+You can also review your current working tree changes against quality rubrics:
+
+```bash
+agenteval harvest --live                  # Heuristic rubrics (scope, tests, hygiene)
+agenteval harvest --live --analyze        # + LLM-assisted rubrics (conventions, scope)
+```
+
+See the [Harvesting Guide](harvest.md) for full details on live review, GitHub enrichment (`--github`), and instruction snapshots.
+
 ### Step 3: Run an eval
 
 Pick a harvested task (or write your own) and run it:

@@ -81,6 +81,7 @@ agenteval harvest --format json                # JSON output
 agenteval harvest --harness claude-code        # Set harness in emitted tasks
 agenteval harvest --github                     # Enrich with PR body/labels (requires gh CLI)
 agenteval harvest --live                       # Review working tree changes against rubrics
+agenteval harvest --live --analyze             # Include LLM-assisted rubrics (convention + scope)
 ```
 
 Detects 14 AI coding tools via Co-authored-by trailers, author email patterns, and commit message patterns. Each method has a confidence score (0.6-0.9). Emitted YAML includes instruction snapshots (CLAUDE.md at commit time) and is compatible with `agenteval run --task`.

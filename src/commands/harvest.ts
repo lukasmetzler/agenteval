@@ -6,6 +6,19 @@ import type { HarvestOptions, HarvestResult, LiveReviewResult } from "../harvest
 import { header, kvLine, padEnd, scoreColor } from "../output/terminal.js";
 import { logger } from "../utils/logger.js";
 
+async function getCurrentBranch(): Promise<string> {
+	try {
+		const proc = Bun.spawn(["git", "branch", "--show-current"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		await proc.exited;
+		return (await new Response(proc.stdout).text()).trim() || "detached HEAD";
+	} catch {
+		return "unknown";
+	}
+}
+
 interface HarvestCliOptions {
 	since?: string;
 	until?: string;
@@ -54,16 +67,19 @@ export function registerHarvestCommand(program: Command): void {
 					process.stderr.write(chalk.dim("  Scanning git history...\n"));
 				}
 
+				const startTime = performance.now();
 				const result = await harvest(options);
+				const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
 
 				if (cliOptions.format === "json") {
 					console.log(JSON.stringify(result, null, 2));
 				} else if (result.liveReview) {
-					printLiveReview(result.liveReview);
+					const branch = await getCurrentBranch();
+					printLiveReview(result.liveReview, branch);
 				} else if (options.dryRun) {
-					printDryRun(result);
+					printDryRun(result, elapsed);
 				} else {
-					printSummary(result);
+					printSummary(result, elapsed);
 				}
 			} catch (err) {
 				logger.error(err instanceof Error ? err.message : String(err));
@@ -133,7 +149,7 @@ function confidenceColor(conf: number): string {
 	return chalk.dim(conf.toFixed(1));
 }
 
-function printDryRun(result: HarvestResult): void {
+function printDryRun(result: HarvestResult, elapsed?: string): void {
 	const MAX_TABLE_ROWS = 15;
 	const COL_HASH = 9;
 	const COL_TOOL = 10;
@@ -204,10 +220,13 @@ function printDryRun(result: HarvestResult): void {
 		);
 	}
 
+	if (elapsed) {
+		console.log(chalk.dim(`  Completed in ${elapsed}s`));
+	}
 	console.log();
 }
 
-function printSummary(result: HarvestResult): void {
+function printSummary(result: HarvestResult, elapsed?: string): void {
 	console.log(header("agenteval harvest"));
 	console.log(kvLine("Commits scanned", chalk.cyan(String(result.commitsScanned))));
 	console.log(kvLine("AI-assisted", chalk.green.bold(String(result.aiCommitsDetected))));
@@ -237,11 +256,17 @@ function printSummary(result: HarvestResult): void {
 		);
 	}
 
+	if (elapsed) {
+		console.log(chalk.dim(`  Completed in ${elapsed}s`));
+	}
 	console.log();
 }
 
-function printLiveReview(result: LiveReviewResult): void {
+function printLiveReview(result: LiveReviewResult, branch?: string): void {
 	console.log(header("agenteval review"));
+	if (branch) {
+		console.log(kvLine("Branch", chalk.cyan(branch)));
+	}
 
 	if (result.rubrics.length === 0) {
 		console.log(`  ${chalk.green("✓")} ${chalk.dim("No uncommitted changes to review")}`);

@@ -1,35 +1,47 @@
-# agenteval demo recording
-# Generate: vhs demo/demo.tape
-# Requires: vhs, ffmpeg, ttyd
+# agenteval demo — lint, doctor, harvest
+# Record: vhs demo/demo.tape
 
 Output demo/demo.gif
 Set Shell "bash"
-Set FontSize 13
-Set Width 1100
+Set FontSize 14
+Set Width 1200
 Set Height 750
 Set Theme "Catppuccin Mocha"
-Set Padding 16
-Set TypingSpeed 20ms
+Set Padding 24
+Set TypingSpeed 15ms
+Set CursorBlink false
 
 # Setup
 Hide
 Type "alias agenteval='bun run src/cli.ts'"
 Enter
 Sleep 500ms
+Type "clear"
+Enter
+Sleep 300ms
 Show
 
-# 1. Lint demo instruction files (shows 5 file types, errors + suggestions)
+# ── Lint: find real problems in instruction files ──
+Type "# Find quality issues across CLAUDE.md, copilot-instructions, skills..."
+Enter
+Sleep 500ms
 Type "agenteval lint -c demo/agenteval.yaml"
 Enter
 Sleep 4s
 
-# 2. Doctor check (environment health)
+# ── Doctor: check environment health ──
+Type "# Verify environment is ready"
+Enter
+Sleep 500ms
 Type "agenteval doctor"
 Enter
 Sleep 2.5s
 
-# 3. Harvest dry-run (AI commit detection table)
-Type "agenteval harvest --dry-run | head -22"
+# ── Harvest: detect AI commits in git history ──
+Type "# Detect AI-assisted commits and build eval benchmarks"
+Enter
+Sleep 500ms
+Type "agenteval harvest --dry-run | head -24"
 Enter
 Sleep 3.5s
 

@@ -125,6 +125,10 @@ export async function executeRun(
 			assertions: assertionResults,
 			diffSummary: summarizeDiff(diff),
 			model: null,
+			sourceCommit: task.sourceCommit,
+			instructionSnapshot: task.instructionSnapshot,
+			prUrl: task.prUrl,
+			detectionConfidence: task.detectionConfidence,
 		};
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
@@ -169,6 +173,10 @@ function makeErrorResult(
 		diffSummary: "",
 		model: null,
 		error,
+		sourceCommit: task.sourceCommit,
+		instructionSnapshot: task.instructionSnapshot,
+		prUrl: task.prUrl,
+		detectionConfidence: task.detectionConfidence,
 	};
 }
 

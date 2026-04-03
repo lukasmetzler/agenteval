@@ -5,6 +5,10 @@ A CLI tool that evaluates AI coding instruction quality. Built with Bun + TypeSc
 ## Commands
 
 ```bash
+# Install (end users)
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+
+# Development
 bun install             # install dependencies
 bun test                # run all tests (340 tests)
 bun run dev -- init     # create starter agenteval.yaml
@@ -14,9 +18,12 @@ bun run dev -- run      # run eval (needs --task flag)
 bun run dev -- results  # view stored results
 bun run dev -- compare  # compare two runs
 bun run dev -- harvest  # mine git history for eval datasets
-bun run dev -- trends  # score history and trend analysis
+bun run dev -- trends   # score history and trend analysis
 bun run dev -- ci       # run all harvested tasks, fail on regression
-bun run build           # compile to binary
+bun run build           # compile to binary (current platform)
+bun run build:linux     # cross-compile linux-x64
+bun run build:darwin    # cross-compile darwin-arm64
+bun run build:darwin-x64 # cross-compile darwin-x64
 bun run lint            # biome check
 bun run typecheck       # tsc --noEmit
 bun run check           # lint + typecheck + test (CI equivalent)

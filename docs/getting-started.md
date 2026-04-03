@@ -26,7 +26,23 @@ You also need a git repository containing at least one AI instruction file. If y
 
 ## Installation
 
+agenteval ships as a standalone binary. No Bun or Node required to run it.
+
+### Quick install (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+```
+
+Downloads the latest binary for your platform (Linux x64, macOS ARM64/x64) and puts it in `~/.local/bin/`.
+
+### From prebuilt binary
+
+Download the latest binary for your platform from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases), make it executable, and add it to your PATH.
+
 ### From source
+
+Requires [Bun](https://bun.sh) v1.3+:
 
 ```bash
 git clone https://github.com/lukasmetzler/agenteval.git
@@ -38,7 +54,7 @@ bun run build
 After building, you can either run the binary directly:
 
 ```bash
-./dist/agenteval lint
+./agenteval lint
 ```
 
 Or use it in development mode from the repo:
@@ -47,9 +63,7 @@ Or use it in development mode from the repo:
 bun run dev -- lint
 ```
 
-### From prebuilt binary
-
-Download the latest binary for your platform from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases), place it on your PATH, and verify:
+### Verify the version
 
 ```bash
 agenteval --version
@@ -58,7 +72,7 @@ agenteval --version
 Expected output:
 
 ```
-0.6.0
+0.7.2
 ```
 
 ### Verify the installation

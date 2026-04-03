@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-03
+
+"Close the Loop". Harvest metadata flows through to comparison and scoring.
+
+### Added
+
+- **Snapshot-aware comparison**: `agenteval compare` now shows instruction file diffs (added/removed/changed/unchanged) when both runs have instruction snapshots. Console and markdown output include an "Instruction Changes" section.
+- **Confidence-weighted scoring**: new `confidenceAdjustedOverall` field in results. Harvested tasks with low detection confidence (0.6) score proportionally less than high-confidence ones (0.9). Raw overall score unchanged.
+- **Test-pass assertion inference**: harvest now auto-adds `test-pass` assertions when the commit diff includes test files. Test command detected from package.json (`bun test` / `npm test` fallback).
+- **Configurable rubric thresholds**: `liveReview.rubrics` config section in agenteval.yaml with per-rubric `enabled` and `weight` settings. Weighted average scoring.
+- **LLM-assisted rubrics** (`--analyze` flag, requires `--live`): two new rubrics that send diff + instruction files to Claude for evaluation:
+  - `convention-compliance` — "does this diff follow the conventions in CLAUDE.md?" (0-10)
+  - `progressive-disclosure` — "are changes appropriately scoped and layered?" (0-10)
+  - JSON response parsing with graceful fallback for varied LLM output formats
+- Harvest metadata (sourceCommit, instructionSnapshot, prUrl, detectionConfidence) now stored in run results and available for comparison
+
+### Changed
+
+- `StoredResult` includes optional harvest metadata fields
+- `ResultScores` includes optional `confidenceAdjustedOverall`
+- `selectAndScoreRubrics()` extracted as async pure function for testability
+- `emitTaskYaml()` accepts optional `repoPath` for test command detection
+- Compare engine imports `diffInstructionSnapshots` from harvest module
+
 ## [0.4.0] - 2026-04-03
 
 Phase 3.1 "The Observatory". Instruction snapshots, live review, GitHub enrichment.

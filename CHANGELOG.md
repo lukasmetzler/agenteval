@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-04-03
+
+### Added
+
+- New `docs/concepts.md` guide explaining the 5 core concepts (instruction files, tasks, assertions, harnesses, scoring) in plain English with workflow diagram
+
+### Changed
+
+- README rewritten as a landing page: workflow diagram, "Quick Start" section, single command table. Moved reference tables (lint rules, harness adapters, task YAML, config) to docs/.
+- All docs restructured beginner-first: usage examples before reference material, "Advanced" sections for internals
+- `docs/harvest.md`: added "When to Use Each Mode" section, moved detection algorithms to Advanced
+- `docs/run.md`: moved practical workflow up, added Reference heading before scoring formulas
+- `docs/lint.md`: added Quick Overview with category table, Rules Reference heading before 24-rule encyclopedia
+- `docs/configuration.md`: added note before Complete Configuration ("you don't need most of these options")
+- `docs/getting-started.md`: linked concepts.md, added "No AI commits yet?" path, defined jargon inline (worktree, harness, assertions)
+
 ## [0.5.0] - 2026-04-03
 
 "Close the Loop". Harvest metadata flows through to comparison and scoring.

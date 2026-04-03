@@ -15,6 +15,7 @@ interface HarvestCliOptions {
 	harness?: string;
 	timeout?: string;
 	minConfidence?: string;
+	github?: boolean;
 	config?: string;
 }
 
@@ -34,6 +35,7 @@ export function registerHarvestCommand(program: Command): void {
 		.option("--harness <name>", "harness to set in emitted tasks")
 		.option("--timeout <seconds>", "timeout to set in emitted tasks")
 		.option("--min-confidence <number>", "minimum confidence threshold (0-1)")
+		.option("--github", "enrich tasks with GitHub PR data (requires gh CLI)")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (cliOptions: HarvestCliOptions) => {
 			try {
@@ -84,6 +86,7 @@ function buildOptions(
 		minConfidence: cli.minConfidence
 			? Number.parseFloat(cli.minConfidence)
 			: config.harvest.minConfidence,
+		github: cli.github ?? false,
 	};
 }
 

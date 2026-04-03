@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stringify as yamlStringify } from "yaml";
 import type { TaskDefinition } from "../run/types.js";
+import type { PRInfo } from "./github.js";
 import type { AICommit, HarvestOptions } from "./types.js";
 
 /** Conventional commit prefixes to strip from prompts. */
@@ -60,6 +61,7 @@ function inferPrompt(commit: AICommit): string {
 
 export interface EmitMetadata {
 	snapshot?: Record<string, string>;
+	prInfo?: PRInfo;
 }
 
 /**
@@ -75,10 +77,18 @@ export function emitTaskYaml(
 		pattern: file,
 	}));
 
+	let prompt = inferPrompt(commit);
+
+	// Enrich terse prompts with PR body context
+	const strippedPrompt = commit.message.replace(COMMIT_PREFIX, "").trim();
+	if (metadata?.prInfo?.body && strippedPrompt.length < 20 && metadata.prInfo.body.length > 0) {
+		prompt += `\n\nPR context:\n${metadata.prInfo.body}`;
+	}
+
 	const task: TaskDefinition = {
 		name: `harvest-${commit.shortHash}`,
 		description: commit.message,
-		prompt: inferPrompt(commit),
+		prompt,
 		harness: options.harness ?? "auto",
 		timeout: options.timeout ?? 300,
 		assertions,
@@ -89,6 +99,11 @@ export function emitTaskYaml(
 			conventions: 0.1,
 		},
 	};
+
+	if (metadata?.prInfo) {
+		task.prUrl = metadata.prInfo.url;
+		task.prBody = metadata.prInfo.body;
+	}
 
 	if (metadata?.snapshot) {
 		task.instructionSnapshot = metadata.snapshot;

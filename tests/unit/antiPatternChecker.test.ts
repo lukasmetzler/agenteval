@@ -79,6 +79,32 @@ describe("AntiPatternCheckerRule", () => {
 		expect(diags.some((d) => d.ruleId === "anti-pattern/custom-0")).toBe(true);
 	});
 
+	test("does not flag anti-pattern inside code block", async () => {
+		const file = makeParsedFile(
+			"# Guide\n\n```python\n# make sure to initialize the config\nconfig.init()\n```\n\nInitialize config before use.",
+		);
+		const ctx: LintContext = { config: defaultConfig, files: [file], cwd: "/tmp" };
+		const diags = await rule.run(ctx);
+		expect(diags.some((d) => d.ruleId === "anti-pattern/vague-instruction")).toBe(false);
+	});
+
+	test("flags anti-pattern in prose (regression guard)", async () => {
+		const file = makeParsedFile("# Guide\n\nMake sure to initialize the config before use.");
+		const ctx: LintContext = { config: defaultConfig, files: [file], cwd: "/tmp" };
+		const diags = await rule.run(ctx);
+		expect(diags.some((d) => d.ruleId === "anti-pattern/vague-instruction")).toBe(true);
+	});
+
+	test("wall-of-text check excludes code block word count", async () => {
+		const codeWords = "word ".repeat(510);
+		const file = makeParsedFile(
+			`# Title\n\n\`\`\`\n${codeWords}\n\`\`\`\n\nShort prose paragraph.`,
+		);
+		const ctx: LintContext = { config: defaultConfig, files: [file], cwd: "/tmp" };
+		const diags = await rule.run(ctx);
+		expect(diags.some((d) => d.ruleId === "anti-pattern/wall-of-text")).toBe(false);
+	});
+
 	test("detects wall of text", async () => {
 		const wall = "word ".repeat(510);
 		const file = makeParsedFile(`# Title\n\n${wall}`);

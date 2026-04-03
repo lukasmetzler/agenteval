@@ -93,4 +93,117 @@ describe("SkillValidatorRule", () => {
 		const diags = await rule.run(makeContext([file]));
 		expect(diags.some((d) => d.ruleId === "skill/body-too-long")).toBe(true);
 	});
+
+	test("flags description exceeding 250 chars with truncation warning", async () => {
+		const longDesc = "a".repeat(300);
+		const file = makeParsedFile(
+			`---\nname: my-skill\ndescription: ${longDesc}\n---\n\n# Content`,
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/description-truncation")).toBe(true);
+		const truncDiag = diags.find((d) => d.ruleId === "skill/description-truncation");
+		expect(truncDiag?.severity).toBe("info");
+	});
+
+	test("does not flag description under 250 chars for truncation", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A short description.\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/description-truncation")).toBe(false);
+	});
+
+	test("flags unknown frontmatter field", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\nunknown-field: true\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/unknown-field")).toBe(true);
+		const unknownDiag = diags.find((d) => d.ruleId === "skill/unknown-field");
+		expect(unknownDiag?.severity).toBe("warning");
+		expect(unknownDiag?.message).toContain("unknown-field");
+	});
+
+	test("accepts valid effort value", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\neffort: high\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/invalid-effort")).toBe(false);
+	});
+
+	test("flags invalid effort value", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\neffort: extreme\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/invalid-effort")).toBe(true);
+		const effortDiag = diags.find((d) => d.ruleId === "skill/invalid-effort");
+		expect(effortDiag?.severity).toBe("error");
+	});
+
+	test("accepts valid context value", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\ncontext: fork\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/invalid-context")).toBe(false);
+	});
+
+	test("flags invalid context value", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\ncontext: split\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/invalid-context")).toBe(true);
+		const ctxDiag = diags.find((d) => d.ruleId === "skill/invalid-context");
+		expect(ctxDiag?.severity).toBe("error");
+	});
+
+	test("accepts valid shell value", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\nshell: bash\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/invalid-shell")).toBe(false);
+	});
+
+	test("flags invalid shell value", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\nshell: fish\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/invalid-shell")).toBe(true);
+		const shellDiag = diags.find((d) => d.ruleId === "skill/invalid-shell");
+		expect(shellDiag?.severity).toBe("error");
+	});
+
+	test("flags unreachable skill with both flags set", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\ndisable-model-invocation: true\nuser-invocable: false\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/unreachable")).toBe(true);
+		const unreachDiag = diags.find((d) => d.ruleId === "skill/unreachable");
+		expect(unreachDiag?.severity).toBe("warning");
+	});
+
+	test("does not flag reachable skill with only one flag set", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: A valid description.\ndisable-model-invocation: true\n---\n\n# Content",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/unreachable")).toBe(false);
+	});
 });

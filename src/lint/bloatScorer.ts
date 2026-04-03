@@ -1,4 +1,5 @@
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
+import { stripAllCode } from "./utils.js";
 
 const FILLER_PHRASES = [
 	"it is important to note that",
@@ -78,7 +79,8 @@ export class BloatScorerRule implements LintRule {
 
 		for (const file of ctx.files) {
 			for (const section of file.sections) {
-				const metrics = scoreDensity(section.content);
+				const proseOnly = stripAllCode(section.content);
+				const metrics = scoreDensity(proseOnly);
 
 				if (metrics.overallScore < threshold) {
 					diagnostics.push({

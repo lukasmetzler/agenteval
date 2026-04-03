@@ -1,4 +1,5 @@
 import type { Diagnostic, LintContext, LintRule, Severity } from "./types.js";
+import { stripAllCode } from "./utils.js";
 
 export interface AntiPattern {
 	id: string;
@@ -69,8 +70,9 @@ export class AntiPatternCheckerRule implements LintRule {
 
 		for (const file of ctx.files) {
 			for (const section of file.sections) {
+				const proseOnly = stripAllCode(section.content);
 				for (const ap of allPatterns) {
-					const match = ap.pattern.exec(section.content);
+					const match = ap.pattern.exec(proseOnly);
 					if (match) {
 						diagnostics.push({
 							ruleId: `anti-pattern/${ap.id}`,
@@ -98,7 +100,8 @@ export class AntiPatternCheckerRule implements LintRule {
 		diagnostics: Diagnostic[],
 	): void {
 		for (const section of file.sections) {
-			const paragraphs = section.content.split(/\n\n+/);
+			const proseOnly = stripAllCode(section.content);
+			const paragraphs = proseOnly.split(/\n\n+/);
 			for (const paragraph of paragraphs) {
 				const wordCount = paragraph.split(/\s+/).filter((w) => w.length > 0).length;
 				if (wordCount > 500) {
@@ -121,11 +124,12 @@ export class AntiPatternCheckerRule implements LintRule {
 		file: { path: string; content: string },
 		diagnostics: Diagnostic[],
 	): void {
+		const proseOnly = stripAllCode(file.content);
 		const alwaysPattern = /always\s+(?:use\s+)?(\w+)/gi;
 		const neverPattern = /never\s+(?:use\s+)?(\w+)/gi;
 
-		const alwaysItems = [...file.content.matchAll(alwaysPattern)].map((m) => m[1].toLowerCase());
-		const neverItems = [...file.content.matchAll(neverPattern)].map((m) => m[1].toLowerCase());
+		const alwaysItems = [...proseOnly.matchAll(alwaysPattern)].map((m) => m[1].toLowerCase());
+		const neverItems = [...proseOnly.matchAll(neverPattern)].map((m) => m[1].toLowerCase());
 
 		for (const item of alwaysItems) {
 			if (neverItems.includes(item)) {

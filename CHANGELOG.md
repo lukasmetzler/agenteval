@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-03
+
+Bulletproof linting. Based on in-depth research of Anthropic skills spec, GitHub Copilot instructions, AGENTS.md, and Cursor rules.
+
+### Added
+
+- **Markdown link checker**: heading anchors (`#section`), image references (`![](path)`), cross-file heading validation (`foo.md#heading`), reference-style links (`[text][ref]`), new diagnostics: `dead-ref/broken-anchor`, `dead-ref/undefined-reference`
+- **Code block exclusion**: fenced code blocks (`\`\`\``) and inline code spans stripped before analysis in bloatScorer, antiPatternChecker, and bare path detection. Eliminates false positives from code examples.
+- **Skill validator hardening**: validates effort (`low`/`medium`/`high`/`max`), context (`fork`), shell (`bash`/`powershell`), detects unknown frontmatter fields, warns on description truncation at 250 chars, flags unreachable skills
+- New shared utility `src/lint/utils.ts` with `stripCodeBlocks`, `stripInlineCode`, `stripAllCode`
+- 6 new skill diagnostics: `skill/invalid-effort`, `skill/invalid-context`, `skill/invalid-shell`, `skill/unknown-field`, `skill/description-truncation`, `skill/unreachable`
+- `SkillFrontmatterFields` expanded from 7 to 16 fields covering the full Anthropic spec
+- 38 new tests (360 → 398)
+
 ## [0.7.0] - 2026-04-03
 
 "Insight Engine". Score history and temporal trend analysis.

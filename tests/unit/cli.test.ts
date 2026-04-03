@@ -112,6 +112,18 @@ describe("CLI", () => {
 		}
 	});
 
+	test("trends subcommand appears in help", async () => {
+		const result = await $`bun run src/cli.ts --help`.text();
+		expect(result).toContain("trends");
+	});
+
+	test("trends --help shows options", async () => {
+		const result = await $`bun run src/cli.ts trends --help`.text();
+		expect(result).toContain("--task");
+		expect(result).toContain("--format");
+		expect(result).toContain("--limit");
+	});
+
 	test("compare with invalid IDs produces helpful error", async () => {
 		try {
 			await $`bun run src/cli.ts compare nonexistent-a nonexistent-b`.quiet().text();

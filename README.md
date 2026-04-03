@@ -51,6 +51,7 @@ You will see diagnostics like dead references, token bloat, and overlap between 
 | `agenteval run` | Run an agent against a task and score it | [Running Evals](docs/run.md) |
 | `agenteval results` | View and export stored eval results | [Results](docs/results.md) |
 | `agenteval compare` | Compare two runs side by side | [Results](docs/results.md) |
+| `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
 | `agenteval ci` | Run all harvested tasks, fail on regression | [CI Guide](docs/ci.md) |
 
 ## Documentation
@@ -63,6 +64,7 @@ You will see diagnostics like dead references, token bloat, and overlap between 
 | [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring, the full eval pipeline |
 | [Harvesting from Git History](docs/harvest.md) | AI commit detection, task generation, confidence tuning |
 | [Results & Comparison](docs/results.md) | Viewing, filtering, exporting, and comparing eval runs |
+| [Trends](docs/trends.md) | Score history and trend analysis across tasks |
 | [CI Regression Detection](docs/ci.md) | Run tasks in CI, fail on quality regressions, threshold tuning |
 | [Configuration Reference](docs/configuration.md) | Every config option with types, defaults, and examples |
 

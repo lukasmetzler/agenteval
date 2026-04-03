@@ -9,3 +9,6 @@ agenteval-windows-*
 .env
 .env.*
 *.log
+.DS_Store
+*.swp
+*.swo

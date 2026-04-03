@@ -15,6 +15,9 @@ jobs:
           - os: macos-latest
             target: bun-darwin-arm64
             artifact: agenteval-darwin-arm64
+          - os: macos-latest
+            target: bun-darwin-x64
+            artifact: agenteval-darwin-x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -52,4 +55,5 @@ jobs:
           files: |
             agenteval-linux-x64/agenteval-linux-x64
             agenteval-darwin-arm64/agenteval-darwin-arm64
+            agenteval-darwin-x64/agenteval-darwin-x64
           generate_release_notes: true

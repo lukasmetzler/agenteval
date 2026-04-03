@@ -87,15 +87,31 @@ See the [`demo/`](demo/) directory for sample instruction files you can lint and
 
 ## Installation
 
-**From source** (requires [Bun](https://bun.sh) v1.3+):
+### Quick install (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+```
+
+Downloads the latest binary for your platform (Linux x64, macOS ARM64/x64) and puts it in `~/.local/bin/`.
+
+### Download binary manually
+
+Grab the latest release from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases), make it executable, and add it to your PATH.
+
+### Build from source
+
+Requires [Bun](https://bun.sh) v1.3+:
 
 ```bash
 git clone https://github.com/lukasmetzler/agenteval.git
 cd agenteval && bun install && bun run build
-./dist/agenteval --version
+# Binary: ./agenteval
 ```
 
-**From releases**: download the latest binary from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) and place it on your PATH.
+### Why not npm?
+
+agenteval is compiled with Bun for fast startup (~50ms) and ships as a standalone binary. No runtime dependencies needed. The prebuilt binary works without Bun, Node, or any other runtime installed.
 
 ## Configuration
 

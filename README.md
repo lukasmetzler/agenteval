@@ -43,19 +43,21 @@ flowchart LR
 - **ci** gates your PRs -- instruction quality regressions fail the build
 - **trends** tracks whether your team is getting better at writing instructions over time
 
-## Quick Start
+## Get Started in 10 Seconds
 
 ```bash
-git clone https://github.com/lukasmetzler/agenteval.git
-cd agenteval && bun install
-bun run dev -- lint
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
 ```
 
-You will see diagnostics like dead references, token bloat, and overlap between files. Follow the [Getting Started guide](docs/getting-started.md) for the full walkthrough.
+Then lint your instruction files:
 
-## Demo
+```bash
+agenteval lint
+```
 
-See the [`demo/`](demo/) directory for sample instruction files you can lint and test against. Run `agenteval lint -c demo/agenteval.yaml` to see agenteval catch real problems in realistic instruction files.
+That's it. No Bun, no Node, no runtime needed. The binary is self-contained.
+
+See the [Getting Started guide](docs/getting-started.md) for the full walkthrough, or try it on the included [demo files](demo/).
 
 ## Commands
 
@@ -85,33 +87,16 @@ See the [`demo/`](demo/) directory for sample instruction files you can lint and
 | [CI Regression Detection](docs/ci.md) | Run tasks in CI, fail on quality regressions, threshold tuning |
 | [Configuration Reference](docs/configuration.md) | Every config option with types, defaults, and examples |
 
-## Installation
+## Other Installation Methods
 
-### Quick install (recommended)
+**Download binary directly** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) (Linux x64, macOS ARM64, macOS Intel).
 
+**Build from source** (requires [Bun](https://bun.sh) v1.3+):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+git clone https://github.com/lukasmetzler/agenteval.git && cd agenteval && bun install && bun run build
 ```
 
-Downloads the latest binary for your platform (Linux x64, macOS ARM64/x64) and puts it in `~/.local/bin/`.
-
-### Download binary manually
-
-Grab the latest release from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases), make it executable, and add it to your PATH.
-
-### Build from source
-
-Requires [Bun](https://bun.sh) v1.3+:
-
-```bash
-git clone https://github.com/lukasmetzler/agenteval.git
-cd agenteval && bun install && bun run build
-# Binary: ./agenteval
-```
-
-### Why not npm?
-
-agenteval is compiled with Bun for fast startup (~50ms) and ships as a standalone binary. No runtime dependencies needed. The prebuilt binary works without Bun, Node, or any other runtime installed.
+The binary is self-contained (~100MB). No runtime needed to run it.
 
 ## Configuration
 

@@ -6,7 +6,7 @@ A CLI tool that evaluates AI coding instruction quality. Built with Bun + TypeSc
 
 ```bash
 bun install             # install dependencies
-bun test                # run all tests (193 tests)
+bun test                # run all tests (254 tests)
 bun run dev -- lint     # lint instruction files
 bun run dev -- run      # run eval (needs --task flag)
 bun run dev -- results  # view stored results
@@ -38,7 +38,9 @@ The lint pipeline: config -> glob files -> parse markdown -> count tokens -> run
 
 The eval pipeline: load task -> create worktree -> inject instructions -> spawn agent -> capture diff -> score assertions -> store result.
 
-The harvest pipeline: git log -> parse commits -> detect AI signals (co-author, email, message) -> filter by confidence -> emit TaskDefinition YAML.
+The harvest pipeline: git log -> parse commits -> detect AI signals (14 tools, co-author/email/message) -> filter by confidence -> snapshot instructions -> emit TaskDefinition YAML.
+
+The live review pipeline: git diff (working tree) -> run heuristic rubrics (scope-discipline, test-coverage, diff-hygiene) -> score and report.
 
 All lint rules implement the `LintRule` interface in `src/lint/types.ts`.
 All harness adapters implement the `HarnessAdapter` interface in `src/harness/types.ts`.

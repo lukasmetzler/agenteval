@@ -160,3 +160,125 @@ describe("formatComparisonMarkdown", () => {
 		expect(output).toContain("**Winner:**");
 	});
 });
+
+describe("snapshot-aware comparison", () => {
+	test("detects changed CLAUDE.md when both results have snapshots", () => {
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: { "CLAUDE.md": "# Old content" },
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: { "CLAUDE.md": "# New content" },
+		});
+
+		const report = compareResults(runA, runB);
+		expect(report.instructionDiff).toBeDefined();
+		expect(report.instructionDiff?.["CLAUDE.md"]).toBe("changed");
+	});
+
+	test("reports unchanged when both snapshots are identical", () => {
+		const snapshot = { "CLAUDE.md": "# Same content", "AGENTS.md": "# Agents" };
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: snapshot,
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: snapshot,
+		});
+
+		const report = compareResults(runA, runB);
+		expect(report.instructionDiff).toBeDefined();
+		expect(report.instructionDiff?.["CLAUDE.md"]).toBe("unchanged");
+		expect(report.instructionDiff?.["AGENTS.md"]).toBe("unchanged");
+	});
+
+	test("detects added file when result B has new instruction file", () => {
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: { "CLAUDE.md": "# Content" },
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: {
+				"CLAUDE.md": "# Content",
+				"AGENTS.md": "# New agents file",
+			},
+		});
+
+		const report = compareResults(runA, runB);
+		expect(report.instructionDiff).toBeDefined();
+		expect(report.instructionDiff?.["AGENTS.md"]).toBe("added");
+		expect(report.instructionDiff?.["CLAUDE.md"]).toBe("unchanged");
+	});
+
+	test("returns undefined instructionDiff when neither result has snapshots", () => {
+		const runA = makeResult({ id: "run-A" });
+		const runB = makeResult({ id: "run-B" });
+
+		const report = compareResults(runA, runB);
+		expect(report.instructionDiff).toBeUndefined();
+	});
+
+	test("returns undefined instructionDiff when only one result has snapshot", () => {
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: { "CLAUDE.md": "# Content" },
+		});
+		const runB = makeResult({ id: "run-B" });
+
+		const report = compareResults(runA, runB);
+		expect(report.instructionDiff).toBeUndefined();
+	});
+
+	test("console format shows instruction changes when diff has changes", () => {
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: { "CLAUDE.md": "# Old" },
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: { "CLAUDE.md": "# New" },
+		});
+
+		const output = formatComparisonConsole(compareResults(runA, runB));
+		expect(output).toContain("Instruction Changes");
+		expect(output).toContain("CLAUDE.md");
+		expect(output).toContain("changed");
+	});
+
+	test("console format omits instruction section when all unchanged", () => {
+		const snapshot = { "CLAUDE.md": "# Same" };
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: snapshot,
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: snapshot,
+		});
+
+		const output = formatComparisonConsole(compareResults(runA, runB));
+		expect(output).not.toContain("Instruction Changes");
+	});
+
+	test("markdown format includes instruction changes table", () => {
+		const runA = makeResult({
+			id: "run-A",
+			instructionSnapshot: { "CLAUDE.md": "# Old" },
+		});
+		const runB = makeResult({
+			id: "run-B",
+			instructionSnapshot: {
+				"CLAUDE.md": "# New",
+				"AGENTS.md": "# Added",
+			},
+		});
+
+		const output = formatComparisonMarkdown(compareResults(runA, runB));
+		expect(output).toContain("## Instruction Changes");
+		expect(output).toContain("| CLAUDE.md | changed |");
+		expect(output).toContain("| AGENTS.md | added |");
+	});
+});

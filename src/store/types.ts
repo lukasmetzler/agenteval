@@ -13,6 +13,7 @@ export interface ComparisonReport {
 	winner: "a" | "b" | "tie";
 	metrics: ComparisonMetric[];
 	summary: string;
+	instructionDiff?: Record<string, "added" | "removed" | "changed" | "unchanged">;
 }
 
 export interface ComparisonMetric {

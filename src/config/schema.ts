@@ -39,6 +39,23 @@ const HarvestConfigSchema = z.object({
 	defaultTimeout: z.number().min(1).default(300),
 });
 
+const RubricConfigSchema = z.object({
+	enabled: z.boolean().default(true),
+	weight: z.number().min(0).default(1.0),
+});
+
+const LiveReviewConfigSchema = z.object({
+	rubrics: z
+		.object({
+			scopeDiscipline: RubricConfigSchema.default({}),
+			testCoverage: RubricConfigSchema.default({}),
+			diffHygiene: RubricConfigSchema.default({}),
+		})
+		.default({}),
+});
+
+export type LiveReviewConfig = z.infer<typeof LiveReviewConfigSchema>;
+
 const LintConfigSchema = z.object({
 	overlapThreshold: z.number().min(0).max(1).default(0.3),
 	bloatThreshold: z.number().min(0).max(1).default(0.5),
@@ -66,6 +83,7 @@ export const ConfigSchema = z.object({
 	run: RunConfigSchema.default({}),
 	harvest: HarvestConfigSchema.default({}),
 	harnesses: z.record(z.string(), HarnessConfigSchema).default({}),
+	liveReview: LiveReviewConfigSchema.default({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

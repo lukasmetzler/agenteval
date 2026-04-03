@@ -1,5 +1,7 @@
+import { loadConfig } from "../config/loader.js";
+import type { LiveReviewConfig } from "../config/schema.js";
 import { scoreDiffHygiene, scoreScopeDiscipline, scoreTestCoverage } from "./rubrics.js";
-import type { LiveReviewResult } from "./types.js";
+import type { LiveReviewResult, RubricResult } from "./types.js";
 
 /**
  * Get the working tree diff (staged + unstaged) for the given repo.
@@ -54,11 +56,13 @@ export async function getWorkingDiff(repoPath: string): Promise<{ files: string[
 }
 
 /**
- * Run a live review of the current working tree against heuristic rubrics.
+ * Pure function: select enabled rubrics, run them, and compute a weighted average.
  */
-export async function runLiveReview(repoPath: string): Promise<LiveReviewResult> {
-	const { files, diff } = await getWorkingDiff(repoPath);
-
+export function selectAndScoreRubrics(
+	files: string[],
+	diff: string,
+	config: LiveReviewConfig,
+): LiveReviewResult {
 	if (files.length === 0) {
 		return {
 			rubrics: [],
@@ -68,17 +72,70 @@ export async function runLiveReview(repoPath: string): Promise<LiveReviewResult>
 		};
 	}
 
-	const rubrics = [scoreScopeDiscipline(files), scoreTestCoverage(files), scoreDiffHygiene(diff)];
+	const rubricEntries: Array<{ result: RubricResult; weight: number }> = [];
 
-	const overallScore =
-		(rubrics.reduce((sum, r) => sum + r.score / r.maxScore, 0) / rubrics.length) * 10;
+	if (config.rubrics.scopeDiscipline.enabled) {
+		rubricEntries.push({
+			result: scoreScopeDiscipline(files),
+			weight: config.rubrics.scopeDiscipline.weight,
+		});
+	}
 
+	if (config.rubrics.testCoverage.enabled) {
+		rubricEntries.push({
+			result: scoreTestCoverage(files),
+			weight: config.rubrics.testCoverage.weight,
+		});
+	}
+
+	if (config.rubrics.diffHygiene.enabled) {
+		rubricEntries.push({
+			result: scoreDiffHygiene(diff),
+			weight: config.rubrics.diffHygiene.weight,
+		});
+	}
+
+	if (rubricEntries.length === 0) {
+		return {
+			rubrics: [],
+			overallScore: 0,
+			filesAnalyzed: files.length,
+			summary: `Score: 0/10 — ${files.length} files analyzed (no rubrics enabled)`,
+		};
+	}
+
+	const totalWeight = rubricEntries.reduce((sum, e) => sum + e.weight, 0);
+
+	if (totalWeight === 0) {
+		return {
+			rubrics: rubricEntries.map((e) => e.result),
+			overallScore: 0,
+			filesAnalyzed: files.length,
+			summary: `Score: 0/10 — ${files.length} files analyzed`,
+		};
+	}
+
+	const weightedSum = rubricEntries.reduce(
+		(sum, e) => sum + (e.result.score / e.result.maxScore) * e.weight,
+		0,
+	);
+	const overallScore = (weightedSum / totalWeight) * 10;
 	const rounded = Math.round(overallScore * 10) / 10;
 
 	return {
-		rubrics,
+		rubrics: rubricEntries.map((e) => e.result),
 		overallScore: rounded,
 		filesAnalyzed: files.length,
 		summary: `Score: ${rounded}/10 — ${files.length} files analyzed`,
 	};
+}
+
+/**
+ * Run a live review of the current working tree against heuristic rubrics.
+ */
+export async function runLiveReview(repoPath: string): Promise<LiveReviewResult> {
+	const { files, diff } = await getWorkingDiff(repoPath);
+	const config = loadConfig(repoPath);
+
+	return selectAndScoreRubrics(files, diff, config.liveReview);
 }

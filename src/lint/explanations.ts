@@ -185,4 +185,24 @@ export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
 		why: "A skill with both disable-model-invocation: true and user-invocable: false can never be invoked.",
 		fix: "Set at least one of disable-model-invocation to false or user-invocable to true.",
 	},
+	"skill/description-not-trigger": {
+		what: "Checks that the skill description starts with trigger conditions like 'Use when...'.",
+		why: "Claude uses the description to decide WHEN to invoke a skill. If it contains workflow details instead of triggers, Claude skips reading the body.",
+		fix: "Rewrite the description as 'Use when [specific triggering condition]'.",
+	},
+	"skill/too-long-no-supporting-files": {
+		what: "Flags long SKILL.md files (>300 lines) with no supporting .md files in the same directory.",
+		why: "Heavy reference material in a single file makes the skill harder to maintain and parse. Extracting to supporting files keeps the main skill focused.",
+		fix: "Move reference content, examples, or templates to separate .md files alongside SKILL.md.",
+	},
+	"skill/missing-overview-section": {
+		what: "Checks that the skill body contains a '## Overview' section.",
+		why: "The Overview section is the first thing Claude reads after the frontmatter. Without it, the skill lacks a clear statement of purpose.",
+		fix: "Add a '## Overview' section after the frontmatter with 1-2 sentences explaining what this skill does.",
+	},
+	"skill/first-person-body": {
+		what: "Detects first-person language ('I will', 'I deploy') in the skill body.",
+		why: "Skill bodies should use imperative or third-person voice. They describe what the agent should DO, not what 'I' do.",
+		fix: "Rewrite 'I deploy...' as 'Deploy...' or 'The skill deploys...'.",
+	},
 };

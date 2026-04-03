@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
 
@@ -8,6 +10,11 @@ const DESCRIPTION_MAX_LENGTH = 1024;
 const DESCRIPTION_TRUNCATION_LENGTH = 250;
 const XML_TAG_PATTERN = /<\/?[a-zA-Z][^>]*>/;
 const FIRST_PERSON_PATTERN = /\b(I can|I will|I help|I am|I'll|I'm)\b/i;
+const BODY_FIRST_PERSON_PATTERN =
+	/\bI\s+(will|can|should|would|deploy|run|create|generate|analyze|check|build|test|fix)\b/i;
+const TRIGGER_PREFIXES =
+	/^(use when|use this when|use after|use before|trigger when|run when|activate when|use for)\b/i;
+const SUPPORTING_FILES_LINE_THRESHOLD = 300;
 const SECOND_PERSON_PATTERN = /\b(You can|You will|You should|You'll|You're)\b/i;
 const MAX_BODY_LINES = 500;
 
@@ -54,6 +61,10 @@ export class SkillValidatorRule implements LintRule {
 			diagnostics.push(...this.validateShell(fm, file.path));
 			diagnostics.push(...this.validateUnreachable(fm, file.path));
 			diagnostics.push(...this.validateBodyLength(file.content, file.path));
+			diagnostics.push(...this.validateDescriptionTrigger(fm, file.path));
+			diagnostics.push(...this.validateSupportingFiles(file.content, file.path));
+			diagnostics.push(...this.validateOverviewSection(file.content, file.path));
+			diagnostics.push(...this.validateBodyFirstPerson(file.content, file.path));
 		}
 
 		return diagnostics;
@@ -283,5 +294,92 @@ export class SkillValidatorRule implements LintRule {
 		}
 
 		return [];
+	}
+
+	private validateDescriptionTrigger(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		const desc = fm.description;
+		if (typeof desc !== "string" || desc.trim().length === 0) return [];
+
+		if (!TRIGGER_PREFIXES.test(desc.trim())) {
+			return [
+				{
+					ruleId: "skill/description-not-trigger",
+					severity: "info",
+					message:
+						"Skill description should start with trigger conditions (e.g., 'Use when...'). Descriptions that summarize the workflow cause Claude to skip reading the body.",
+					filePath,
+					suggestion: "Rewrite as 'Use when [specific triggering condition]'",
+				},
+			];
+		}
+		return [];
+	}
+
+	private validateSupportingFiles(content: string, filePath: string): Diagnostic[] {
+		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
+		if (!bodyMatch?.[1]) return [];
+
+		const bodyLines = bodyMatch[1].split("\n").length;
+		if (bodyLines <= SUPPORTING_FILES_LINE_THRESHOLD) return [];
+
+		try {
+			const dir = dirname(filePath);
+			const files = readdirSync(dir);
+			const supportingMd = files.filter((f) => f.endsWith(".md") && f.toLowerCase() !== "skill.md");
+			if (supportingMd.length > 0) return [];
+		} catch {
+			return [];
+		}
+
+		return [
+			{
+				ruleId: "skill/too-long-no-supporting-files",
+				severity: "info",
+				message: `SKILL.md is ${bodyLines} lines. Skills over ${SUPPORTING_FILES_LINE_THRESHOLD} lines should extract heavy reference material into supporting files in the same directory.`,
+				filePath,
+				meta: { lines: bodyLines, threshold: SUPPORTING_FILES_LINE_THRESHOLD },
+				suggestion:
+					"Move reference content, examples, or templates to separate .md files alongside SKILL.md",
+			},
+		];
+	}
+
+	private validateOverviewSection(content: string, filePath: string): Diagnostic[] {
+		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
+		if (!bodyMatch?.[1]) return [];
+
+		const body = bodyMatch[1];
+		if (/^##\s+overview\s*$/im.test(body)) return [];
+
+		return [
+			{
+				ruleId: "skill/missing-overview-section",
+				severity: "info",
+				message:
+					"SKILL.md is missing an '## Overview' section. Good skills start with a concise overview of their purpose.",
+				filePath,
+				suggestion:
+					"Add a '## Overview' section after the frontmatter with 1-2 sentences explaining what this skill does",
+			},
+		];
+	}
+
+	private validateBodyFirstPerson(content: string, filePath: string): Diagnostic[] {
+		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
+		if (!bodyMatch?.[1]) return [];
+
+		const body = bodyMatch[1];
+		const match = BODY_FIRST_PERSON_PATTERN.exec(body);
+		if (!match) return [];
+
+		return [
+			{
+				ruleId: "skill/first-person-body",
+				severity: "info",
+				message: `Skill body uses first-person ('${match[0]}'). Use imperative or third-person voice instead.`,
+				filePath,
+				suggestion: "Rewrite 'I deploy...' as 'Deploy...' or 'The skill deploys...'",
+			},
+		];
 	}
 }

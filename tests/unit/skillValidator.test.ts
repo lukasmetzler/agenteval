@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { SkillValidatorRule } from "../../src/lint/skillValidator.js";
 import { makeContext, makeParsedFile } from "../../tests/helpers.js";
 
@@ -7,7 +10,7 @@ describe("SkillValidatorRule", () => {
 
 	test("passes for valid skill frontmatter", async () => {
 		const file = makeParsedFile(
-			"---\nname: my-skill\ndescription: Processes PDF files and extracts text.\n---\n\n# Content",
+			"---\nname: my-skill\ndescription: Use when processing PDF files and extracting text.\n---\n\n## Overview\n\nProcesses PDF files.",
 			"SKILL.md",
 		);
 		const diags = await rule.run(makeContext([file]));
@@ -205,5 +208,107 @@ describe("SkillValidatorRule", () => {
 		);
 		const diags = await rule.run(makeContext([file]));
 		expect(diags.some((d) => d.ruleId === "skill/unreachable")).toBe(false);
+	});
+
+	test("does not flag description starting with trigger phrase", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: Use when implementing features\n---\n\n## Overview\n\nDoes stuff.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/description-not-trigger")).toBe(false);
+	});
+
+	test("flags description without trigger phrase", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: Deploys the app to production\n---\n\n## Overview\n\nDoes stuff.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/description-not-trigger")).toBe(true);
+		const diag = diags.find((d) => d.ruleId === "skill/description-not-trigger");
+		expect(diag?.severity).toBe("info");
+	});
+
+	test("flags long SKILL.md with no supporting files", async () => {
+		const dir = join(tmpdir(), `skill-test-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const skillPath = join(dir, "SKILL.md");
+		const body = Array.from({ length: 350 }, (_, i) => `Line ${i + 1}`).join("\n");
+		const content = `---\nname: my-skill\ndescription: Use when testing.\n---\n\n## Overview\n\n${body}`;
+		writeFileSync(skillPath, content);
+
+		const file = makeParsedFile(content, skillPath);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/too-long-no-supporting-files")).toBe(true);
+
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	test("does not flag long SKILL.md when supporting files exist", async () => {
+		const dir = join(tmpdir(), `skill-test-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const skillPath = join(dir, "SKILL.md");
+		const body = Array.from({ length: 350 }, (_, i) => `Line ${i + 1}`).join("\n");
+		const content = `---\nname: my-skill\ndescription: Use when testing.\n---\n\n## Overview\n\n${body}`;
+		writeFileSync(skillPath, content);
+		writeFileSync(join(dir, "reference.md"), "# Reference\n\nSome content.");
+
+		const file = makeParsedFile(content, skillPath);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/too-long-no-supporting-files")).toBe(false);
+
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	test("does not flag skill with overview section", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: Use when testing.\n---\n\n## Overview\n\nThis skill does things.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/missing-overview-section")).toBe(false);
+	});
+
+	test("flags skill without overview section", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: Use when testing.\n---\n\n## Steps\n\n1. Do something.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/missing-overview-section")).toBe(true);
+		const diag = diags.find((d) => d.ruleId === "skill/missing-overview-section");
+		expect(diag?.severity).toBe("info");
+	});
+
+	test("flags first-person language in body", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: Use when deploying.\n---\n\n## Overview\n\nI deploy the application to production.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/first-person-body")).toBe(true);
+		const diag = diags.find((d) => d.ruleId === "skill/first-person-body");
+		expect(diag?.severity).toBe("info");
+		expect(diag?.message).toContain("I deploy");
+	});
+
+	test("does not flag imperative voice in body", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: Use when deploying.\n---\n\n## Overview\n\nDeploy the application to production.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/first-person-body")).toBe(false);
+	});
+
+	test("first-person-body does not trigger for first-person in description only", async () => {
+		const file = makeParsedFile(
+			"---\nname: my-skill\ndescription: I can help deploy apps.\n---\n\n## Overview\n\nDeploy the application.",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/first-person-body")).toBe(false);
+		expect(diags.some((d) => d.ruleId === "skill/description-first-person")).toBe(true);
 	});
 });

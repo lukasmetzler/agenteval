@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2026-04-03
+
+### Added
+
+- `lint --explain` flag: shows inline rule explanations (What it checks, Why it matters, How to fix) for every triggered diagnostic
+- Rule explanations map in `src/lint/explanations.ts` covering all 24 lint rules
+- Rich harvest dry-run table: shows commit hash, detected tool, confidence score, and truncated message instead of bare task names
+- `CommitSummary` type and `commitSummaries` field in HarvestResult for dry-run metadata
+- Actionable suggestions on live review rubrics: each rubric prints what to do when score is low
+  - Scope: "Consider splitting into focused commits"
+  - Tests: "Add tests for the files you changed"
+  - Hygiene: "Remove console.log/debugger statements before committing"
+- `suggestion` field on `RubricResult` type
+
 ## [0.5.5] - 2026-04-03
 
 ### Added

@@ -44,6 +44,8 @@ You will see diagnostics like dead references, token bloat, and overlap between 
 
 | Command | What it does | Guide |
 |---------|-------------|-------|
+| `agenteval init` | Create starter agenteval.yaml config | [Configuration](docs/configuration.md) |
+| `agenteval doctor` | Environment health check | [Getting Started](docs/getting-started.md) |
 | `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
 | `agenteval harvest` | Mine git history for eval task YAML | [Harvesting](docs/harvest.md) |
 | `agenteval run` | Run an agent against a task and score it | [Running Evals](docs/run.md) |

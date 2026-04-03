@@ -63,6 +63,10 @@ export interface StoredResult {
 	diffSummary: string;
 	model: string | null;
 	error?: string;
+	sourceCommit?: string;
+	instructionSnapshot?: Record<string, string>;
+	prUrl?: string;
+	detectionConfidence?: number;
 }
 
 export interface ResultScores {

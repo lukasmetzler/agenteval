@@ -137,3 +137,47 @@ describe("parseRetention", () => {
 		expect(() => parseRetention("invalid")).toThrow();
 	});
 });
+
+describe("harvest metadata round-trip", () => {
+	test("preserves all four metadata fields through write/read", () => {
+		const result = makeResult({
+			id: "run-meta-full",
+			sourceCommit: "abc123def456",
+			instructionSnapshot: { "CLAUDE.md": "# Instructions\nDo the thing." },
+			prUrl: "https://github.com/org/repo/pull/42",
+			detectionConfidence: 0.95,
+		});
+		writeResult(result, resultsDir);
+		const loaded = readResult("run-meta-full", resultsDir);
+
+		expect(loaded).not.toBeNull();
+		expect(loaded?.sourceCommit).toBe("abc123def456");
+		expect(loaded?.instructionSnapshot).toEqual({ "CLAUDE.md": "# Instructions\nDo the thing." });
+		expect(loaded?.prUrl).toBe("https://github.com/org/repo/pull/42");
+		expect(loaded?.detectionConfidence).toBe(0.95);
+	});
+
+	test("backward compat: result without metadata fields round-trips cleanly", () => {
+		const result = makeResult({ id: "run-meta-none" });
+		writeResult(result, resultsDir);
+		const loaded = readResult("run-meta-none", resultsDir);
+
+		expect(loaded).not.toBeNull();
+		expect(loaded?.sourceCommit).toBeUndefined();
+		expect(loaded?.instructionSnapshot).toBeUndefined();
+		expect(loaded?.prUrl).toBeUndefined();
+		expect(loaded?.detectionConfidence).toBeUndefined();
+	});
+
+	test("type system accepts optional metadata fields on StoredResult", () => {
+		// Compile-time check: if these fields were missing from StoredResult,
+		// TypeScript would reject this assignment.
+		const typed: StoredResult = makeResult({
+			sourceCommit: "deadbeef",
+			instructionSnapshot: { "AGENTS.md": "content" },
+			prUrl: "https://example.com/pr/1",
+			detectionConfidence: 0.5,
+		});
+		expect(typed.sourceCommit).toBe("deadbeef");
+	});
+});

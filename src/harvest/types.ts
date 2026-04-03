@@ -44,6 +44,7 @@ export interface HarvestResult {
 	tasksEmitted: number;
 	tasks: string[];
 	skipped: Array<{ hash: string; reason: string }>;
+	liveReview?: LiveReviewResult;
 }
 
 export interface LiveReviewResult {

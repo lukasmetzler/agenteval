@@ -8,8 +8,12 @@ set -euo pipefail
 VERSION=$(cat VERSION)
 VERSION_FILE="src/version.ts"
 
-# Inject version into source
-sed -i "s/__AGENTEVAL_VERSION__/$VERSION/" "$VERSION_FILE"
+# Inject version into source (macOS sed needs -i '' while GNU sed needs -i)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' "s/__AGENTEVAL_VERSION__/$VERSION/" "$VERSION_FILE"
+else
+  sed -i "s/__AGENTEVAL_VERSION__/$VERSION/" "$VERSION_FILE"
+fi
 
 # Build (pass all args through)
 if [ $# -eq 0 ]; then
@@ -19,6 +23,10 @@ else
 fi
 
 # Restore placeholder
-sed -i "s/$VERSION/__AGENTEVAL_VERSION__/" "$VERSION_FILE"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' "s/$VERSION/__AGENTEVAL_VERSION__/" "$VERSION_FILE"
+else
+  sed -i "s/$VERSION/__AGENTEVAL_VERSION__/" "$VERSION_FILE"
+fi
 
 echo "Built agenteval $VERSION"

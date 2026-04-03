@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
+import { stripCodeBlocks } from "./utils.js";
 
 const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\(([^)]+)\)/g;
 const IMAGE_LINK_PATTERN = /!\[([^\]]*)\]\(([^)]+)\)/g;
@@ -309,7 +310,8 @@ function checkReferenceLinks(
 
 function checkBareFileRefs(file: { path: string; content: string }, cwd: string): Diagnostic[] {
 	const diagnostics: Diagnostic[] = [];
-	const fileRefs = extractFileReferences(file.content);
+	const proseOnly = stripCodeBlocks(file.content);
+	const fileRefs = extractFileReferences(proseOnly);
 
 	for (const ref of fileRefs) {
 		const resolved = resolve(cwd, ref.path);

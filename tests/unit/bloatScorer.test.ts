@@ -45,6 +45,26 @@ describe("BloatScorerRule", () => {
 		expect(lowDensity).toHaveLength(0);
 	});
 
+	test("does not flag section that is mostly code", async () => {
+		const file = makeParsedFile(
+			"## Build\n\n```bash\nnpm install\nnpm test\nnpm run build\nnpm run lint\nnpm run typecheck\n```\n\nRun the build.",
+		);
+		const ctx: LintContext = { config: defaultConfig, files: [file], cwd: "/tmp" };
+		const diags = await rule.run(ctx);
+		const lowDensity = diags.filter((d) => d.ruleId === "bloat/low-density");
+		expect(lowDensity).toHaveLength(0);
+	});
+
+	test("filler phrase inside code block is not counted", async () => {
+		const file = makeParsedFile(
+			"## Guide\n\n```python\n# it is important to note that this is a comment\nprint('hello')\n```\n\nUse TypeScript strict. Prefer const. Enable eslint.",
+		);
+		const ctx: LintContext = { config: defaultConfig, files: [file], cwd: "/tmp" };
+		const diags = await rule.run(ctx);
+		const fillerDiags = diags.filter((d) => d.ruleId === "bloat/filler-phrases");
+		expect(fillerDiags).toHaveLength(0);
+	});
+
 	test("flags bloated sections", async () => {
 		const bloatedContent = `# Instructions
 

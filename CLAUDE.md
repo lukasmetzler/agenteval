@@ -55,6 +55,7 @@ Token counting uses js-tiktoken (cl100k_base), numbers are approximate (~estimat
 - VERSION file is single source of truth for version string
 - CHANGELOG.md updated with every merge (Keep a Changelog format)
 - Patch = internal/fix, Minor = new user-facing feature, no Major until v1.0
+- Minor releases (new features) MUST include docs/ updates and README links — docs are a quality gate, not an afterthought
 
 ## Skill routing
 

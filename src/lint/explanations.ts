@@ -5,6 +5,11 @@ export interface RuleExplanation {
 }
 
 export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
+	"lint/no-files": {
+		what: "Checks that at least one instruction file was found matching the configured globs.",
+		why: "Without instruction files, agenteval cannot evaluate or improve your AI coding setup.",
+		fix: "Create a CLAUDE.md in your project root or update instructionGlobs in agenteval.yaml.",
+	},
 	"token-count/file-too-large": {
 		what: "Checks if a single instruction file exceeds the configured token limit.",
 		why: "Large files consume too much of the AI agent's context window, leaving less room for code and conversation.",

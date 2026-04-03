@@ -37,6 +37,32 @@ run:
 harvest:
   outputDir: "tasks/harvested"
   minConfidence: 0.5           # Detection confidence threshold (0.0-1.0)
+
+# CI regression detection (agenteval ci)
+ci:
+  tasksDir: "tasks/harvested"  # Directory with task YAML files
+  minScore: 0.5                # Fail if any task scores below this (0.0-1.0)
+  maxRegression: 0.1           # Fail if score drops more than this vs previous run
+  instructions: "CLAUDE.md"    # Instruction file to evaluate
+
+# Live review rubrics (agenteval harvest --live)
+liveReview:
+  rubrics:
+    scopeDiscipline:
+      enabled: true
+      weight: 1.0
+    testCoverage:
+      enabled: true
+      weight: 1.0
+    diffHygiene:
+      enabled: true
+      weight: 1.0
+    conventionCompliance:        # LLM-assisted (requires --analyze)
+      enabled: true
+      weight: 1.0
+    progressiveDisclosure:       # LLM-assisted (requires --analyze)
+      enabled: true
+      weight: 1.0
 `;
 
 export function registerInitCommand(program: Command): void {

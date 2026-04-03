@@ -122,6 +122,21 @@ describe("CLI", () => {
 		}
 	});
 
+	test("doctor subcommand appears in help", async () => {
+		const result = await $`bun run src/cli.ts --help`.text();
+		expect(result).toContain("doctor");
+	});
+
+	test("doctor runs without error", async () => {
+		const proc = await $`bun run src/cli.ts doctor`.nothrow().quiet();
+		expect(proc.exitCode).toBe(0);
+	});
+
+	test("doctor output contains git check", async () => {
+		const result = await $`bun run src/cli.ts doctor`.text();
+		expect(result).toContain("git");
+	});
+
 	test(".yaml task reference that doesn't exist throws error", async () => {
 		try {
 			await $`bun run src/cli.ts run --task nonexistent.yaml --dry-run`.quiet().text();

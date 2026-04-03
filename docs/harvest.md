@@ -158,7 +158,7 @@ scoring:
 | `prompt` | Commit message, transformed | Conventional-commit prefix stripped (`feat:`, `fix:`, etc.), past-tense converted to imperative ("added" -> "Add"). If result is < 20 characters, a diff summary is appended. |
 | `harness` | `--harness` flag or config | Default: `auto` |
 | `timeout` | `--timeout` flag or config | Default: `300` seconds |
-| `assertions` | Files from `git diff --numstat` | One `files-changed` assertion per file in the diff |
+| `assertions` | Files from `git diff --numstat` | One `files-changed` assertion per file in the diff. If the diff includes test files (matching `test`, `spec`, `__tests__`), a `test-pass` assertion is also added with the detected test command (`bun test` or `npm test`). |
 | `scoring` | Hardcoded defaults | Weighted toward correctness (0.5) since ground truth is "did the agent change the right files" |
 
 ### Prompt Quality

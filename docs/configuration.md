@@ -139,6 +139,26 @@ harvest:
   # Timeout field set in generated task YAML files (seconds).
   defaultTimeout: 300
 
+# ─── Live Review ─────────────────────────────────────────
+
+liveReview:
+  rubrics:
+    scopeDiscipline:
+      enabled: true
+      weight: 1.0
+    testCoverage:
+      enabled: true
+      weight: 1.0
+    diffHygiene:
+      enabled: true
+      weight: 1.0
+    conventionCompliance:
+      enabled: true
+      weight: 1.5          # Higher weight for convention checking
+    progressiveDisclosure:
+      enabled: true
+      weight: 1.0
+
 # ─── Harness Adapters ─────────────────────────────────────
 
 # Custom harness configurations.
@@ -198,6 +218,25 @@ harnesses:
 | `minConfidence` | number | `0.5` | 0.0-1.0 | Detection confidence threshold. |
 | `defaultHarness` | string | `auto` | Valid harness name | Harness field in generated tasks. |
 | `defaultTimeout` | number | `300` | >= 1 | Timeout field in generated tasks (seconds). |
+
+### `liveReview` Section
+
+Controls the `harvest --live` rubric system.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `rubrics.scopeDiscipline.enabled` | boolean | `true` | Enable scope-discipline rubric. |
+| `rubrics.scopeDiscipline.weight` | number | `1.0` | Weight in overall score calculation. |
+| `rubrics.testCoverage.enabled` | boolean | `true` | Enable test-coverage rubric. |
+| `rubrics.testCoverage.weight` | number | `1.0` | Weight in overall score calculation. |
+| `rubrics.diffHygiene.enabled` | boolean | `true` | Enable diff-hygiene rubric. |
+| `rubrics.diffHygiene.weight` | number | `1.0` | Weight in overall score calculation. |
+| `rubrics.conventionCompliance.enabled` | boolean | `true` | Enable LLM convention-compliance rubric (requires `--analyze`). |
+| `rubrics.conventionCompliance.weight` | number | `1.0` | Weight in overall score calculation. |
+| `rubrics.progressiveDisclosure.enabled` | boolean | `true` | Enable LLM progressive-disclosure rubric (requires `--analyze`). |
+| `rubrics.progressiveDisclosure.weight` | number | `1.0` | Weight in overall score calculation. |
+
+Disabled rubrics are excluded from results and the weighted average. The `conventionCompliance` and `progressiveDisclosure` rubrics only run when `--analyze` is passed, regardless of their `enabled` setting.
 
 ### `harnesses` Section
 

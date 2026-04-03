@@ -1,3 +1,4 @@
+import { diffInstructionSnapshots } from "../harvest/snapshot.js";
 import type { ResultScores, StoredResult } from "../run/types.js";
 import type { ComparisonMetric, ComparisonReport } from "./types.js";
 
@@ -46,7 +47,12 @@ export function compareResults(runA: StoredResult, runB: StoredResult): Comparis
 		summary = "Cannot determine winner (insufficient data)";
 	}
 
-	return { runA, runB, winner, metrics, summary };
+	const instructionDiff =
+		runA.instructionSnapshot && runB.instructionSnapshot
+			? diffInstructionSnapshots(runA.instructionSnapshot, runB.instructionSnapshot)
+			: undefined;
+
+	return { runA, runB, winner, metrics, summary, instructionDiff };
 }
 
 function determineWinner(metrics: ComparisonMetric[]): ComparisonReport["winner"] {
@@ -103,6 +109,13 @@ export function formatComparisonConsole(report: ComparisonReport): string {
 	lines.push("");
 	lines.push(formatConsoleTokens(report));
 	lines.push(formatConsoleStatus(report));
+
+	const instrLines = formatConsoleInstructionDiff(report);
+	if (instrLines.length > 0) {
+		lines.push("");
+		lines.push(...instrLines);
+	}
+
 	lines.push("");
 	lines.push(`  Winner: ${report.summary}`);
 
@@ -127,6 +140,17 @@ export function formatComparisonMarkdown(report: ComparisonReport): string {
 		const b = formatScore(m.valueB);
 		const delta = m.delta !== null ? `${m.delta > 0 ? "+" : ""}${m.delta.toFixed(2)}` : "—";
 		lines.push(`| ${m.name} | ${a} | ${b} | ${delta} |`);
+	}
+
+	if (report.instructionDiff && hasNonUnchanged(report.instructionDiff)) {
+		lines.push("");
+		lines.push("## Instruction Changes");
+		lines.push("");
+		lines.push("| File | Status |");
+		lines.push("|------|--------|");
+		for (const [file, status] of Object.entries(report.instructionDiff)) {
+			lines.push(`| ${file} | ${status} |`);
+		}
 	}
 
 	lines.push("");
@@ -163,4 +187,24 @@ function formatConsoleTokens(report: ComparisonReport): string {
 
 function formatConsoleStatus(report: ComparisonReport): string {
 	return `  ${"Status".padEnd(20)} ${report.runA.status.padStart(12)} ${report.runB.status.padStart(12)}`;
+}
+
+function hasNonUnchanged(
+	diff: Record<string, "added" | "removed" | "changed" | "unchanged">,
+): boolean {
+	return Object.values(diff).some((status) => status !== "unchanged");
+}
+
+function formatConsoleInstructionDiff(report: ComparisonReport): string[] {
+	if (!report.instructionDiff || !hasNonUnchanged(report.instructionDiff)) {
+		return [];
+	}
+
+	const lines: string[] = [];
+	lines.push("  Instruction Changes");
+	lines.push(`  ${"─".repeat(40)}`);
+	for (const [file, status] of Object.entries(report.instructionDiff)) {
+		lines.push(`  ${file.padEnd(24)} ${status}`);
+	}
+	return lines;
 }

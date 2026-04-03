@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - 2026-04-03
+
+### Added
+
+- `agenteval init` command: creates starter agenteval.yaml with commented config and next steps
+- Task loader validates filename-like references (catches typos like `--task my-taask.yaml` instead of silently creating ad-hoc tasks)
+- Top-level error handler in CLI: unexpected errors show clean message instead of stack trace
+
+### Changed
+
+- Compare: "Run not found" error now suggests `agenteval results` to list available runs
+- Lint: "No instruction files found" now shows which globs were checked and suggests creating CLAUDE.md
+- Harness registry: "Unknown harness" error shows built-in list and YAML config example
+- Git errors: "Failed to read git history" adds context about repo state
+- Worktree errors: explains possible causes (disabled worktrees, conflicting changes)
+- Config loader: debug log when using defaults, suggests `agenteval init`
+
 ## [0.5.4] - 2026-04-03
 
 ### Changed

@@ -67,7 +67,6 @@ describe("CLI", () => {
 		expect(result).toContain("LLM-assisted rubrics");
 	});
 
-<<<<<<< HEAD
 	test("init subcommand appears in help", async () => {
 		const result = await $`bun run src/cli.ts --help`.text();
 		expect(result).toContain("init");

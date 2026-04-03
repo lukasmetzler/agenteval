@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-03
+
+"Insight Engine". Score history and temporal trend analysis.
+
+### Added
+
+- `agenteval trends` command: score history and trend analysis
+  - Single task mode (`--task <name>`): shows run-by-run history with deltas, best/worst/average, trend direction
+  - All tasks mode (default): summary table with runs, latest, best, worst, and trend per task
+  - Trend detection: improving (↑), regressing (↓), or stable (→) based on last 3 scores
+  - Three output formats: console (box tables), JSON (structured), markdown
+  - Empty state handling with suggestions for available tasks
+- `docs/trends.md` with command reference, examples, and trend detection explanation
+
+### Changed
+
+- 9 commands total: init, doctor, lint, harvest, run, results, compare, ci, trends
+- Updated README, CLAUDE.md, getting-started.md with trends references
+
 ## [0.6.0] - 2026-04-03
 
 "Continuous Quality". Instruction quality regression detection in CI.

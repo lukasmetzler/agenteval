@@ -1,6 +1,6 @@
 {
 	"name": "agenteval",
-	"version": "0.6.0",
+	"version": "0.7.0",
 	"type": "module",
 	"bin": {
 		"agenteval": "./src/cli.ts"

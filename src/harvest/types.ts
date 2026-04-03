@@ -39,12 +39,20 @@ export interface HarvestOptions {
 	analyze?: boolean;
 }
 
+export interface CommitSummary {
+	shortHash: string;
+	tool: string;
+	confidence: number;
+	message: string;
+}
+
 export interface HarvestResult {
 	commitsScanned: number;
 	aiCommitsDetected: number;
 	tasksEmitted: number;
 	tasks: string[];
 	skipped: Array<{ hash: string; reason: string }>;
+	commitSummaries?: CommitSummary[];
 	liveReview?: LiveReviewResult;
 }
 
@@ -60,4 +68,5 @@ export interface RubricResult {
 	score: number;
 	maxScore: number;
 	details: string[];
+	suggestion?: string;
 }

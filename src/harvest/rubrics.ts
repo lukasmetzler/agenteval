@@ -57,7 +57,13 @@ export function scoreScopeDiscipline(files: string[]): RubricResult {
 	details.push(`Dominant directory: ${dominantDir} (${concentration}%)`);
 
 	const score = dirCountToScore(uniqueDirs);
-	return { name: "scope-discipline", score, maxScore: 10, details };
+	const suggestion =
+		score <= 4
+			? "Consider splitting into focused commits, one per directory."
+			: score <= 7
+				? "Try to keep changes within 2-3 related directories."
+				: undefined;
+	return { name: "scope-discipline", score, maxScore: 10, details, suggestion };
 }
 
 /**
@@ -98,7 +104,13 @@ export function scoreTestCoverage(files: string[]): RubricResult {
 	details.push(`Test ratio: ${ratio.toFixed(2)}`);
 
 	const score = ratioToScore(ratio, implFiles);
-	return { name: "test-coverage", score, maxScore: 10, details };
+	const suggestion =
+		score === 0
+			? "Add tests for the files you changed. Even one test file helps."
+			: score <= 5
+				? "Add more test coverage. Aim for at least 1 test file per 2 implementation files."
+				: undefined;
+	return { name: "test-coverage", score, maxScore: 10, details, suggestion };
 }
 
 interface DiffCounts {
@@ -203,6 +215,22 @@ function buildHygieneDetails(counts: DiffCounts): string[] {
 }
 
 /**
+ * Pick the most relevant suggestion based on which hygiene issues were found.
+ */
+function buildHygieneSuggestion(counts: DiffCounts): string | undefined {
+	if (counts.consoleCount > 0 || counts.debuggerCount > 0) {
+		return "Remove console.log/debugger statements before committing.";
+	}
+	if (counts.todoCount > 0) {
+		return "Resolve TODO/FIXME comments or move them to an issue tracker.";
+	}
+	if (counts.formattingHunks > 0) {
+		return "Separate formatting changes into their own commit.";
+	}
+	return undefined;
+}
+
+/**
  * Score the diff for hygiene issues: debug statements, TODO comments, etc.
  */
 export function scoreDiffHygiene(diff: string): RubricResult {
@@ -216,5 +244,6 @@ export function scoreDiffHygiene(diff: string): RubricResult {
 	const details = buildHygieneDetails(counts);
 	const score = Math.max(0, 10 - totalIssues);
 
-	return { name: "diff-hygiene", score, maxScore: 10, details };
+	const suggestion = buildHygieneSuggestion(counts);
+	return { name: "diff-hygiene", score, maxScore: 10, details, suggestion };
 }

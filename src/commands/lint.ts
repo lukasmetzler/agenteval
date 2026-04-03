@@ -15,6 +15,7 @@ interface LintOptions {
 	severity: string;
 	quiet?: boolean;
 	fix?: boolean;
+	explain?: boolean;
 }
 
 export function registerLintCommand(program: Command): void {
@@ -27,6 +28,7 @@ export function registerLintCommand(program: Command): void {
 		.option("--severity <level>", "minimum severity: info, warning, error", "info")
 		.option("--quiet", "only show errors")
 		.option("--fix", "auto-fix where possible")
+		.option("--explain", "show detailed explanation for each rule triggered")
 		.action(async (globs: string[], options: LintOptions) => {
 			try {
 				if (options.fix) {
@@ -51,7 +53,7 @@ export function registerLintCommand(program: Command): void {
 					(d) => SEVERITY_ORDER[d.severity] >= minOrder,
 				);
 
-				const formatter = createFormatter(options.format);
+				const formatter = createFormatter(options.format, options.explain);
 				console.log(formatter.format(result));
 
 				const hasErrors = result.diagnostics.some((d) => d.severity === "error");
@@ -63,7 +65,7 @@ export function registerLintCommand(program: Command): void {
 		});
 }
 
-function createFormatter(format: string) {
+function createFormatter(format: string, explain?: boolean) {
 	switch (format) {
 		case "json":
 			return new JsonFormatter();
@@ -71,7 +73,7 @@ function createFormatter(format: string) {
 		case "md":
 			return new MarkdownFormatter();
 		case "console":
-			return new ConsoleFormatter();
+			return new ConsoleFormatter({ explain });
 		default:
 			logger.error(`Unknown format "${format}". Valid formats: console, json, markdown`);
 			process.exit(2);

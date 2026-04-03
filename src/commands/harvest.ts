@@ -127,7 +127,19 @@ function validateOptions(options: HarvestOptions, cli: HarvestCliOptions): void 
 	}
 }
 
+function confidenceColor(conf: number): string {
+	if (conf >= 0.8) return chalk.green(conf.toFixed(1));
+	if (conf >= 0.6) return chalk.yellow(conf.toFixed(1));
+	return chalk.dim(conf.toFixed(1));
+}
+
 function printDryRun(result: HarvestResult): void {
+	const MAX_TABLE_ROWS = 15;
+	const COL_HASH = 9;
+	const COL_TOOL = 10;
+	const COL_CONF = 6;
+	const COL_MSG = 44;
+
 	const rate =
 		result.commitsScanned > 0
 			? Math.round((result.aiCommitsDetected / result.commitsScanned) * 100)
@@ -141,22 +153,47 @@ function printDryRun(result: HarvestResult): void {
 			`${chalk.green.bold(String(result.aiCommitsDetected))} ${chalk.dim(`(${rate}%)`)}`,
 		),
 	);
-	console.log(kvLine("Tasks to emit", chalk.cyan(String(result.tasks.length))));
 
 	if (result.skipped.length > 0) {
 		console.log(kvLine("Skipped", chalk.dim(String(result.skipped.length))));
 	}
 
-	if (result.tasks.length > 0) {
-		const MAX_SHOWN = 10;
-		const shown = result.tasks.slice(0, MAX_SHOWN);
-		const remaining = result.tasks.length - MAX_SHOWN;
+	const summaries = result.commitSummaries ?? [];
+
+	if (summaries.length > 0) {
+		const border = (l: string, m: string, r: string) =>
+			`  ${chalk.dim(`${l}${"─".repeat(COL_HASH)}${m}${"─".repeat(COL_TOOL)}${m}${"─".repeat(COL_CONF)}${m}${"─".repeat(COL_MSG)}${r}`)}`;
+
 		console.log("");
-		for (const name of shown) {
-			console.log(`    ${chalk.dim("·")} ${chalk.green(name)}`);
+		console.log(border("┌", "┬", "┐"));
+		console.log(
+			`  ${chalk.dim("│")} ${padEnd(chalk.dim("Hash"), COL_HASH - 2)} ${chalk.dim("│")} ${padEnd(chalk.dim("Tool"), COL_TOOL - 2)} ${chalk.dim("│")} ${padEnd(chalk.dim("Conf"), COL_CONF - 2)} ${chalk.dim("│")} ${padEnd(chalk.dim("Message"), COL_MSG - 2)} ${chalk.dim("│")}`,
+		);
+		console.log(border("├", "┼", "┤"));
+
+		const shown = summaries.slice(0, MAX_TABLE_ROWS);
+		const remaining = summaries.length - MAX_TABLE_ROWS;
+
+		for (const s of shown) {
+			console.log(
+				`  ${chalk.dim("│")} ${padEnd(chalk.cyan(s.shortHash), COL_HASH - 2)} ${chalk.dim("│")} ${padEnd(s.tool, COL_TOOL - 2)} ${chalk.dim("│")} ${padEnd(confidenceColor(s.confidence), COL_CONF - 2)} ${chalk.dim("│")} ${padEnd(s.message, COL_MSG - 2)} ${chalk.dim("│")}`,
+			);
 		}
+
 		if (remaining > 0) {
-			console.log(`    ${chalk.dim(`... and ${remaining} more`)}`);
+			console.log(
+				`  ${chalk.dim("│")} ${padEnd(chalk.dim("..."), COL_HASH - 2)} ${chalk.dim("│")} ${padEnd("", COL_TOOL - 2)} ${chalk.dim("│")} ${padEnd("", COL_CONF - 2)} ${chalk.dim("│")} ${padEnd(chalk.dim(`(${remaining} more)`), COL_MSG - 2)} ${chalk.dim("│")}`,
+			);
+		}
+
+		console.log(border("└", "┴", "┘"));
+	}
+
+	if (result.skipped.length > 0) {
+		console.log("");
+		console.log(`  ${chalk.dim(`Skipped (${result.skipped.length})`)}`);
+		for (const s of result.skipped) {
+			console.log(`    ${chalk.dim(s.hash)} ${chalk.dim("·")} ${chalk.dim(s.reason)}`);
 		}
 	}
 
@@ -244,5 +281,15 @@ function printLiveReview(result: LiveReviewResult): void {
 	}
 
 	console.log(border("└", "┴", "┘"));
+
+	const suggestions = result.rubrics.filter((r) => r.suggestion);
+	if (suggestions.length > 0) {
+		console.log();
+		console.log(`  ${chalk.bold("Suggestions")}`);
+		for (const rubric of suggestions) {
+			console.log(`    ${chalk.green("→")} ${chalk.dim(rubric.suggestion)}`);
+		}
+	}
+
 	console.log();
 }

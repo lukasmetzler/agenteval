@@ -96,6 +96,12 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	};
 
 	if (options.dryRun) {
+		result.commitSummaries = filtered.map((c) => ({
+			shortHash: c.shortHash,
+			tool: c.detectedTool ?? "unknown",
+			confidence: c.confidence,
+			message: c.message.length > 50 ? `${c.message.slice(0, 47)}...` : c.message,
+		}));
 		for (const commit of filtered) {
 			const snapshot = await getInstructionSnapshot(
 				options.repoPath,
@@ -144,4 +150,10 @@ export { detectTestCommand, emitTaskYaml, writeTaskFile } from "./emit.js";
 export { findPRForCommit, isGhAvailable } from "./github.js";
 export type { PRInfo } from "./github.js";
 export { diffInstructionSnapshots, getInstructionSnapshot } from "./snapshot.js";
-export type { AICommit, HarvestOptions, HarvestResult, LiveReviewResult } from "./types.js";
+export type {
+	AICommit,
+	CommitSummary,
+	HarvestOptions,
+	HarvestResult,
+	LiveReviewResult,
+} from "./types.js";

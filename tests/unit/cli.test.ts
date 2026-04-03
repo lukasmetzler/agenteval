@@ -23,6 +23,12 @@ describe("CLI", () => {
 		expect(parsed.stats).toBeDefined();
 	});
 
+	test("lint --help shows --explain option", async () => {
+		const result = await $`bun run src/cli.ts lint --help`.text();
+		expect(result).toContain("--explain");
+		expect(result).toContain("detailed explanation");
+	});
+
 	test("run --help shows options", async () => {
 		const result = await $`bun run src/cli.ts run --help`.text();
 		expect(result).toContain("--task");
@@ -49,6 +55,10 @@ describe("CLI", () => {
 	test("harvest subcommand exists", async () => {
 		const result = await $`bun run src/cli.ts harvest --dry-run`.text();
 		expect(result).toContain("harvest");
+		expect(result).toContain("Hash");
+		expect(result).toContain("Tool");
+		expect(result).toContain("Conf");
+		expect(result).toContain("Message");
 	});
 
 	test("harvest --analyze without --live is rejected", async () => {

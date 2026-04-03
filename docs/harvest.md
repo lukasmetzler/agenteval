@@ -382,7 +382,78 @@ agenteval harvest --live
 
 **diff-hygiene** (0-10): Detects common issues in the diff: `console.log`/`debugger` statements, TODO/FIXME/HACK comments, and formatting-only hunks. Starts at 10, loses 1 point per issue found.
 
-All rubrics are pure functions with no external dependencies. Execution takes <1 second.
+All heuristic rubrics are pure functions with no external dependencies. Execution takes <1 second.
+
+### Rubric Configuration
+
+Rubric weights and enable/disable are configurable in `agenteval.yaml`:
+
+```yaml
+liveReview:
+  rubrics:
+    scopeDiscipline:
+      enabled: true
+      weight: 1.0
+    testCoverage:
+      enabled: true
+      weight: 1.0
+    diffHygiene:
+      enabled: true
+      weight: 1.0
+    conventionCompliance:
+      enabled: true
+      weight: 1.5
+    progressiveDisclosure:
+      enabled: true
+      weight: 1.0
+```
+
+Disabled rubrics are excluded from results and the overall score. Weights control how much each rubric contributes to the weighted average.
+
+### LLM-Assisted Rubrics (--analyze)
+
+The `--analyze` flag adds two LLM-assisted rubrics that send the diff and your instruction files to Claude for evaluation:
+
+```bash
+agenteval harvest --live --analyze
+```
+
+**convention-compliance** (0-10): "Does this diff follow the conventions described in CLAUDE.md?" Returns a score and a list of specific violations.
+
+**progressive-disclosure** (0-10): "Are these changes appropriately scoped and layered?" Returns a score and a list of scope issues.
+
+Requirements:
+- Claude Code CLI installed (`claude` command available)
+- `--analyze` requires `--live`
+- Instruction files (CLAUDE.md, AGENTS.md, etc.) must exist in the repo
+
+LLM rubrics take 10-30 seconds (one LLM call per rubric). Heuristic rubrics still run in <1 second. If the LLM response can't be parsed, the rubric falls back to score 5 with a note.
+
+## Comparison with Instruction Diffs
+
+When comparing two eval runs that were both generated from harvested tasks with instruction snapshots, the compare command shows what changed in your instruction files:
+
+```bash
+agenteval compare run-A run-B
+```
+
+```
+  Instruction Changes
+  ───────────────────
+  CLAUDE.md    changed
+  AGENTS.md    unchanged
+```
+
+This answers the key question: "I changed my CLAUDE.md between these runs. Did the score improve?"
+
+## Confidence-Weighted Scoring
+
+Harvested tasks include a `detectionConfidence` (0.6-0.9) based on how the AI commit was detected. When scoring eval runs, this confidence is used as a multiplier:
+
+- Co-author tag detection (0.9): a perfect run scores 0.9
+- Message pattern detection (0.6): a perfect run scores 0.6
+
+The raw `overall` score is always available. The `confidenceAdjustedOverall` field reflects detection uncertainty. Low-confidence tasks contribute proportionally less when evaluating instruction quality.
 
 ## Edge Cases and Limitations
 

@@ -6,7 +6,7 @@ A CLI tool that evaluates AI coding instruction quality. Built with Bun + TypeSc
 
 ```bash
 bun install             # install dependencies
-bun test                # run all tests (254 tests)
+bun test                # run all tests (301 tests)
 bun run dev -- lint     # lint instruction files
 bun run dev -- run      # run eval (needs --task flag)
 bun run dev -- results  # view stored results

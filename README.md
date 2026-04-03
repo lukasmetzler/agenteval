@@ -230,14 +230,15 @@ Token counts use OpenAI's cl100k_base tokenizer (via js-tiktoken) for offline sp
 - **v0.1.x** (shipped): Static linter with 7 rule categories, 24 rules
 - **v0.2.x** (shipped): Eval runner, harness adapters, result store, compare
 - **v0.3.x** (shipped): Git history mining for eval datasets (`agenteval harvest`)
-- **v0.4.0** (current): Live review mode, GitHub API enrichment, instruction snapshots
-- **v0.5.0** (planned): LLM-assisted rubrics, detector plugin registry
+- **v0.4.x** (shipped): Live review mode, GitHub API enrichment, instruction snapshots
+- **v0.5.0** (current): Snapshot-aware comparison, confidence scoring, LLM rubrics
+- **v0.6.0** (planned): CI command, detector plugin registry
 
 ## Development
 
 ```bash
 bun install          # install dependencies
-bun test             # run all tests (254 tests)
+bun test             # run all tests (301 tests)
 bun run dev -- lint  # run CLI in dev mode
 bun run build        # compile to binary
 bun run check        # lint + typecheck + test

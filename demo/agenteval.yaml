@@ -1,0 +1,6 @@
+version: 1
+instructionGlobs:
+  - "demo/CLAUDE.md"
+  - "demo/AGENTS.md"
+contextBudget: 0.3
+model: claude-sonnet-4-6

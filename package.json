@@ -1,7 +1,30 @@
 {
 	"name": "agenteval",
 	"version": "0.7.0",
+	"description": "Measure whether your AI coding instructions actually make agents perform better",
 	"type": "module",
+	"keywords": [
+		"cli",
+		"ai",
+		"testing",
+		"evaluation",
+		"claude",
+		"copilot",
+		"instructions",
+		"agents",
+		"lint",
+		"benchmark"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lukasmetzler/agenteval.git"
+	},
+	"author": "Lukas Metzler",
+	"homepage": "https://github.com/lukasmetzler/agenteval",
+	"bugs": {
+		"url": "https://github.com/lukasmetzler/agenteval/issues"
+	},
+	"license": "MIT",
 	"bin": {
 		"agenteval": "./src/cli.ts"
 	},

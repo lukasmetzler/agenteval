@@ -141,6 +141,47 @@ describe("ConsoleFormatter", () => {
 		const tokenIdx = plain.indexOf("token-count/file-too-large");
 		expect(claudeIdx).toBeLessThan(tokenIdx);
 	});
+
+	test("explain: true shows What/Why/Fix for known rules", () => {
+		const explainFmt = new ConsoleFormatter({ explain: true });
+		const output = explainFmt.format(sampleResult);
+		const plain = stripAnsi(output);
+		expect(plain).toContain("What:");
+		expect(plain).toContain("Why:");
+		expect(plain).toContain("Fix:");
+		// Verify actual explanation content for token-count/file-too-large
+		expect(plain).toContain(
+			"Checks if a single instruction file exceeds the configured token limit.",
+		);
+	});
+
+	test("explain: false (default) does not show What/Why/Fix", () => {
+		const defaultFmt = new ConsoleFormatter();
+		const output = defaultFmt.format(sampleResult);
+		const plain = stripAnsi(output);
+		expect(plain).not.toContain("What:");
+		expect(plain).not.toContain("Why:");
+		expect(plain).not.toContain("Fix:");
+	});
+
+	test("explain: true with unknown rule ID does not crash", () => {
+		const explainFmt = new ConsoleFormatter({ explain: true });
+		const resultWithUnknown: LintResult = {
+			diagnostics: [
+				{
+					ruleId: "unknown/nonexistent-rule",
+					severity: "warning",
+					message: "some unknown warning",
+					filePath: "/tmp/test.md",
+				},
+			],
+			stats: { filesAnalyzed: 1, totalTokens: 100, duration: 1 },
+		};
+		const output = explainFmt.format(resultWithUnknown);
+		const plain = stripAnsi(output);
+		expect(plain).toContain("unknown/nonexistent-rule");
+		expect(plain).not.toContain("What:");
+	});
 });
 
 describe("JsonFormatter", () => {

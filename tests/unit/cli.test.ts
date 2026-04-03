@@ -23,6 +23,12 @@ describe("CLI", () => {
 		expect(parsed.stats).toBeDefined();
 	});
 
+	test("lint --help shows --explain option", async () => {
+		const result = await $`bun run src/cli.ts lint --help`.text();
+		expect(result).toContain("--explain");
+		expect(result).toContain("detailed explanation");
+	});
+
 	test("run --help shows options", async () => {
 		const result = await $`bun run src/cli.ts run --help`.text();
 		expect(result).toContain("--task");

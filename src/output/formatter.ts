@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { RULE_EXPLANATIONS } from "../lint/explanations.js";
 import type { Diagnostic, LintResult } from "../lint/types.js";
 import { basename } from "../utils/path.js";
 import { rule } from "./terminal.js";
@@ -27,7 +28,7 @@ function groupByFile(diagnostics: Diagnostic[]): Map<string, Diagnostic[]> {
 	return groups;
 }
 
-function formatFileGroup(filePath: string, diagnostics: Diagnostic[]): string[] {
+function formatFileGroup(filePath: string, diagnostics: Diagnostic[], explain: boolean): string[] {
 	const lines: string[] = [];
 
 	lines.push("");
@@ -43,6 +44,15 @@ function formatFileGroup(filePath: string, diagnostics: Diagnostic[]): string[] 
 		}
 		if (d.suggestion) {
 			lines.push(`           ${chalk.green("→")} ${chalk.dim(d.suggestion)}`);
+		}
+		if (explain) {
+			const explanation = RULE_EXPLANATIONS[d.ruleId];
+			if (explanation) {
+				lines.push("");
+				lines.push(`           ${chalk.dim("What:")}  ${explanation.what}`);
+				lines.push(`           ${chalk.dim("Why:")}   ${explanation.why}`);
+				lines.push(`           ${chalk.dim("Fix:")}   ${explanation.fix}`);
+			}
 		}
 	}
 
@@ -64,6 +74,12 @@ function formatGuidance(errors: number, warnings: number): string {
 }
 
 export class ConsoleFormatter implements OutputFormatter {
+	private explain: boolean;
+
+	constructor(options?: { explain?: boolean }) {
+		this.explain = options?.explain ?? false;
+	}
+
 	format(result: LintResult): string {
 		const lines: string[] = [];
 
@@ -89,7 +105,7 @@ export class ConsoleFormatter implements OutputFormatter {
 		} else {
 			const groups = groupByFile(result.diagnostics);
 			for (const [filePath, diagnostics] of groups) {
-				lines.push(...formatFileGroup(filePath, diagnostics));
+				lines.push(...formatFileGroup(filePath, diagnostics, this.explain));
 			}
 		}
 

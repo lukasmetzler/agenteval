@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
 import { harvest } from "../harvest/index.js";
-import type { HarvestOptions, HarvestResult } from "../harvest/types.js";
+import type { HarvestOptions, HarvestResult, LiveReviewResult } from "../harvest/types.js";
 import { logger } from "../utils/logger.js";
 
 interface HarvestCliOptions {
@@ -17,6 +17,7 @@ interface HarvestCliOptions {
 	minConfidence?: string;
 	github?: boolean;
 	config?: string;
+	live?: boolean;
 }
 
 const VALID_HARNESSES = ["claude-code", "opencode", "copilot", "generic", "auto"];
@@ -36,6 +37,7 @@ export function registerHarvestCommand(program: Command): void {
 		.option("--timeout <seconds>", "timeout to set in emitted tasks")
 		.option("--min-confidence <number>", "minimum confidence threshold (0-1)")
 		.option("--github", "enrich tasks with GitHub PR data (requires gh CLI)")
+		.option("--live", "review current working tree changes against heuristics")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (cliOptions: HarvestCliOptions) => {
 			try {
@@ -48,6 +50,8 @@ export function registerHarvestCommand(program: Command): void {
 
 				if (cliOptions.format === "json") {
 					console.log(JSON.stringify(result, null, 2));
+				} else if (result.liveReview) {
+					printLiveReview(result.liveReview);
 				} else if (options.dryRun) {
 					printDryRun(result);
 				} else {
@@ -87,6 +91,7 @@ function buildOptions(
 			? Number.parseFloat(cli.minConfidence)
 			: config.harvest.minConfidence,
 		github: cli.github ?? false,
+		live: cli.live ?? false,
 	};
 }
 
@@ -162,5 +167,49 @@ function printSummary(result: HarvestResult): void {
 		console.log("  or check that your AI tool adds Co-authored-by trailers.");
 	}
 
+	console.log();
+}
+
+function printLiveReview(result: LiveReviewResult): void {
+	console.log("\n  Live Review");
+	console.log("  ═══════════\n");
+	console.log(`  Files analyzed: ${result.filesAnalyzed}`);
+	console.log(`  Overall score:  ${result.overallScore}/10`);
+
+	if (result.rubrics.length === 0) {
+		console.log(`\n  ${result.summary}`);
+		console.log();
+		return;
+	}
+
+	const nameWidth = 21;
+	const scoreWidth = 7;
+	const detailWidth = 33;
+
+	const pad = (s: string, w: number) => s.padEnd(w);
+	const border = (left: string, mid: string, right: string) =>
+		`  ${left}${"─".repeat(nameWidth)}${mid}${"─".repeat(scoreWidth)}${mid}${"─".repeat(detailWidth)}${right}`;
+
+	console.log();
+	console.log(border("┌", "┬", "┐"));
+	console.log(
+		`  │${pad(" Rubric", nameWidth)}│${pad(" Score", scoreWidth)}│${pad(" Details", detailWidth)}│`,
+	);
+	console.log(border("├", "┼", "┤"));
+
+	for (const rubric of result.rubrics) {
+		const displayName = rubric.name
+			.split("-")
+			.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+			.join(" ");
+		const scoreStr = `${rubric.score}/${rubric.maxScore}`;
+		const detailStr = rubric.details.join("; ");
+
+		console.log(
+			`  │${pad(` ${displayName}`, nameWidth)}│${pad(` ${scoreStr}`, scoreWidth)}│${pad(` ${detailStr}`, detailWidth)}│`,
+		);
+	}
+
+	console.log(border("└", "┴", "┘"));
 	console.log();
 }

@@ -50,6 +50,19 @@ async function fetchPRInfoMap(repoPath: string, commits: AICommit[]): Promise<Ma
 export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	await validateGitRepo(options.repoPath);
 
+	if (options.live) {
+		const { runLiveReview } = await import("./live.js");
+		const liveResult = await runLiveReview(options.repoPath);
+		return {
+			commitsScanned: 0,
+			aiCommitsDetected: 0,
+			tasksEmitted: 0,
+			tasks: [],
+			skipped: [],
+			liveReview: liveResult,
+		};
+	}
+
 	const minConfidence = options.minConfidence ?? 0.5;
 	const outputDir = options.outputDir ?? "tasks/harvested";
 
@@ -129,4 +142,4 @@ export { emitTaskYaml, writeTaskFile } from "./emit.js";
 export { findPRForCommit, isGhAvailable } from "./github.js";
 export type { PRInfo } from "./github.js";
 export { diffInstructionSnapshots, getInstructionSnapshot } from "./snapshot.js";
-export type { AICommit, HarvestOptions, HarvestResult } from "./types.js";
+export type { AICommit, HarvestOptions, HarvestResult, LiveReviewResult } from "./types.js";

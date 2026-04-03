@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] - 2026-04-03
+
+### Added
+
+- Dependabot configuration for automated dependency updates (npm weekly + GitHub Actions weekly)
+- Dependency groups: lint-and-types (biome, typescript, @types), markdown (remark, mdast, unified)
+
+### Changed
+
+- All dependencies pinned to exact versions (removed `^` caret ranges)
+- package.json version synced with VERSION file (was stuck at 0.3.2)
+
 ## [0.5.7] - 2026-04-03
 
 ### Added

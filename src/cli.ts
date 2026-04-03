@@ -13,7 +13,9 @@ import { version } from "./version.js";
 const program = new Command()
 	.name("agenteval")
 	.description("Evaluate AI coding instruction quality")
-	.version(version);
+	.version(version, "-V, --version")
+	.enablePositionalOptions()
+	.showHelpAfterError("(run agenteval --help for usage)");
 
 registerInitCommand(program);
 registerDoctorCommand(program);

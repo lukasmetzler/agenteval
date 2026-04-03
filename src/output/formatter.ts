@@ -1,16 +1,16 @@
 import chalk from "chalk";
 import type { Diagnostic, LintResult } from "../lint/types.js";
 import { basename } from "../utils/path.js";
-import { padEnd, rule } from "./terminal.js";
+import { rule } from "./terminal.js";
 
 export interface OutputFormatter {
 	format(result: LintResult): string;
 }
 
 const SEVERITY_ICONS = {
-	error: chalk.red("✗ error"),
-	warning: chalk.yellow("⚠ warn "),
-	info: chalk.blue("ℹ info "),
+	error: chalk.red.bold(" ERROR "),
+	warning: chalk.yellow(" WARN  "),
+	info: chalk.blue(" info  "),
 } as const;
 
 /** Group diagnostics by file path */
@@ -29,21 +29,21 @@ function groupByFile(diagnostics: Diagnostic[]): Map<string, Diagnostic[]> {
 
 function formatFileGroup(filePath: string, diagnostics: Diagnostic[]): string[] {
 	const lines: string[] = [];
-	const pipe = chalk.dim("│");
-	const ruleWidth = 35;
 
-	lines.push(`  ${chalk.cyan.bold(basename(filePath))}`);
-	lines.push(`  ${pipe}`);
+	lines.push("");
+	lines.push(`  ${chalk.cyan.underline(basename(filePath))}`);
 
 	for (const d of diagnostics) {
 		const icon = SEVERITY_ICONS[d.severity];
-		const ruleId = padEnd(chalk.dim(d.ruleId), ruleWidth);
-		const lineRef = d.line ? chalk.dim(`:${d.line}`) : "";
-		lines.push(`  ${pipe}  ${icon}  ${ruleId} ${lineRef}  ${d.message}`);
-		if (d.suggestion) {
-			lines.push(`  ${pipe}           ${chalk.dim(`→ ${d.suggestion}`)}`);
+		const lineRef = d.line ? chalk.dim(`line ${d.line}`) : "";
+		const ruleTag = chalk.dim(`(${d.ruleId})`);
+		lines.push(`    ${icon} ${d.message}  ${ruleTag}`);
+		if (d.line) {
+			lines.push(`           ${lineRef}`);
 		}
-		lines.push(`  ${pipe}`);
+		if (d.suggestion) {
+			lines.push(`           ${chalk.green("→")} ${chalk.dim(d.suggestion)}`);
+		}
 	}
 
 	return lines;
@@ -67,8 +67,25 @@ export class ConsoleFormatter implements OutputFormatter {
 	format(result: LintResult): string {
 		const lines: string[] = [];
 
-		if (result.diagnostics.length === 0) {
-			lines.push(`  ${chalk.green("✓ No issues found")}`);
+		const errors = result.diagnostics.filter((d) => d.severity === "error").length;
+		const warnings = result.diagnostics.filter((d) => d.severity === "warning").length;
+		const infos = result.diagnostics.filter((d) => d.severity === "info").length;
+		const total = errors + warnings + infos;
+
+		// Header
+		lines.push("");
+		const titleParts = [
+			chalk.bold("agenteval lint"),
+			chalk.dim(`${result.stats.filesAnalyzed} files`),
+			chalk.dim(`~${result.stats.totalTokens} tokens`),
+			chalk.dim(`${Math.round(result.stats.duration)}ms`),
+		];
+		lines.push(`  ${titleParts.join(chalk.dim("  ·  "))}`);
+		lines.push(rule(70));
+
+		if (total === 0) {
+			lines.push("");
+			lines.push(`  ${chalk.green("✓")} ${chalk.green.bold("No issues found")}`);
 		} else {
 			const groups = groupByFile(result.diagnostics);
 			for (const [filePath, diagnostics] of groups) {
@@ -76,21 +93,17 @@ export class ConsoleFormatter implements OutputFormatter {
 			}
 		}
 
-		lines.push(rule(57));
-
-		const errors = result.diagnostics.filter((d) => d.severity === "error").length;
-		const warnings = result.diagnostics.filter((d) => d.severity === "warning").length;
-		const infos = result.diagnostics.filter((d) => d.severity === "info").length;
-
-		const parts = [`${result.stats.filesAnalyzed} files`, `~${result.stats.totalTokens} tokens`];
-
-		if (errors > 0) parts.push(chalk.red(`${errors} error${errors > 1 ? "s" : ""}`));
-		if (warnings > 0) parts.push(chalk.yellow(`${warnings} warning${warnings > 1 ? "s" : ""}`));
-		if (infos > 0) parts.push(chalk.blue(`${infos} info`));
-
-		lines.push(
-			`  ${parts.join(chalk.dim(" · "))} ${chalk.dim("·")} ${chalk.dim(`${Math.round(result.stats.duration)}ms`)}`,
-		);
+		// Footer
+		lines.push("");
+		lines.push(rule(70));
+		const countParts: string[] = [];
+		if (errors > 0) countParts.push(chalk.red.bold(`${errors} error${errors > 1 ? "s" : ""}`));
+		if (warnings > 0)
+			countParts.push(chalk.yellow(`${warnings} warning${warnings > 1 ? "s" : ""}`));
+		if (infos > 0) countParts.push(chalk.blue(`${infos} info`));
+		if (countParts.length > 0) {
+			lines.push(`  ${countParts.join(chalk.dim("  ·  "))}`);
+		}
 		lines.push(formatGuidance(errors, warnings));
 
 		return lines.join("\n");

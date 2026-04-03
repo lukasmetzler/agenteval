@@ -74,20 +74,26 @@ function resolveInstructions(options: RunOptions, cwd: string): InstructionSet {
 
 function printResult(result: StoredResult, resultsDir: string): void {
 	if (result.status === "success") {
-		console.log(header(`Run Complete · ${result.id}`));
+		console.log(header("agenteval run"));
 		const overall = result.scores.overall;
 		const scoreStr = overall !== null && overall !== undefined ? scoreColor(overall, 1) : "N/A";
-		console.log(kvLine("Score", scoreStr));
+		console.log(kvLine("Task", chalk.cyan(result.task)));
+		console.log(kvLine("Score", `${scoreStr}${chalk.dim("/1.0")}`));
 		console.log(kvLine("Files changed", result.diffSummary));
 		if (result.metrics.tokensTotal !== null) {
 			console.log(kvLine("Tokens", `~${result.metrics.tokensTotal}`));
 		}
+		console.log(kvLine("Result", chalk.green.bold("success")));
 		console.log(kvLine("Saved to", chalk.dim(`${resultsDir}/${result.id}.json`)));
 		console.log();
 		process.exit(0);
 	}
 
-	console.error(header(`Run ${result.status} · ${result.id}`));
-	console.error(`  ${chalk.dim(result.error)}`);
+	console.error(header("agenteval run"));
+	console.error(kvLine("Task", chalk.cyan(result.task)));
+	console.error(kvLine("Result", chalk.red.bold(result.status)));
+	if (result.error) {
+		console.error(kvLine("Error", chalk.dim(result.error)));
+	}
 	process.exit(1);
 }

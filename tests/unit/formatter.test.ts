@@ -130,10 +130,16 @@ describe("ConsoleFormatter", () => {
 		expect(plain).toContain("All clear");
 	});
 
-	test("uses tree-line prefix for visual grouping", () => {
+	test("groups diagnostics by file", () => {
 		const output = fmt.format(sampleResult);
 		const plain = stripAnsi(output);
-		expect(plain).toContain("│");
+		// File names appear as group headers
+		expect(plain).toContain("CLAUDE.md");
+		expect(plain).toContain("api.md");
+		// File header appears before its diagnostic
+		const claudeIdx = plain.indexOf("CLAUDE.md");
+		const tokenIdx = plain.indexOf("token-count/file-too-large");
+		expect(claudeIdx).toBeLessThan(tokenIdx);
 	});
 });
 

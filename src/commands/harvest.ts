@@ -281,5 +281,15 @@ function printLiveReview(result: LiveReviewResult): void {
 	}
 
 	console.log(border("└", "┴", "┘"));
+
+	const suggestions = result.rubrics.filter((r) => r.suggestion);
+	if (suggestions.length > 0) {
+		console.log();
+		console.log(`  ${chalk.bold("Suggestions")}`);
+		for (const rubric of suggestions) {
+			console.log(`    ${chalk.green("→")} ${chalk.dim(rubric.suggestion)}`);
+		}
+	}
+
 	console.log();
 }

@@ -68,4 +68,5 @@ export interface RubricResult {
 	score: number;
 	maxScore: number;
 	details: string[];
+	suggestion?: string;
 }

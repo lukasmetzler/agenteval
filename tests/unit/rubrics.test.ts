@@ -52,6 +52,24 @@ describe("scoreScopeDiscipline", () => {
 		expect(result.score).toBe(0);
 	});
 
+	test("low score includes suggestion to split commits", () => {
+		const result = scoreScopeDiscipline([
+			"src/a.ts",
+			"tests/b.ts",
+			"docs/c.md",
+			"scripts/d.sh",
+			"config/e.yaml",
+		]);
+		expect(result.score).toBeLessThanOrEqual(4);
+		expect(result.suggestion).toBe("Consider splitting into focused commits, one per directory.");
+	});
+
+	test("high score has no suggestion", () => {
+		const result = scoreScopeDiscipline(["src/auth.ts", "src/auth.test.ts"]);
+		expect(result.score).toBeGreaterThanOrEqual(8);
+		expect(result.suggestion).toBeUndefined();
+	});
+
 	test("empty file list scores 10", () => {
 		const result = scoreScopeDiscipline([]);
 		expect(result.score).toBe(10);
@@ -95,6 +113,13 @@ describe("scoreTestCoverage", () => {
 	test("no tests with many impl files scores 0", () => {
 		const result = scoreTestCoverage(["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
 		expect(result.score).toBe(0);
+	});
+
+	test("zero tests includes suggestion to add tests", () => {
+		const result = scoreTestCoverage(["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
+		expect(result.suggestion).toBe(
+			"Add tests for the files you changed. Even one test file helps.",
+		);
 	});
 
 	test("no tests with few impl files scores 3", () => {
@@ -197,5 +222,34 @@ describe("scoreDiffHygiene", () => {
 		const result = scoreDiffHygiene(diff);
 		expect(result.score).toBe(9);
 		expect(result.details.some((d) => d.includes("TODO/FIXME"))).toBe(true);
+	});
+
+	test("console.log includes suggestion to remove debug statements", () => {
+		const diff = [
+			"diff --git a/src/auth.ts b/src/auth.ts",
+			"--- a/src/auth.ts",
+			"+++ b/src/auth.ts",
+			"@@ -1,3 +1,4 @@",
+			' import { foo } from "./foo";',
+			'+  console.log("debug")',
+			" ",
+		].join("\n");
+		const result = scoreDiffHygiene(diff);
+		expect(result.suggestion).toBe("Remove console.log/debugger statements before committing.");
+	});
+
+	test("clean diff has no suggestion", () => {
+		const diff = [
+			"diff --git a/src/auth.ts b/src/auth.ts",
+			"--- a/src/auth.ts",
+			"+++ b/src/auth.ts",
+			"@@ -1,3 +1,4 @@",
+			" import { foo } from './foo';",
+			"+import { bar } from './bar';",
+			" ",
+			" export function auth() {",
+		].join("\n");
+		const result = scoreDiffHygiene(diff);
+		expect(result.suggestion).toBeUndefined();
 	});
 });

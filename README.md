@@ -6,14 +6,20 @@ Measure whether your AI coding instructions (CLAUDE.md, AGENTS.md, copilot-instr
 
 ## How It Works
 
-```
-Your CLAUDE.md ──> agenteval lint ──> Fix quality issues
-                         |
-Git history ────> agenteval harvest ──> Task YAML files
-                                              |
-                                    agenteval run ──> Scored results
-                                              |
-                              agenteval compare ──> "Did my instructions improve?"
+```mermaid
+flowchart LR
+    A["Your CLAUDE.md"] --> B["agenteval lint"]
+    B --> C["Fix quality issues"]
+    D["Git history"] --> E["agenteval harvest"]
+    E --> F["Task YAML files"]
+    F --> G["agenteval run"]
+    G --> H["Scored results"]
+    H --> I["agenteval compare"]
+    I --> J{{"Did my instructions improve?"}}
+
+    style A fill:#2d333b,stroke:#444,color:#e6edf3
+    style D fill:#2d333b,stroke:#444,color:#e6edf3
+    style J fill:#1a7f37,stroke:#2ea043,color:#fff
 ```
 
 **Lint** catches problems statically -- bloat, dead references, contradictions, wasted context budget -- so you fix them before an agent ever sees your instructions.

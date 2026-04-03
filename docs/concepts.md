@@ -60,14 +60,15 @@ These combine into a weighted overall score. Default weights are 0.4 / 0.3 / 0.2
 
 ## The Workflow
 
-```
-lint -------> "Are my instruction files well-written?"
-                |
-harvest -----> "Turn my git history into eval tasks"
-                |
-run ---------> "How does my AI agent perform on these tasks?"
-                |
-compare -----> "Did my instruction changes make things better?"
+```mermaid
+flowchart TD
+    L["agenteval lint"] -->|"Are my instructions well-written?"| H
+    H["agenteval harvest"] -->|"Turn git history into eval tasks"| R
+    R["agenteval run"] -->|"How does my agent perform?"| C
+    C["agenteval compare"] -->|"Did my changes help?"| D{{"Iterate"}}
+    D --> L
+
+    style D fill:#1a7f37,stroke:#2ea043,color:#fff
 ```
 
 **lint** -- Run this first. Catches bloated files, broken references, and contradictions before you waste time on evals. Works in CI.

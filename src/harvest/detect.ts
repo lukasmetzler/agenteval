@@ -259,7 +259,9 @@ export async function detectAICommits(
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
 		const stderr = await new Response(proc.stderr).text();
-		throw new Error(`git log failed: ${stderr.trim()}`);
+		throw new Error(
+			`Failed to read git history: ${stderr.trim()}\nMake sure you're in a git repository with at least one commit.`,
+		);
 	}
 
 	const stdout = await new Response(proc.stdout).text();

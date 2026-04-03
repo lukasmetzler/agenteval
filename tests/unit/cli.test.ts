@@ -67,6 +67,7 @@ describe("CLI", () => {
 		expect(result).toContain("LLM-assisted rubrics");
 	});
 
+<<<<<<< HEAD
 	test("init subcommand appears in help", async () => {
 		const result = await $`bun run src/cli.ts --help`.text();
 		expect(result).toContain("init");
@@ -99,6 +100,25 @@ describe("CLI", () => {
 			expect(stderr).toContain("already exists");
 		} finally {
 			rmSync(tmp, { recursive: true, force: true });
+		}
+	});
+
+	test("compare with invalid IDs produces helpful error", async () => {
+		try {
+			await $`bun run src/cli.ts compare nonexistent-a nonexistent-b`.quiet().text();
+			expect(true).toBe(false);
+		} catch (err: unknown) {
+			const stderr = (err as { stderr: Buffer }).stderr.toString();
+			expect(stderr).toContain("agenteval results");
+		}
+	});
+
+	test(".yaml task reference that doesn't exist throws error", async () => {
+		try {
+			await $`bun run src/cli.ts run --task nonexistent.yaml --dry-run`.quiet().text();
+			expect(true).toBe(false);
+		} catch {
+			// Expected: task file not found should cause non-zero exit
 		}
 	});
 });

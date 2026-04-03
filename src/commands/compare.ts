@@ -29,13 +29,13 @@ export function registerCompareCommand(program: Command): void {
 
 				const resultA = readResult(runA, resultsDir);
 				if (!resultA) {
-					console.error(`Run not found: ${runA}`);
+					console.error(`Run not found: "${runA}". List available runs with: agenteval results`);
 					process.exit(2);
 				}
 
 				const resultB = readResult(runB, resultsDir);
 				if (!resultB) {
-					console.error(`Run not found: ${runB}`);
+					console.error(`Run not found: "${runB}". List available runs with: agenteval results`);
 					process.exit(2);
 				}
 

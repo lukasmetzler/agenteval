@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import chalk from "chalk";
 import { Command } from "commander";
 import { registerCompareCommand } from "./commands/compare.js";
 import { registerHarvestCommand } from "./commands/harvest.js";
@@ -20,4 +21,10 @@ registerResultsCommand(program);
 registerCompareCommand(program);
 registerHarvestCommand(program);
 
-program.parse();
+try {
+	await program.parseAsync(process.argv);
+} catch (err) {
+	const msg = err instanceof Error ? err.message : String(err);
+	console.error(chalk.red(`\n  Error: ${msg}\n`));
+	process.exit(2);
+}

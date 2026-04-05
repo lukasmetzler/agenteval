@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { TokenCounterRule, countTokens } from "../../src/lint/tokenCounter.js";
+import { countTokens, TokenCounterRule } from "../../src/lint/tokenCounter.js";
 import { makeContext, makeParsedFile } from "../../tests/helpers.js";
 
 describe("countTokens", () => {

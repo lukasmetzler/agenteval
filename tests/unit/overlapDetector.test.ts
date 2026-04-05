@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
-	OverlapDetectorRule,
 	computeNgrams,
 	jaccardSimilarity,
+	OverlapDetectorRule,
 } from "../../src/lint/overlapDetector.js";
 import type { LintContext } from "../../src/lint/types.js";
 import { defaultConfig, makeParsedFile } from "../../tests/helpers.js";

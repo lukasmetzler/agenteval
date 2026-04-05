@@ -12,7 +12,7 @@ import { DeadSectionAnalyzerRule } from "./deadSectionAnalyzer.js";
 import { DriftDetectorRule } from "./driftDetector.js";
 import { OverlapDetectorRule } from "./overlapDetector.js";
 import { SkillValidatorRule } from "./skillValidator.js";
-import { TokenCounterRule, countTokens } from "./tokenCounter.js";
+import { countTokens, TokenCounterRule } from "./tokenCounter.js";
 import type { Diagnostic, LintContext, LintResult, LintRule, ParsedFile } from "./types.js";
 
 export const ALL_RULES: LintRule[] = [

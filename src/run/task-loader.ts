@@ -25,7 +25,7 @@ const TaskDefinitionSchema = z.object({
 	harness: z.enum(["claude-code", "opencode", "copilot", "generic", "auto"]).default("auto"),
 	timeout: z.number().min(1).default(300),
 	assertions: z.array(TaskAssertionSchema).default([]),
-	scoring: ScoringWeightsSchema.default({}),
+	scoring: ScoringWeightsSchema.default(ScoringWeightsSchema.parse({})),
 	sourceCommit: z.string().optional(),
 	instructionSnapshot: z.record(z.string(), z.string()).optional(),
 	prUrl: z.string().optional(),

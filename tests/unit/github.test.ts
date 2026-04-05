@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { emitTaskYaml } from "../../src/harvest/emit.js";
-import { findPRForCommit, isGhAvailable } from "../../src/harvest/github.js";
 import type { PRInfo } from "../../src/harvest/github.js";
+import { findPRForCommit, isGhAvailable } from "../../src/harvest/github.js";
 import type { AICommit } from "../../src/harvest/types.js";
 
 const repoRoot = join(import.meta.dir, "../..");

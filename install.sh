@@ -36,7 +36,7 @@ if [[ "$PLATFORM" == "darwin" && "$ARCH" != "arm64" && "$ARCH" != "x64" ]]; then
 fi
 
 # Get latest release tag
-VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
 if [ -z "$VERSION" ]; then
   echo "Failed to detect latest version" >&2
   exit 1

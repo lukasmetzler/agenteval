@@ -84,7 +84,7 @@ agenteval --version
 Expected output:
 
 ```
-0.7.3
+0.7.6
 ```
 
 ### Verify the installation
@@ -95,7 +95,7 @@ Run the help command to confirm everything works:
 agenteval --help
 ```
 
-You should see the list of available commands: `lint`, `run`, `harvest`, `results`, `compare`, `trends`, and `ci`.
+You should see the list of available commands: `lint`, `run`, `harvest`, `results`, `compare`, `trends`, `ci`, and `update`.
 
 ## 5-Minute Quickstart
 

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-04-05
+
+### Fixed
+
+- Install script: tag extraction failed on minified GitHub API JSON, causing 404 on binary download
+- Auto-release workflow: combined tag + build + release into one job (tags from `GITHUB_TOKEN` don't trigger other workflows)
+- `release.yml` now supports `workflow_dispatch` for manual retriggers
+- Docs: updated version string and command list in getting-started guide
+
 ## [0.7.5] - 2026-04-05
 
 ### Fixed

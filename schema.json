@@ -1,0 +1,233 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://raw.githubusercontent.com/lukasmetzler/agenteval/main/schema.json",
+	"title": "agenteval configuration",
+	"description": "Configuration file for agenteval — lint, benchmark, and CI gate for AI coding instructions",
+	"type": "object",
+	"required": ["version"],
+	"properties": {
+		"version": {
+			"const": 1,
+			"description": "Config schema version. Must be 1."
+		},
+		"instructionGlobs": {
+			"type": "array",
+			"items": { "type": "string" },
+			"default": ["CLAUDE.md", "AGENTS.md", ".github/copilot-instructions.md", ".claude/**/*.md", ".github/instructions/*.md"],
+			"description": "Glob patterns for instruction files to analyze"
+		},
+		"instructions": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"required": ["path"],
+				"properties": {
+					"path": { "type": "string", "description": "Path to instruction file" },
+					"harness": {
+						"type": "string",
+						"enum": ["claude-code", "opencode", "copilot", "generic"],
+						"description": "Harness to use for this instruction file"
+					}
+				}
+			},
+			"default": [],
+			"description": "Explicit instruction file sources with harness mapping"
+		},
+		"model": {
+			"type": "string",
+			"default": "claude-sonnet-4-6",
+			"description": "Target model for context budget calculations"
+		},
+		"contextBudget": {
+			"type": "number",
+			"minimum": 0,
+			"maximum": 1,
+			"default": 0.3,
+			"description": "Max fraction of context window your instructions should consume (0.0-1.0)"
+		},
+		"lint": {
+			"type": "object",
+			"properties": {
+				"overlapThreshold": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1,
+					"default": 0.3,
+					"description": "Flag file pairs with similarity above this (0.0-1.0)"
+				},
+				"bloatThreshold": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1,
+					"default": 0.5,
+					"description": "Flag files with bloat score above this (0.0-1.0)"
+				},
+				"maxTokensPerFile": {
+					"type": "number",
+					"default": 8000,
+					"description": "Warn if a single file exceeds this token count"
+				},
+				"maxTotalTokens": {
+					"type": "number",
+					"description": "Warn if total tokens across all files exceed this"
+				},
+				"antiPatterns": {
+					"type": "array",
+					"items": { "type": "string" },
+					"default": [],
+					"description": "Custom regex patterns to flag in instruction files"
+				},
+				"ignore": {
+					"type": "array",
+					"items": { "type": "string" },
+					"default": [],
+					"description": "Glob patterns of files to exclude from linting"
+				}
+			}
+		},
+		"run": {
+			"type": "object",
+			"properties": {
+				"timeout": {
+					"type": "number",
+					"minimum": 1,
+					"default": 300,
+					"description": "Seconds before killing the agent"
+				},
+				"tokensBudget": {
+					"type": "number",
+					"default": 50000,
+					"description": "Token budget passed to the agent"
+				},
+				"resultsDir": {
+					"type": "string",
+					"default": ".agenteval/results",
+					"description": "Directory for storing eval results"
+				},
+				"worktreesDir": {
+					"type": "string",
+					"default": ".agenteval/worktrees",
+					"description": "Directory for temporary git worktrees"
+				},
+				"resultRetention": {
+					"type": "string",
+					"default": "90d",
+					"description": "How long to keep results (e.g. 90d, 1y)"
+				}
+			}
+		},
+		"harvest": {
+			"type": "object",
+			"properties": {
+				"outputDir": {
+					"type": "string",
+					"default": "tasks/harvested",
+					"description": "Directory for generated task YAML files"
+				},
+				"minConfidence": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1,
+					"default": 0.5,
+					"description": "Minimum confidence to include an AI commit (0.0-1.0)"
+				},
+				"defaultHarness": {
+					"type": "string",
+					"enum": ["claude-code", "cursor", "opencode", "copilot", "generic", "auto"],
+					"default": "auto",
+					"description": "Default harness for harvested tasks"
+				},
+				"defaultTimeout": {
+					"type": "number",
+					"minimum": 1,
+					"default": 300,
+					"description": "Default timeout for harvested tasks (seconds)"
+				}
+			}
+		},
+		"harnesses": {
+			"type": "object",
+			"additionalProperties": {
+				"type": "object",
+				"required": ["command"],
+				"properties": {
+					"command": { "type": "string", "description": "CLI command to run" },
+					"args": {
+						"type": "array",
+						"items": { "type": "string" },
+						"default": [],
+						"description": "Arguments passed to the command"
+					},
+					"instructionPath": {
+						"type": "string",
+						"description": "Where to place instruction files in the worktree"
+					}
+				}
+			},
+			"description": "Custom harness definitions"
+		},
+		"ci": {
+			"type": "object",
+			"properties": {
+				"tasksDir": {
+					"type": "string",
+					"default": "tasks/harvested",
+					"description": "Directory with task YAML files"
+				},
+				"minScore": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1,
+					"default": 0.5,
+					"description": "Minimum acceptable overall score (0.0-1.0)"
+				},
+				"maxRegression": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1,
+					"default": 0.1,
+					"description": "Max allowed score drop vs previous run (0.0-1.0)"
+				},
+				"instructions": {
+					"type": "string",
+					"default": "CLAUDE.md",
+					"description": "Instruction file to evaluate"
+				}
+			}
+		},
+		"liveReview": {
+			"type": "object",
+			"properties": {
+				"rubrics": {
+					"type": "object",
+					"properties": {
+						"scopeDiscipline": { "$ref": "#/$defs/rubricConfig" },
+						"testCoverage": { "$ref": "#/$defs/rubricConfig" },
+						"diffHygiene": { "$ref": "#/$defs/rubricConfig" },
+						"conventionCompliance": { "$ref": "#/$defs/rubricConfig" },
+						"progressiveDisclosure": { "$ref": "#/$defs/rubricConfig" }
+					},
+					"description": "Configure which rubrics are enabled and their weights"
+				}
+			}
+		}
+	},
+	"$defs": {
+		"rubricConfig": {
+			"type": "object",
+			"properties": {
+				"enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable or disable this rubric"
+				},
+				"weight": {
+					"type": "number",
+					"minimum": 0,
+					"default": 1.0,
+					"description": "Weight multiplier for this rubric's score"
+				}
+			}
+		}
+	}
+}

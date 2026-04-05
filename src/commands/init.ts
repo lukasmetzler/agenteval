@@ -6,7 +6,8 @@ import { header } from "../output/terminal.js";
 
 const CONFIG_FILENAME = "agenteval.yaml";
 
-const TEMPLATE = `# agenteval configuration
+const TEMPLATE = `# yaml-language-server: $schema=https://raw.githubusercontent.com/lukasmetzler/agenteval/main/schema.json
+# agenteval configuration
 # Full reference: https://github.com/lukasmetzler/agenteval/blob/main/docs/configuration.md
 version: 1
 

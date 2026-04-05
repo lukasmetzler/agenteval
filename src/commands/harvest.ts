@@ -36,7 +36,15 @@ interface HarvestCliOptions {
 	analyze?: boolean;
 }
 
-const VALID_HARNESSES = ["claude-code", "cursor", "opencode", "copilot", "generic", "auto"];
+const VALID_HARNESSES = [
+	"claude-code",
+	"cursor",
+	"opencode",
+	"windsurf",
+	"copilot",
+	"generic",
+	"auto",
+];
 
 export function registerHarvestCommand(program: Command): void {
 	program

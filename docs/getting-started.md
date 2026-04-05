@@ -478,6 +478,7 @@ A harness is the adapter between agenteval and your AI tool (called a "harness" 
 | `claude-code` | Claude Code CLI | Supported |
 | `cursor` | Cursor AI | Supported |
 | `opencode` | OpenCode | Supported |
+| `windsurf` | Windsurf (Codeium) | Supported |
 | `copilot` | GitHub Copilot | Supported |
 | `generic` | Any CLI tool | Supported (configure via `harnesses` in config) |
 | `mock` | Built-in mock | For testing agenteval itself |

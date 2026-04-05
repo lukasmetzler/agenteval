@@ -39,13 +39,13 @@ bun run check           # lint + typecheck + test (CI equivalent)
 src/
 ├── lint/       # Static analysis rules (Phase 1)
 ├── run/        # Eval runner, worktree, scorer (Phase 2)
-├── harness/    # Adapter pattern: claude-code, generic, mock (Phase 2)
+├── harness/    # Adapter pattern: claude-code, cursor, opencode, windsurf, copilot, generic, mock
 ├── store/      # Result persistence + comparison (Phase 2)
 ├── harvest/    # Git history mining: detect AI commits, emit task YAML (Phase 3)
 ├── config/     # Zod schema, YAML loader
 ├── markdown/   # Parser, section extractor, frontmatter
 ├── output/     # Console, JSON, markdown formatters
-├── commands/   # CLI command handlers (lint, run, results, compare, harvest)
+├── commands/   # CLI command handlers (init, doctor, lint, run, results, compare, harvest, ci, trends, watch, update)
 └── utils/      # Logger, glob, path helpers
 ```
 

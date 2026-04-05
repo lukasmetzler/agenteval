@@ -50,8 +50,29 @@ function download(url, maxRedirects) {
 		https.get(options, (res) => {
 			if (res.statusCode === 301 || res.statusCode === 302) {
 				const location = res.headers.location;
-				if (!location || (!location.startsWith("https://") && !location.startsWith("https://github.com"))) {
-					reject(new Error(`Unsafe redirect to ${location}`));
+				const ALLOWED_HOSTS = ["github.com", "githubusercontent.com"];
+				try {
+					const redirectUrl = new URL(location || "");
+					const isGitHubCDN = ALLOWED_HOSTS.some(h => redirectUrl.hostname.endsWith(h));
+					const safeProtocol = redirectUrl.protocol === "https:" || (redirectUrl.protocol === "http:" && isGitHubCDN);
+					if (!safeProtocol || !isGitHubCDN) {
+						reject(new Error(`Unsafe redirect to ${location}`));
+						return;
+					}
+				} catch {
+					reject(new Error(`Invalid redirect URL: ${location}`));
+					return;
+				}
+				// GitHub CDN may use HTTP; follow with the appropriate module
+				if (location.startsWith("http://")) {
+					const http = require("http");
+					http.get(location, (httpRes) => {
+						if (httpRes.statusCode !== 200) { reject(new Error(`HTTP ${httpRes.statusCode}`)); return; }
+						const chunks = [];
+						httpRes.on("data", (chunk) => chunks.push(chunk));
+						httpRes.on("end", () => resolve(Buffer.concat(chunks)));
+						httpRes.on("error", reject);
+					}).on("error", reject);
 					return;
 				}
 				return download(location, maxRedirects - 1).then(resolve, reject);

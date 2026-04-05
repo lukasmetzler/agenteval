@@ -1,6 +1,6 @@
 {
 	"name": "agenteval",
-	"version": "0.7.3",
+	"version": "0.7.4",
 	"description": "Measure whether your AI coding instructions actually make agents perform better",
 	"type": "module",
 	"keywords": [

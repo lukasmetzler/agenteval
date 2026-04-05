@@ -1,6 +1,6 @@
 {
 	"name": "agenteval-cli",
-	"version": "0.8.2",
+	"version": "0.8.3",
 	"description": "Lint, benchmark, and CI gate for AI coding instructions",
 	"keywords": [
 		"cli",
@@ -30,7 +30,7 @@
 		"node": ">=18"
 	},
 	"bin": {
-		"agenteval": "bin/agenteval"
+		"agenteval": "bin/agenteval.js"
 	},
 	"files": [
 		"bin/",

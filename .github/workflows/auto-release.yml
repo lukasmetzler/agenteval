@@ -102,25 +102,44 @@ jobs:
           generate_release_notes: true
 
   publish-npm:
-    needs: [check-version, release]
+    needs: [check-version, build, release]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/download-artifact@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Publish to npm
+      - name: Inject checksums and publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
+
+          # Compute SHA256 for each binary
+          SHA_LINUX=$(sha256sum agenteval-linux-x64/agenteval-linux-x64 | cut -d' ' -f1)
+          SHA_DARWIN_ARM64=$(sha256sum agenteval-darwin-arm64/agenteval-darwin-arm64 | cut -d' ' -f1)
+          SHA_DARWIN_X64=$(sha256sum agenteval-darwin-x64/agenteval-darwin-x64 | cut -d' ' -f1)
+
           cd npm
+
+          # Inject real checksums into the bin shim (replace placeholder zeros)
+          sed -i "s/\"agenteval-linux-x64\": \"0\{64\}\"/\"agenteval-linux-x64\": \"${SHA_LINUX}\"/" bin/agenteval.js
+          sed -i "s/\"agenteval-darwin-arm64\": \"0\{64\}\"/\"agenteval-darwin-arm64\": \"${SHA_DARWIN_ARM64}\"/" bin/agenteval.js
+          sed -i "s/\"agenteval-darwin-x64\": \"0\{64\}\"/\"agenteval-darwin-x64\": \"${SHA_DARWIN_X64}\"/" bin/agenteval.js
+
+          # Update version
           sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" package.json
+
+          # Verify checksums were injected
+          grep -q "$SHA_LINUX" bin/agenteval.js || { echo "Failed to inject linux checksum"; exit 1; }
+
           npm publish --access public
 
   update-homebrew:

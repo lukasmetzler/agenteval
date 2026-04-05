@@ -101,7 +101,7 @@ agenteval --version
 Expected output:
 
 ```
-0.7.9
+0.7.10
 ```
 
 ### Verify the installation

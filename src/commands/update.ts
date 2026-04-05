@@ -6,6 +6,10 @@ const REPO = "lukasmetzler/agenteval";
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 function detectBinaryName(): string {
+	if (process.platform === "win32") {
+		throw new Error("Windows is not supported. Install via npm: npm install -g agenteval-cli");
+	}
+
 	const platform = process.platform === "darwin" ? "darwin" : "linux";
 	const arch = process.arch === "arm64" ? "arm64" : "x64";
 

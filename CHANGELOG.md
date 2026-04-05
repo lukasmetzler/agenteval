@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-05
+
+Reliability and polish release.
+
+### Fixed
+
+- `--config <path>` now accepts direct file paths (was silently ignoring them and falling back to auto-discovery)
+- Windows users get a clear error message instead of silently downloading the wrong binary
+- docs/lint.md rule count corrected (24 → 35 rules across 8 categories)
+
+### Removed
+
+- `--fix` stub flag from lint command (was accepting the flag but printing "not yet implemented")
+
 ## [0.7.11] - 2026-04-05
 
 ### Changed

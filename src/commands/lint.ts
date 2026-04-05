@@ -14,7 +14,6 @@ interface LintOptions {
 	format: string;
 	severity: string;
 	quiet?: boolean;
-	fix?: boolean;
 	explain?: boolean;
 }
 
@@ -27,14 +26,9 @@ export function registerLintCommand(program: Command): void {
 		.option("-f, --format <type>", "output format: console, json, markdown", "console")
 		.option("--severity <level>", "minimum severity: info, warning, error", "info")
 		.option("--quiet", "only show errors")
-		.option("--fix", "auto-fix where possible")
 		.option("--explain", "show detailed explanation for each rule triggered")
 		.action(async (globs: string[], options: LintOptions) => {
 			try {
-				if (options.fix) {
-					console.log("agenteval lint --fix: auto-fix not yet implemented");
-				}
-
 				const config = loadConfig(options.config);
 
 				if (globs.length > 0) {

@@ -1,0 +1,53 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if VERSION changed
+        id: check
+        run: |
+          VERSION=$(cat VERSION)
+          # Check if VERSION file was modified in this push
+          if git diff HEAD~1 --name-only | grep -q "^VERSION$"; then
+            # Check if tag already exists
+            if git tag -l "v$VERSION" | grep -q "v$VERSION"; then
+              echo "Tag v$VERSION already exists, skipping"
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "VERSION changed to $VERSION, triggering release"
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "VERSION not changed, skipping"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  tag-and-release:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create and push tag
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"

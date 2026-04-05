@@ -42,7 +42,7 @@ if echo "$API_RESPONSE" | grep -q "rate limit"; then
   echo "  https://github.com/$REPO/releases" >&2
   exit 1
 fi
-VERSION=$(echo "$API_RESPONSE" | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
+VERSION=$(echo "$API_RESPONSE" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
 if [ -z "$VERSION" ]; then
   echo "Failed to detect latest version. Try installing manually:" >&2
   echo "  https://github.com/$REPO/releases" >&2

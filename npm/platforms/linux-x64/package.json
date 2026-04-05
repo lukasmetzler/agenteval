@@ -1,0 +1,13 @@
+{
+	"name": "@agenteval/linux-x64",
+	"version": "0.8.1",
+	"description": "agenteval linux-x64 binary",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lukasmetzler/agenteval.git"
+	},
+	"license": "MIT",
+	"os": ["linux"],
+	"cpu": ["x64"],
+	"files": ["bin/"]
+}

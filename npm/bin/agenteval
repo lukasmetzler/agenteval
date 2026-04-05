@@ -1,4 +1,38 @@
-#!/bin/sh
-# Placeholder — replaced by the actual binary during postinstall
-echo "agenteval binary not installed. Run: npm rebuild agenteval" >&2
-exit 1
+#!/usr/bin/env node
+
+const { execFileSync } = require("child_process");
+const { join } = require("path");
+
+const PLATFORMS = {
+	"linux-x64": "@agenteval/linux-x64",
+	"darwin-arm64": "@agenteval/darwin-arm64",
+	"darwin-x64": "@agenteval/darwin-x64",
+};
+
+const key = `${process.platform === "win32" ? "win32" : process.platform}-${process.arch}`;
+const pkg = PLATFORMS[key];
+
+if (!pkg) {
+	console.error(`agenteval: unsupported platform ${process.platform}-${process.arch}`);
+	console.error("Supported: linux-x64, darwin-arm64, darwin-x64");
+	console.error("Install manually: https://github.com/lukasmetzler/agenteval/releases");
+	process.exit(1);
+}
+
+let binPath;
+try {
+	binPath = join(require.resolve(`${pkg}/package.json`), "..", "bin", "agenteval");
+} catch {
+	console.error(`agenteval: platform package ${pkg} not installed.`);
+	console.error("Try reinstalling: npm install -g agenteval-cli");
+	process.exit(1);
+}
+
+try {
+	execFileSync(binPath, process.argv.slice(2), { stdio: "inherit" });
+} catch (err) {
+	if (err && typeof err === "object" && "status" in err) {
+		process.exit(err.status);
+	}
+	process.exit(1);
+}

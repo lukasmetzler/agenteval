@@ -1,11 +1,8 @@
 # agenteval-cli
 
-Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules.
+Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules. agenteval is a linter, benchmarker, and CI gate for AI coding instructions. Stop hoping your instructions work. Measure it.
 
-agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does.
-
-[![npm](https://img.shields.io/npm/v/agenteval-cli)](https://www.npmjs.com/package/agenteval-cli)
-[![CI](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml/badge.svg)](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/npm/v/agenteval-cli)](https://www.npmjs.com/package/agenteval-cli)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/lukasmetzler/agenteval/blob/main/LICENSE)
 
 ## Install
@@ -20,51 +17,46 @@ Or run without installing:
 npx agenteval-cli lint
 ```
 
-This installs a lightweight wrapper (~3 KB) that downloads the prebuilt native binary for your platform on first run. No Bun or Node runtime needed at execution time.
+This package downloads the prebuilt binary for your platform during install. No Bun or Node runtime needed at execution time.
 
-### Supported Platforms
+### Supported platforms
 
-| Platform | Architecture |
-|----------|-------------|
-| Linux | x64 |
-| macOS | ARM64 (Apple Silicon) |
-| macOS | x64 (Intel) |
+- Linux x64
+- macOS ARM64 (Apple Silicon)
+- macOS x64 (Intel)
 
 ## Usage
 
 ```bash
-# Lint your instruction files (CLAUDE.md, AGENTS.md, etc.)
+# Lint your instruction files
 agenteval lint
 
-# Show why each rule matters
-agenteval lint --explain
-
-# Preview AI commits in your git history
+# See what AI commits are in your git history
 agenteval harvest --dry-run
 
-# Run all eval tasks, fail on regressions (for CI)
+# Run all tasks, fail on regressions (CI mode)
 agenteval ci
 
 # Score history and trends
 agenteval trends
 
-# Self-update to the latest version
+# Self-update to latest version
 agenteval update
 ```
 
-## What It Catches
+## What it catches
 
-- Dead references to files that don't exist in your repo
-- Filler phrases that waste context tokens ("make sure to", "it is important that")
+- Dead references to files that don't exist
+- Filler phrases that waste context tokens
 - Contradictions between instruction files
-- Content overlap and duplication across multiple files
-- Token budget overruns that crowd out code context
-- Vague instructions without actionable specifics
-- Stale instructions referencing code that was refactored weeks ago
+- Content overlap and duplication
+- Token budget overruns
+- Vague instructions without specifics
 - Broken markdown links and heading anchors
 - Invalid skill metadata (per Anthropic spec)
+- Stale instructions referencing refactored code
 
-## Supported Instruction Formats
+## Supported instruction formats
 
 - `CLAUDE.md` (Claude Code)
 - `AGENTS.md` (OpenAI Codex, generic agents)
@@ -73,47 +65,16 @@ agenteval update
 - `.claude/skills/*/SKILL.md` (Anthropic skills)
 - `.cursorrules` and `.cursor/rules/*.mdc` (Cursor)
 
-## CI Integration
+## Alternative install methods
 
-Use as a GitHub Action:
-
-```yaml
-- uses: lukasmetzler/agenteval@v0
-  with:
-    command: lint
-```
-
-Or run the CLI directly:
-
-```bash
-agenteval ci --min-score 0.7 --max-regression 0.05
-```
-
-## Configuration
-
-agenteval works with zero configuration. To customize, create an `agenteval.yaml`:
-
-```yaml
-version: 1
-model: claude-sonnet-4-6
-contextBudget: 0.3
-lint:
-  maxTokensPerFile: 8000
-  overlapThreshold: 0.3
-  bloatThreshold: 0.5
-```
-
-## Alternative Install Methods
-
-| Method | Command |
-|--------|---------|
-| Homebrew | `brew tap lukasmetzler/agenteval && brew install agenteval` |
-| Shell | `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh \| bash` |
-| Binary | [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) |
+- **Homebrew**: `brew tap lukasmetzler/agenteval && brew install agenteval`
+- **Curl**: `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash`
+- **GitHub Action**: `uses: lukasmetzler/agenteval@v0`
+- **Binary**: [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases)
 
 ## Documentation
 
-Full docs, guides, and examples at [github.com/lukasmetzler/agenteval](https://github.com/lukasmetzler/agenteval).
+Full docs at [github.com/lukasmetzler/agenteval](https://github.com/lukasmetzler/agenteval#readme).
 
 ## License
 

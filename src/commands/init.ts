@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
@@ -65,29 +65,92 @@ liveReview:
       weight: 1.0
 `;
 
+const PRE_COMMIT_HOOK = `#!/bin/sh
+# agenteval pre-commit hook — lint instruction files before committing
+# Installed by: agenteval init --hook
+
+# Only run if instruction files are staged
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(CLAUDE|AGENTS|copilot-instructions|SKILL|cursorrules)\\.m?d?c?$' || true)
+
+if [ -n "$STAGED" ]; then
+  echo "agenteval: linting instruction files..."
+  agenteval lint --severity error
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "agenteval: lint errors found. Fix them or commit with --no-verify to skip."
+    exit 1
+  fi
+fi
+`;
+
+interface InitOptions {
+	hook?: boolean;
+}
+
 export function registerInitCommand(program: Command): void {
 	program
 		.command("init")
 		.description("Create a starter agenteval.yaml configuration file")
-		.action(() => {
-			const targetPath = join(process.cwd(), CONFIG_FILENAME);
+		.option("--hook", "install a git pre-commit hook that lints on commit")
+		.action((options: InitOptions) => {
+			const cwd = process.cwd();
+			console.log(header("agenteval init"));
 
-			if (existsSync(targetPath)) {
-				console.error(
-					chalk.red("agenteval.yaml already exists. Delete it first to re-initialize."),
-				);
-				process.exit(1);
+			// Create config
+			createConfig(cwd);
+
+			// Install hook if requested
+			if (options.hook) {
+				installHook(cwd);
 			}
 
-			writeFileSync(targetPath, TEMPLATE, "utf-8");
-
-			console.log(header("agenteval init"));
-			console.log(`  Created ${chalk.green("agenteval.yaml")}`);
 			console.log();
 			console.log("  Next steps:");
 			console.log(`    1. Run ${chalk.cyan("agenteval lint")} to check your instruction files`);
 			console.log(`    2. Run ${chalk.cyan("agenteval harvest --dry-run")} to preview AI commits`);
-			console.log(`    3. See ${chalk.cyan("docs/getting-started.md")} for the full walkthrough`);
+			if (!options.hook) {
+				console.log(
+					`    3. Run ${chalk.cyan("agenteval init --hook")} to add a pre-commit lint hook`,
+				);
+			}
 			console.log();
 		});
+}
+
+function createConfig(cwd: string): void {
+	const targetPath = join(cwd, CONFIG_FILENAME);
+
+	if (existsSync(targetPath)) {
+		console.log(`  ${chalk.dim("agenteval.yaml already exists, skipping")}`);
+		return;
+	}
+
+	writeFileSync(targetPath, TEMPLATE, "utf-8");
+	console.log(`  Created ${chalk.green("agenteval.yaml")}`);
+}
+
+function installHook(cwd: string): void {
+	const hooksDir = join(cwd, ".git", "hooks");
+
+	if (!existsSync(join(cwd, ".git"))) {
+		console.log(`  ${chalk.yellow("Not a git repo, skipping hook installation")}`);
+		return;
+	}
+
+	mkdirSync(hooksDir, { recursive: true });
+	const hookPath = join(hooksDir, "pre-commit");
+
+	if (existsSync(hookPath)) {
+		const existing = readFileSync(hookPath, "utf-8");
+		if (existing.includes("agenteval")) {
+			console.log(`  ${chalk.dim("Pre-commit hook already installed")}`);
+			return;
+		}
+		// Append to existing hook
+		writeFileSync(hookPath, `${existing}\n${PRE_COMMIT_HOOK}`, "utf-8");
+		console.log(`  Appended agenteval lint to existing ${chalk.green("pre-commit hook")}`);
+	} else {
+		writeFileSync(hookPath, PRE_COMMIT_HOOK, { mode: 0o755 });
+		console.log(`  Installed ${chalk.green("pre-commit hook")} (.git/hooks/pre-commit)`);
+	}
 }

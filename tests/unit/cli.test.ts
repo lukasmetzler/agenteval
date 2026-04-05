@@ -97,16 +97,16 @@ describe("CLI", () => {
 		}
 	});
 
-	test("init refuses if file exists", async () => {
+	test("init skips if file exists", async () => {
 		const tmp = mkdtempSync(join(tmpdir(), "agenteval-init-"));
 		try {
 			writeFileSync(join(tmp, "agenteval.yaml"), "version: 1\n", "utf-8");
 			const proc = await $`cd ${tmp} && bun run ${join(import.meta.dir, "../../src/cli.ts")} init`
 				.nothrow()
 				.quiet();
-			expect(proc.exitCode).not.toBe(0);
-			const stderr = proc.stderr.toString();
-			expect(stderr).toContain("already exists");
+			expect(proc.exitCode).toBe(0);
+			const stdout = proc.stdout.toString();
+			expect(stdout).toContain("already exists");
 		} finally {
 			rmSync(tmp, { recursive: true, force: true });
 		}

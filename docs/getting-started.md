@@ -40,10 +40,10 @@ Adds the tap once, then installs the latest binary. Works on macOS and Linux. Up
 ### npm
 
 ```bash
-npm install -g agenteval
+npm install -g agenteval-cli
 ```
 
-Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval lint` for one-off use.
+Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval-cli lint` for one-off use.
 
 ### Quick install
 

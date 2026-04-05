@@ -25,7 +25,7 @@ New distribution channels: Homebrew, npm, and GitHub Action.
 ### Added
 
 - **Homebrew tap**: `brew tap lukasmetzler/agenteval && brew install agenteval`. Formula auto-updates on each release.
-- **npm package**: `npm install -g agenteval` or `npx agenteval lint`. Postinstall downloads the platform binary.
+- **npm package**: `npm install -g agenteval-cli` or `npx agenteval-cli lint`. Postinstall downloads the platform binary.
 - **GitHub Action**: `uses: lukasmetzler/agenteval@v0` with `command: lint` or `command: ci`. No setup needed.
 - Auto-publish workflows for Homebrew formula and npm on every release
 

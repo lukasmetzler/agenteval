@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `agenteval init` no longer exits with error if agenteval.yaml exists (skips silently, allows running `init --hook` separately)
+## [0.8.10] - 2026-04-06
+
+### Added
+
+- JSON Schema for `agenteval.yaml`: enables autocomplete in VS Code (with YAML extension) and JetBrains IDEs. Schema hosted at `schema.json` in the repo root.
+- `agenteval init` now adds a schema reference comment to generated config files for automatic editor autocomplete
 
 ## [0.8.6] - 2026-04-06
 

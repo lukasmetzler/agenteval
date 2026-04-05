@@ -6,11 +6,13 @@ A CLI tool that evaluates AI coding instruction quality. Built with Bun + TypeSc
 
 ```bash
 # Install (end users)
-curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+brew tap lukasmetzler/agenteval && brew install agenteval  # Homebrew
+npm install -g agenteval-cli                                # npm
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash  # curl
 
 # Development
 bun install             # install dependencies
-bun test                # run all tests (411 tests)
+bun test                # run all tests (417 tests)
 bun run dev -- init     # create starter agenteval.yaml
 bun run dev -- doctor   # environment health check
 bun run dev -- lint     # lint instruction files

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-04-05
+
+### Fixed
+
+- Unified all release steps (tag, build, GitHub Release, npm publish, Homebrew formula update) into one workflow. Separate workflows can't trigger from `GITHUB_TOKEN`-created releases.
+
 ## [0.7.7] - 2026-04-05
 
 New distribution channels: Homebrew, npm, and GitHub Action.

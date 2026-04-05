@@ -91,7 +91,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
 
-      - uses: softprops/action-gh-release@v2
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           files: |
@@ -99,3 +100,75 @@ jobs:
             agenteval-darwin-arm64/agenteval-darwin-arm64
             agenteval-darwin-x64/agenteval-darwin-x64
           generate_release_notes: true
+
+      # --- Publish to npm ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          cd npm
+          sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" package.json
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # --- Update Homebrew tap ---
+      - name: Update Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+
+          # Compute SHA256 for each binary
+          SHA_DARWIN_ARM64=$(sha256sum agenteval-darwin-arm64/agenteval-darwin-arm64 | cut -d' ' -f1)
+          SHA_DARWIN_X64=$(sha256sum agenteval-darwin-x64/agenteval-darwin-x64 | cut -d' ' -f1)
+          SHA_LINUX_X64=$(sha256sum agenteval-linux-x64/agenteval-linux-x64 | cut -d' ' -f1)
+
+          # Clone tap repo
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/lukasmetzler/homebrew-agenteval.git" /tmp/homebrew-tap
+          cd /tmp/homebrew-tap
+
+          cat > Formula/agenteval.rb << FORMULA
+          class Agenteval < Formula
+            desc "Lint, benchmark, and CI gate for AI coding instructions"
+            homepage "https://github.com/lukasmetzler/agenteval"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/lukasmetzler/agenteval/releases/download/v#{version}/agenteval-darwin-arm64"
+                sha256 "${SHA_DARWIN_ARM64}"
+              else
+                url "https://github.com/lukasmetzler/agenteval/releases/download/v#{version}/agenteval-darwin-x64"
+                sha256 "${SHA_DARWIN_X64}"
+              end
+            end
+
+            on_linux do
+              url "https://github.com/lukasmetzler/agenteval/releases/download/v#{version}/agenteval-linux-x64"
+              sha256 "${SHA_LINUX_X64}"
+            end
+
+            def install
+              binary = Dir["agenteval-*"].first || "agenteval"
+              bin.install binary => "agenteval"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/agenteval --version")
+            end
+          end
+          FORMULA
+          sed -i 's/^          //' Formula/agenteval.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/agenteval.rb
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "Update agenteval to ${VERSION}"
+          git push

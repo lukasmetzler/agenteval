@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `agenteval watch` command: watches instruction files and re-lints automatically on save. 300ms debounce, supports --severity and --explain flags. Press Ctrl+C to stop.
+## [0.8.7] - 2026-04-06
+
+### Added
+
+- `agenteval lint --fix`: auto-fixes filler phrases in instruction files. Strips or simplifies 19 common filler patterns (e.g. "in order to" → "to", "in the event that" → "if", "please make sure to" → removed). Re-runs lint after fixing to show remaining issues.
 
 ## [0.8.5] - 2026-04-06
 

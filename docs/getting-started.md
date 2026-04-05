@@ -37,6 +37,14 @@ brew install agenteval
 
 Adds the tap once, then installs the latest binary. Works on macOS and Linux. Updates with `brew upgrade agenteval`.
 
+### npm
+
+```bash
+npm install -g agenteval
+```
+
+Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval lint` for one-off use.
+
 ### Quick install
 
 ```bash

@@ -114,6 +114,11 @@ brew install agenteval
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
 ```
 
+**npm**:
+```bash
+npm install -g agenteval
+```
+
 **Download binary** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases).
 
 **GitHub Action** (CI):

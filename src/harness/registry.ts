@@ -5,6 +5,7 @@ import { ClaudeCodeAdapter } from "./claude-code.js";
 import { CursorAdapter } from "./cursor.js";
 import { GenericAdapter } from "./generic.js";
 import { MockAdapter } from "./mock.js";
+import { OpenCodeAdapter } from "./opencode.js";
 import type { HarnessAdapter } from "./types.js";
 
 const HARNESS_FILE_MAP: Record<string, string> = {
@@ -24,6 +25,8 @@ export function getAdapter(name: string, config: Config): HarnessAdapter {
 			return new ClaudeCodeAdapter();
 		case "cursor":
 			return new CursorAdapter();
+		case "opencode":
+			return new OpenCodeAdapter();
 		case "mock":
 			return new MockAdapter({
 				filesToChange: {},
@@ -41,7 +44,7 @@ export function getAdapter(name: string, config: Config): HarnessAdapter {
 				});
 			}
 			throw new Error(
-				`Unknown harness: "${name}". Built-in: claude-code, cursor, generic, mock. Or define a custom one in agenteval.yaml:\n\n  harnesses:\n    ${name}:\n      command: "your-tool"\n      args: ["--run"]`,
+				`Unknown harness: "${name}". Built-in: claude-code, cursor, opencode, generic, mock. Or define a custom one in agenteval.yaml:\n\n  harnesses:\n    ${name}:\n      command: "your-tool"\n      args: ["--run"]`,
 			);
 		}
 	}

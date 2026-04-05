@@ -58,20 +58,24 @@ agenteval ci                      # Run all tasks, fail on regressions
 | Scoped Copilot | `.github/instructions/*.instructions.md` |
 | Anthropic Skills | `.claude/skills/*/SKILL.md` |
 | Cursor | `.cursorrules`, `.cursor/rules/*.mdc` |
+| Windsurf | `.windsurfrules` |
 
 ## Commands
 
 | Command | What it does | Guide |
 |---------|-------------|-------|
 | `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
+| `agenteval lint --fix` | Auto-fix filler phrases and simple issues | [Linting](docs/lint.md) |
+| `agenteval watch` | Watch files, re-lint on save | |
 | `agenteval harvest` | Build eval tasks from AI commit history | [Harvesting](docs/harvest.md) |
 | `agenteval harvest --live` | Score working tree changes before committing | [Harvesting](docs/harvest.md) |
 | `agenteval run --task <file>` | Run an AI agent, score the result | [Running Evals](docs/run.md) |
 | `agenteval compare <A> <B>` | Diff two runs side by side | [Results](docs/results.md) |
 | `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
+| `agenteval ci --parallel <n>` | Run tasks concurrently | [CI Guide](docs/ci.md) |
 | `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
 | `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
-| `agenteval watch` | Watch files, re-lint on save | |
+| `agenteval init --hook` | Add pre-commit lint hook | [Configuration](docs/configuration.md) |
 | `agenteval update` | Self-update to the latest version | |
 | `agenteval doctor` | Check environment health | |
 

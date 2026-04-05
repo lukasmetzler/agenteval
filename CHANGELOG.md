@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.12] - 2026-04-06
+
+### Added
+
+- Windsurf (Codeium) harness adapter: `--harness windsurf`, reads `.windsurfrules`. Auto-detected when `.windsurfrules` exists.
+- agenteval now supports all 5 major AI coding tools: Claude Code, Cursor, OpenCode, Windsurf, GitHub Copilot
+
+### Changed
+
+- Documentation overhaul across all guides:
+  - README: added Windsurf to formats, lint --fix and ci --parallel to commands table, init --hook
+  - CLAUDE.md: updated architecture (all 7 harness adapters, all 12 commands)
+  - docs/ci.md: documented --parallel flag
+  - docs/getting-started.md: added Windsurf to harness table
+  - docs/configuration.md: added JSON Schema reference for editor autocomplete
+
 ## [0.8.11] - 2026-04-06
 
 ### Added

@@ -4,6 +4,14 @@
 
 agenteval works with zero configuration out of the box. All commands use sensible defaults. When you need to customize behavior, create an `agenteval.yaml` file in your project root.
 
+A [JSON Schema](https://raw.githubusercontent.com/lukasmetzler/agenteval/main/schema.json) is available for editor autocomplete. Add this comment to the top of your config file:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/lukasmetzler/agenteval/main/schema.json
+```
+
+Or run `agenteval init` which includes the schema reference automatically.
+
 ## Config File Discovery
 
 agenteval searches for `agenteval.yaml` starting from the current working directory and walking up the directory tree (up to 10 levels). The first file found is used.

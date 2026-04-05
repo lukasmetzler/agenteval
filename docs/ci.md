@@ -56,6 +56,7 @@ agenteval ci [options]
 | `--max-regression <n>` | float | `0.1` | Max allowed score drop vs previous run (0-1) |
 | `--instructions <path>` | string | `CLAUDE.md` | Instruction file to evaluate |
 | `--harness <name>` | string | `auto` | Override harness for all tasks |
+| `--parallel <n>` | number | `1` | Run up to N tasks concurrently |
 | `-c, --config <path>` | string | auto-discover | Path to agenteval.yaml |
 
 ## How It Works

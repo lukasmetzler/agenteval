@@ -23,7 +23,7 @@ const TaskDefinitionSchema = z.object({
 	description: z.string(),
 	prompt: z.string().optional(),
 	harness: z
-		.enum(["claude-code", "cursor", "opencode", "copilot", "generic", "auto"])
+		.enum(["claude-code", "cursor", "opencode", "windsurf", "copilot", "generic", "auto"])
 		.default("auto"),
 	timeout: z.number().min(1).default(300),
 	assertions: z.array(TaskAssertionSchema).default([]),

@@ -7,12 +7,14 @@ import { GenericAdapter } from "./generic.js";
 import { MockAdapter } from "./mock.js";
 import { OpenCodeAdapter } from "./opencode.js";
 import type { HarnessAdapter } from "./types.js";
+import { WindsurfAdapter } from "./windsurf.js";
 
 const HARNESS_FILE_MAP: Record<string, string> = {
 	"claude-code": "CLAUDE.md",
 	opencode: "AGENTS.md",
 	copilot: ".github/copilot-instructions.md",
 	cursor: ".cursorrules",
+	windsurf: ".windsurfrules",
 };
 
 /**
@@ -27,6 +29,8 @@ export function getAdapter(name: string, config: Config): HarnessAdapter {
 			return new CursorAdapter();
 		case "opencode":
 			return new OpenCodeAdapter();
+		case "windsurf":
+			return new WindsurfAdapter();
 		case "mock":
 			return new MockAdapter({
 				filesToChange: {},
@@ -44,7 +48,7 @@ export function getAdapter(name: string, config: Config): HarnessAdapter {
 				});
 			}
 			throw new Error(
-				`Unknown harness: "${name}". Built-in: claude-code, cursor, opencode, generic, mock. Or define a custom one in agenteval.yaml:\n\n  harnesses:\n    ${name}:\n      command: "your-tool"\n      args: ["--run"]`,
+				`Unknown harness: "${name}". Built-in: claude-code, cursor, opencode, windsurf, generic, mock. Or define a custom one in agenteval.yaml:\n\n  harnesses:\n    ${name}:\n      command: "your-tool"\n      args: ["--run"]`,
 			);
 		}
 	}

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-04-05
+
+New distribution channels: Homebrew, npm, and GitHub Action.
+
+### Added
+
+- **Homebrew tap**: `brew tap lukasmetzler/agenteval && brew install agenteval`. Formula auto-updates on each release.
+- **npm package**: `npm install -g agenteval` or `npx agenteval lint`. Postinstall downloads the platform binary.
+- **GitHub Action**: `uses: lukasmetzler/agenteval@v0` with `command: lint` or `command: ci`. No setup needed.
+- Auto-publish workflows for Homebrew formula and npm on every release
+
+### Fixed
+
+- Install script: better error messages for GitHub API rate limits
+
 ## [0.7.6] - 2026-04-05
 
 ### Fixed

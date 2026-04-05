@@ -36,9 +36,16 @@ if [[ "$PLATFORM" == "darwin" && "$ARCH" != "arm64" && "$ARCH" != "x64" ]]; then
 fi
 
 # Get latest release tag
-VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
+API_RESPONSE=$(curl -sS "https://api.github.com/repos/$REPO/releases/latest" 2>&1)
+if echo "$API_RESPONSE" | grep -q "rate limit"; then
+  echo "GitHub API rate limit exceeded. Try again in a few minutes, or install manually:" >&2
+  echo "  https://github.com/$REPO/releases" >&2
+  exit 1
+fi
+VERSION=$(echo "$API_RESPONSE" | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
 if [ -z "$VERSION" ]; then
-  echo "Failed to detect latest version" >&2
+  echo "Failed to detect latest version. Try installing manually:" >&2
+  echo "  https://github.com/$REPO/releases" >&2
   exit 1
 fi
 

@@ -28,7 +28,24 @@ You also need a git repository containing at least one AI instruction file. If y
 
 agenteval ships as a standalone binary. No Bun or Node required to run it.
 
-### Quick install (recommended)
+### Homebrew (recommended)
+
+```bash
+brew tap lukasmetzler/agenteval
+brew install agenteval
+```
+
+Adds the tap once, then installs the latest binary. Works on macOS and Linux. Updates with `brew upgrade agenteval`.
+
+### npm
+
+```bash
+npm install -g agenteval
+```
+
+Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval lint` for one-off use.
+
+### Quick install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
@@ -84,7 +101,7 @@ agenteval --version
 Expected output:
 
 ```
-0.7.6
+0.7.7
 ```
 
 ### Verify the installation
@@ -343,8 +360,9 @@ ci:
 Example GitHub Actions step:
 
 ```yaml
-- name: Eval regression check
-  run: agenteval ci
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: ci
 ```
 
 ## Project Structure
@@ -509,10 +527,12 @@ For running evals with Cursor, use the `generic` harness and configure the comma
 
 Yes. The `lint` command exits with code 1 when errors are found, making it a drop-in for CI pipelines:
 
-```bash
+```yaml
 # GitHub Actions example
-- name: Lint instruction files
-  run: agenteval lint --severity error
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: lint
+    args: "--severity error"
 ```
 
 The `run` command is also CI-compatible, though it requires the AI tool to be available in the CI environment.

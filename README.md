@@ -13,8 +13,11 @@ Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, 
 ## Get Started in 10 Seconds
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
+brew tap lukasmetzler/agenteval
+brew install agenteval
 ```
+
+Or without Homebrew: `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash`
 
 Then lint your instruction files:
 
@@ -100,12 +103,30 @@ Try it on the included [demo files](demo/) that cover all formats.
 
 ## Installation
 
+**Homebrew** (macOS, Linux):
+```bash
+brew tap lukasmetzler/agenteval
+brew install agenteval
+```
+
 **Quick install** (Linux, macOS):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
 ```
 
+**npm**:
+```bash
+npm install -g agenteval
+```
+
 **Download binary** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases).
+
+**GitHub Action** (CI):
+```yaml
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: lint
+```
 
 **Build from source** (requires [Bun](https://bun.sh) v1.3+):
 ```bash

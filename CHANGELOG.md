@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `agenteval lint --fix`: auto-fixes filler phrases in instruction files. Strips or simplifies 19 common filler patterns (e.g. "in order to" → "to", "in the event that" → "if", "please make sure to" → removed). Re-runs lint after fixing to show remaining issues.
+## [0.8.8] - 2026-04-06
+
+### Added
+
+- `agenteval ci --parallel <n>`: run up to N tasks concurrently. Worker pool pattern, each worker picks the next task when idle. Default: sequential (1).
 
 ## [0.8.5] - 2026-04-06
 

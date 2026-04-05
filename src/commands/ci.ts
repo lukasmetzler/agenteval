@@ -18,6 +18,7 @@ interface CIOptions {
 	instructions?: string;
 	harness?: string;
 	config?: string;
+	parallel?: string;
 }
 
 interface CITaskResult {
@@ -52,6 +53,7 @@ export function registerCICommand(program: Command): void {
 		.option("--max-regression <n>", "max allowed score drop vs previous run 0-1")
 		.option("--instructions <path>", "instruction file to use")
 		.option("--harness <name>", "override harness for all tasks")
+		.option("--parallel <n>", "run up to N tasks in parallel")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (options: CIOptions) => {
 			try {
@@ -205,15 +207,21 @@ async function runCI(options: CIOptions): Promise<void> {
 	console.log(kvLine("Max regression", chalk.cyan(String(rc.maxRegression))));
 	console.log("");
 
-	// 3. Run each task
+	// 3. Run tasks (sequential or parallel)
+	const concurrency = options.parallel ? Math.max(1, Number.parseInt(options.parallel, 10)) : 1;
 	const results: CITaskResult[] = [];
 	const startTime = performance.now();
 
-	for (let i = 0; i < taskFiles.length; i++) {
-		const taskPath = join(rc.tasksDir, taskFiles[i]);
-		const label = `[${i + 1}/${taskFiles.length}]`;
-		const taskResult = await runSingleTask(rc, taskPath, label);
-		results.push(taskResult);
+	if (concurrency > 1) {
+		console.log(kvLine("Parallel", chalk.cyan(String(concurrency))));
+		results.push(...(await runTasksParallel(rc, taskFiles, concurrency)));
+	} else {
+		for (let i = 0; i < taskFiles.length; i++) {
+			const taskPath = join(rc.tasksDir, taskFiles[i]);
+			const label = `[${i + 1}/${taskFiles.length}]`;
+			const taskResult = await runSingleTask(rc, taskPath, label);
+			results.push(taskResult);
+		}
 	}
 
 	const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
@@ -237,6 +245,28 @@ export function findPreviousResult(
 	// Skip the result we just wrote (it's the current run)
 	const previous = all.find((r) => r.id !== currentRunId);
 	return previous ?? null;
+}
+
+async function runTasksParallel(
+	rc: ResolvedCIConfig,
+	taskFiles: string[],
+	concurrency: number,
+): Promise<CITaskResult[]> {
+	const results: CITaskResult[] = new Array(taskFiles.length);
+	let nextIndex = 0;
+
+	async function worker(): Promise<void> {
+		while (nextIndex < taskFiles.length) {
+			const i = nextIndex++;
+			const taskPath = join(rc.tasksDir, taskFiles[i]);
+			const label = `[${i + 1}/${taskFiles.length}]`;
+			results[i] = await runSingleTask(rc, taskPath, label);
+		}
+	}
+
+	const workers = Array.from({ length: Math.min(concurrency, taskFiles.length) }, () => worker());
+	await Promise.all(workers);
+	return results;
 }
 
 function printCISummary(results: CITaskResult[], elapsed: string): void {

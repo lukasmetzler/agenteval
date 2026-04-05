@@ -352,8 +352,9 @@ ci:
 Example GitHub Actions step:
 
 ```yaml
-- name: Eval regression check
-  run: agenteval ci
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: ci
 ```
 
 ## Project Structure
@@ -518,10 +519,12 @@ For running evals with Cursor, use the `generic` harness and configure the comma
 
 Yes. The `lint` command exits with code 1 when errors are found, making it a drop-in for CI pipelines:
 
-```bash
+```yaml
 # GitHub Actions example
-- name: Lint instruction files
-  run: agenteval lint --severity error
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: lint
+    args: "--severity error"
 ```
 
 The `run` command is also CI-compatible, though it requires the AI tool to be available in the CI environment.

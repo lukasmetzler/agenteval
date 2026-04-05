@@ -27,10 +27,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run build
-      - run: ./agenteval ci
+      - uses: lukasmetzler/agenteval@v0
+        with:
+          command: ci
+```
+
+The GitHub Action installs agenteval automatically. No Bun or build step needed.
+
+You can also lint instruction files on every PR:
+
+```yaml
+      - uses: lukasmetzler/agenteval@v0
+        with:
+          command: lint
+          args: "--severity error"
 ```
 
 ## Command Reference

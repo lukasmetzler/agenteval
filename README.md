@@ -116,6 +116,13 @@ curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install
 
 **Download binary** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases).
 
+**GitHub Action** (CI):
+```yaml
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: lint
+```
+
 **Build from source** (requires [Bun](https://bun.sh) v1.3+):
 ```bash
 git clone https://github.com/lukasmetzler/agenteval.git && cd agenteval && bun install && bun run build

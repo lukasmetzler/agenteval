@@ -9,7 +9,7 @@ export interface TaskDefinition {
 	name: string;
 	description: string;
 	prompt: string;
-	harness: "claude-code" | "opencode" | "copilot" | "generic" | "auto";
+	harness: "claude-code" | "cursor" | "opencode" | "copilot" | "generic" | "auto";
 	timeout: number;
 	assertions: TaskAssertion[];
 	scoring: ScoringWeights;

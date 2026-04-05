@@ -61,7 +61,28 @@ export class GenericAdapter implements HarnessAdapter {
 		return { stdout, stderr, exitCode, durationMs, timedOut };
 	}
 
-	parseMetrics(_raw: RawRunResult): RunMetrics {
+	parseMetrics(raw: RawRunResult): RunMetrics {
+		// Try common token count patterns from stdout/stderr
+		const combined = `${raw.stdout}\n${raw.stderr}`;
+		const patterns = [
+			/total[_ ]tokens?[:\s]+(\d[\d,]*)/i,
+			/tokens?[_ ]used[:\s]+(\d[\d,]*)/i,
+			/token[_ ]count[:\s]+(\d[\d,]*)/i,
+		];
+
+		for (const pattern of patterns) {
+			const match = pattern.exec(combined);
+			if (match?.[1]) {
+				const total = Number.parseInt(match[1].replace(/,/g, ""), 10);
+				return {
+					tokensInput: null,
+					tokensOutput: null,
+					tokensTotal: total,
+					tokenSource: "estimated",
+				};
+			}
+		}
+
 		return {
 			tokensInput: null,
 			tokensOutput: null,

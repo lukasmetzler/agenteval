@@ -11,7 +11,7 @@ jobs:
       should_release: ${{ steps.check.outputs.should_release }}
       version: ${{ steps.check.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
 
@@ -50,7 +50,7 @@ jobs:
             artifact: agenteval-darwin-x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -67,7 +67,7 @@ jobs:
       - name: Build binary
         run: ./scripts/build.sh --target=${{ matrix.target }} --outfile=${{ matrix.artifact }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
@@ -79,9 +79,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Create and push tag
+      - name: Create and push tags
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
           git config user.name "github-actions[bot]"
@@ -89,7 +89,11 @@ jobs:
           git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
 
-      - uses: actions/download-artifact@v4
+          # Update v0 tag for GitHub Action users (uses: lukasmetzler/agenteval@v0)
+          git tag -f v0
+          git push -f origin v0
+
+      - uses: actions/download-artifact@v8
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -107,9 +111,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
 
       - uses: actions/setup-node@v4
         with:
@@ -147,7 +151,7 @@ jobs:
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
 
       - name: Update Homebrew formula
         env:

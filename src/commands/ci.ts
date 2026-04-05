@@ -41,7 +41,7 @@ interface ResolvedCIConfig {
 	harness?: string;
 }
 
-const VALID_HARNESSES = ["claude-code", "opencode", "copilot", "generic", "auto", "mock"];
+const VALID_HARNESSES = ["claude-code", "cursor", "opencode", "copilot", "generic", "auto", "mock"];
 
 export function registerCICommand(program: Command): void {
 	program

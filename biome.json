@@ -33,6 +33,6 @@
 		}
 	},
 	"files": {
-		"includes": ["**", "!**/node_modules", "!**/dist", "!**/*.json", "!npm/bin/**"]
+		"includes": ["**", "!**/node_modules", "!**/dist", "!**/*.json", "!npm/bin"]
 	}
 }

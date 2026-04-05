@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-04-06
+
+### Added
+
+- Cursor harness adapter: `--harness cursor` spawns Cursor CLI, reads `.cursorrules`. Auto-detected when `.cursorrules` exists.
+- Generic harness now parses token counts from stdout/stderr (common patterns like `total_tokens: 1234`)
+- GitHub Action `v0` tag auto-updates on each release (users on `@v0` always get latest)
+
+### Changed
+
+- GitHub Actions updated: checkout v4→v6, upload-artifact v4→v7, download-artifact v4→v8
+
 ## [0.8.4] - 2026-04-06
 
 ### Added

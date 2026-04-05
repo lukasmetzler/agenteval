@@ -31,7 +31,7 @@ export interface HarvestOptions {
 	outputDir?: string;
 	dryRun?: boolean;
 	force?: boolean;
-	harness?: "claude-code" | "opencode" | "copilot" | "generic" | "auto";
+	harness?: "claude-code" | "cursor" | "opencode" | "copilot" | "generic" | "auto";
 	timeout?: number;
 	minConfidence?: number;
 	github?: boolean;

@@ -56,16 +56,18 @@ const RubricConfigSchema = z.object({
 	weight: z.number().min(0).default(1.0),
 });
 
+const defaultRubric = RubricConfigSchema.parse({});
+
+const RubricsSchema = z.object({
+	scopeDiscipline: RubricConfigSchema.default(defaultRubric),
+	testCoverage: RubricConfigSchema.default(defaultRubric),
+	diffHygiene: RubricConfigSchema.default(defaultRubric),
+	conventionCompliance: RubricConfigSchema.default(defaultRubric),
+	progressiveDisclosure: RubricConfigSchema.default(defaultRubric),
+});
+
 const LiveReviewConfigSchema = z.object({
-	rubrics: z
-		.object({
-			scopeDiscipline: RubricConfigSchema.default({}),
-			testCoverage: RubricConfigSchema.default({}),
-			diffHygiene: RubricConfigSchema.default({}),
-			conventionCompliance: RubricConfigSchema.default({}),
-			progressiveDisclosure: RubricConfigSchema.default({}),
-		})
-		.default({}),
+	rubrics: RubricsSchema.default(RubricsSchema.parse({})),
 });
 
 export type LiveReviewConfig = z.infer<typeof LiveReviewConfigSchema>;
@@ -102,12 +104,12 @@ export const ConfigSchema = z.object({
 	instructions: z.array(InstructionSourceSchema).default([]),
 	model: z.string().default("claude-sonnet-4-6"),
 	contextBudget: z.number().min(0).max(1).default(0.3),
-	lint: LintConfigSchema.default({}),
-	run: RunConfigSchema.default({}),
-	harvest: HarvestConfigSchema.default({}),
+	lint: LintConfigSchema.default(LintConfigSchema.parse({})),
+	run: RunConfigSchema.default(RunConfigSchema.parse({})),
+	harvest: HarvestConfigSchema.default(HarvestConfigSchema.parse({})),
 	harnesses: z.record(z.string(), HarnessConfigSchema).default({}),
-	liveReview: LiveReviewConfigSchema.default({}),
-	ci: CIConfigSchema.default({}),
+	liveReview: LiveReviewConfigSchema.default(LiveReviewConfigSchema.parse({})),
+	ci: CIConfigSchema.default(CIConfigSchema.parse({})),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

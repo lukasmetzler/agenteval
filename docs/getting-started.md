@@ -18,9 +18,9 @@ lint instructions -> harvest tasks from git -> run evals -> compare results
 
 | Requirement | Version | Purpose |
 |---|---|---|
-| [Bun](https://bun.sh) | v1.3+ | Runtime and package manager |
 | git | 2.20+ | Worktree isolation, harvest history scanning |
 | AI coding tool | Any | Required only for `run` command (Claude Code, Copilot, etc.) |
+| [Bun](https://bun.sh) | v1.3+ | Only needed for building from source |
 
 You also need a git repository containing at least one AI instruction file. If you do not have one yet, create a `CLAUDE.md` in your project root with a few rules and agenteval will find it automatically.
 
@@ -28,7 +28,15 @@ You also need a git repository containing at least one AI instruction file. If y
 
 agenteval ships as a standalone binary. No Bun or Node required to run it.
 
-### Homebrew (recommended)
+### npm (recommended)
+
+```bash
+npm install -g agenteval-cli
+```
+
+Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval-cli lint` for one-off use. Updates with `npm update -g agenteval-cli`.
+
+### Homebrew
 
 ```bash
 brew tap lukasmetzler/agenteval
@@ -37,15 +45,7 @@ brew install agenteval
 
 Adds the tap once, then installs the latest binary. Works on macOS and Linux. Updates with `brew upgrade agenteval`.
 
-### npm
-
-```bash
-npm install -g agenteval-cli
-```
-
-Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval-cli lint` for one-off use.
-
-### Quick install
+### Shell script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash

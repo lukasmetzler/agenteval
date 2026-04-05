@@ -147,8 +147,8 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 
 export { detectAICommits } from "./detect.js";
 export { detectTestCommand, emitTaskYaml, writeTaskFile } from "./emit.js";
-export { findPRForCommit, isGhAvailable } from "./github.js";
 export type { PRInfo } from "./github.js";
+export { findPRForCommit, isGhAvailable } from "./github.js";
 export { diffInstructionSnapshots, getInstructionSnapshot } from "./snapshot.js";
 export type {
 	AICommit,

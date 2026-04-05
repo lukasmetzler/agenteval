@@ -1,39 +1,79 @@
 # agenteval
 
-Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules. agenteval is a linter, benchmarker, and CI gate for AI coding instructions. Stop hoping your instructions work. Measure it.
+Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules.
+
+agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does. Then it scores agent performance so you can measure whether your instruction changes actually help.
 
 [![CI](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml/badge.svg)](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/v/release/lukasmetzler/agenteval?label=version)](https://github.com/lukasmetzler/agenteval/releases)
+[![npm](https://img.shields.io/npm/v/agenteval-cli?label=npm)](https://www.npmjs.com/package/agenteval-cli)
+[![Version](https://img.shields.io/github/v/release/lukasmetzler/agenteval?label=release)](https://github.com/lukasmetzler/agenteval/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1.svg)](https://bun.sh)
 
 ![agenteval demo](demo/demo.gif)
 
-## Get Started in 10 Seconds
+## Install
 
 ```bash
-brew tap lukasmetzler/agenteval
-brew install agenteval
+npm install -g agenteval-cli
 ```
 
-Or without Homebrew: `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash`
-
-Then lint your instruction files:
+Or pick your preferred method:
 
 ```bash
-agenteval lint
+brew tap lukasmetzler/agenteval && brew install agenteval   # Homebrew
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash  # Shell
 ```
 
-No Bun, no Node, no runtime. The binary is self-contained.
+No Bun, no Node at runtime. The binary is self-contained.
 
-## Why This Exists
+## Quick Start
 
-Your codebase has tests. Your APIs have contracts. Your AI instructions have... hope.
+```bash
+agenteval lint                    # Find problems in your instruction files
+agenteval lint --explain          # Same, with explanations for each rule
+agenteval harvest --dry-run       # Preview what AI commits are in your history
+agenteval ci                      # Run all tasks, fail on regressions
+```
 
-Every team using AI coding tools writes instruction files. You change a paragraph, push it, and cross your fingers. Maybe the agent performs better. Maybe you just broke something. You have no way to know.
+## What It Catches
 
-agenteval gives you that way. Lint catches problems statically. Harvest builds benchmarks from your git history. Run scores agent performance. Compare tells you if your changes helped. CI gates regressions before they merge.
+- Dead references to files, paths, and headings that don't exist
+- Filler phrases that waste context tokens ("make sure to", "it is important that")
+- Contradictions between instruction files ("always use X" and "never use X")
+- Content overlap and duplication across files
+- Token budget overruns that crowd out code context
+- Vague instructions without actionable specifics
+- Stale instructions referencing code that was refactored weeks ago
+- Invalid skill metadata (per Anthropic spec)
+- Broken markdown links and heading anchors
+
+## Supported Formats
+
+| Format | Pattern |
+|--------|---------|
+| Claude Code | `CLAUDE.md` |
+| OpenAI Codex / AGENTS | `AGENTS.md` |
+| GitHub Copilot | `.github/copilot-instructions.md` |
+| Scoped Copilot | `.github/instructions/*.instructions.md` |
+| Anthropic Skills | `.claude/skills/*/SKILL.md` |
+| Cursor | `.cursorrules`, `.cursor/rules/*.mdc` |
+
+## Commands
+
+| Command | What it does | Guide |
+|---------|-------------|-------|
+| `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
+| `agenteval harvest` | Build eval tasks from AI commit history | [Harvesting](docs/harvest.md) |
+| `agenteval harvest --live` | Score working tree changes before committing | [Harvesting](docs/harvest.md) |
+| `agenteval run --task <file>` | Run an AI agent, score the result | [Running Evals](docs/run.md) |
+| `agenteval compare <A> <B>` | Diff two runs side by side | [Results](docs/results.md) |
+| `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
+| `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
+| `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
+| `agenteval update` | Self-update to the latest version | |
+| `agenteval doctor` | Check environment health | |
+
+## The Pipeline
 
 ```mermaid
 flowchart LR
@@ -51,43 +91,36 @@ flowchart LR
     style J fill:#1a7f37,stroke:#2ea043,color:#fff
 ```
 
-## What It Catches
+Lint catches problems statically. Harvest builds benchmarks from your git history. Run scores agent performance. Compare tells you what changed. CI gates regressions before they merge.
 
-- Dead references to files that don't exist
-- Filler phrases that waste context tokens ("make sure to", "it is important that")
-- Contradictions ("always use X" and "never use X" in the same file)
-- Content overlap between instruction files
-- Token budget overruns that crowd out code context
-- Vague instructions without specifics ("be careful", "write good code")
-- Broken markdown links and heading anchors
-- Invalid skill metadata (per Anthropic spec)
+## CI Integration
 
-## Commands
+Add agenteval to your GitHub Actions workflow with one line:
 
-| Command | What it does |
-|---------|-------------|
-| `agenteval lint` | Find quality issues in instruction files ([guide](docs/lint.md)) |
-| `agenteval lint --explain` | Same, but shows why each rule matters |
-| `agenteval harvest` | Build eval tasks from your AI commit history ([guide](docs/harvest.md)) |
-| `agenteval harvest --live` | Score your working tree changes before committing |
-| `agenteval run --task <file>` | Run an AI agent against a task, score the result ([guide](docs/run.md)) |
-| `agenteval compare <A> <B>` | Compare two runs side by side ([guide](docs/results.md)) |
-| `agenteval ci` | Run all tasks, fail on regressions ([guide](docs/ci.md)) |
-| `agenteval trends` | Score history and trend analysis ([guide](docs/trends.md)) |
-| `agenteval init` | Create a starter config ([guide](docs/configuration.md)) |
-| `agenteval update` | Self-update to the latest version |
-| `agenteval doctor` | Check environment health |
+```yaml
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: ci                   # or: lint, harvest --dry-run
+```
 
-## Supports Every Instruction Format
+Or use the CLI directly in any CI system:
 
-- `CLAUDE.md` (Claude Code)
-- `AGENTS.md` (OpenAI Codex, generic agents)
-- `.github/copilot-instructions.md` (GitHub Copilot)
-- `.github/instructions/*.instructions.md` (scoped Copilot instructions)
-- `.claude/skills/*/SKILL.md` (Anthropic skills)
-- `.cursorrules` and `.cursor/rules/*.mdc` (Cursor)
+```bash
+agenteval ci --min-score 0.7 --max-regression 0.05
+```
 
-Try it on the included [demo files](demo/) that cover all formats.
+See the [CI Guide](docs/ci.md) for thresholds, configuration, and examples.
+
+## Installation Options
+
+| Method | Command | Updates via |
+|--------|---------|-------------|
+| **npm** | `npm install -g agenteval-cli` | `npm update -g agenteval-cli` |
+| **Homebrew** | `brew tap lukasmetzler/agenteval && brew install agenteval` | `brew upgrade agenteval` |
+| **Shell** | `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh \| bash` | `agenteval update` |
+| **GitHub Action** | `uses: lukasmetzler/agenteval@v0` | Always latest |
+| **Binary** | [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) | `agenteval update` |
+| **Source** | `git clone ... && bun install && bun run build` | `git pull && bun run build` |
 
 ## Documentation
 
@@ -99,39 +132,8 @@ Try it on the included [demo files](demo/) that cover all formats.
 | [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring pipeline |
 | [Harvesting](docs/harvest.md) | AI commit detection, task generation, live review |
 | [CI Guide](docs/ci.md) | Regression detection, thresholds, GitHub Actions example |
+| [Trends](docs/trends.md) | Score history and trend analysis |
 | [Configuration](docs/configuration.md) | Every config option with types and defaults |
-
-## Installation
-
-**Homebrew** (macOS, Linux):
-```bash
-brew tap lukasmetzler/agenteval
-brew install agenteval
-```
-
-**Quick install** (Linux, macOS):
-```bash
-curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash
-```
-
-**npm**:
-```bash
-npm install -g agenteval-cli
-```
-
-**Download binary** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases).
-
-**GitHub Action** (CI):
-```yaml
-- uses: lukasmetzler/agenteval@v0
-  with:
-    command: lint
-```
-
-**Build from source** (requires [Bun](https://bun.sh) v1.3+):
-```bash
-git clone https://github.com/lukasmetzler/agenteval.git && cd agenteval && bun install && bun run build
-```
 
 ## Contributing
 

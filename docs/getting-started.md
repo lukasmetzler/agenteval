@@ -28,7 +28,15 @@ You also need a git repository containing at least one AI instruction file. If y
 
 agenteval ships as a standalone binary. No Bun or Node required to run it.
 
-### Quick install (recommended)
+### Homebrew (recommended)
+
+```bash
+brew install lukasmetzler/agenteval/agenteval
+```
+
+Installs the latest binary via Homebrew. Works on macOS and Linux. Updates with `brew upgrade agenteval`.
+
+### Quick install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash

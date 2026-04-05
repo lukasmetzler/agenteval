@@ -47,7 +47,9 @@ const HarnessConfigSchema = z.object({
 const HarvestConfigSchema = z.object({
 	outputDir: z.string().default("tasks/harvested"),
 	minConfidence: z.number().min(0).max(1).default(0.5),
-	defaultHarness: z.enum(["claude-code", "opencode", "copilot", "generic", "auto"]).default("auto"),
+	defaultHarness: z
+		.enum(["claude-code", "cursor", "opencode", "copilot", "generic", "auto"])
+		.default("auto"),
 	defaultTimeout: z.number().min(1).default(300),
 });
 

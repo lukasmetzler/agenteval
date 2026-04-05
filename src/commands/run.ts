@@ -16,7 +16,7 @@ interface RunOptions {
 	config?: string;
 }
 
-const VALID_HARNESSES = ["claude-code", "opencode", "copilot", "generic", "auto", "mock"];
+const VALID_HARNESSES = ["claude-code", "cursor", "opencode", "copilot", "generic", "auto", "mock"];
 
 export function registerRunCommand(program: Command): void {
 	program

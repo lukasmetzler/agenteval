@@ -40,7 +40,10 @@ function formatError(err: unknown): string {
 }
 
 async function downloadBinary(url: string, targetPath: string): Promise<void> {
-	const download = Bun.spawn(["curl", "-fsSL", url, "-o", targetPath], {
+	// Download to temp file first (can't overwrite a running binary directly on Linux)
+	const tmpPath = `${targetPath}.tmp.${Date.now()}`;
+
+	const download = Bun.spawn(["curl", "-fsSL", url, "-o", tmpPath], {
 		stdout: "pipe",
 		stderr: "pipe",
 	});
@@ -48,10 +51,26 @@ async function downloadBinary(url: string, targetPath: string): Promise<void> {
 
 	if (downloadExit !== 0) {
 		const stderr = await new Response(download.stderr).text();
+		// Clean up temp file on failure
+		Bun.spawn(["rm", "-f", tmpPath], { stdout: "pipe", stderr: "pipe" });
 		if (stderr.includes("Permission denied") || stderr.includes("permission denied")) {
 			throw new Error("Permission denied. Try: sudo agenteval update");
 		}
 		throw new Error("download-failed");
+	}
+
+	// Replace the old binary: remove then move (avoids "text file busy" on Linux)
+	const rm = Bun.spawn(["rm", "-f", targetPath], { stdout: "pipe", stderr: "pipe" });
+	const rmExit = await rm.exited;
+	if (rmExit !== 0) {
+		Bun.spawn(["rm", "-f", tmpPath], { stdout: "pipe", stderr: "pipe" });
+		throw new Error("Permission denied. Try: sudo agenteval update");
+	}
+
+	const mv = Bun.spawn(["mv", tmpPath, targetPath], { stdout: "pipe", stderr: "pipe" });
+	const mvExit = await mv.exited;
+	if (mvExit !== 0) {
+		throw new Error("Failed to replace binary. Try running the install script manually.");
 	}
 
 	const chmod = Bun.spawn(["chmod", "+x", targetPath], {

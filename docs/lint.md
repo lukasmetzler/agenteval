@@ -2,7 +2,7 @@
 
 `agenteval lint` statically analyzes AI coding instruction files -- CLAUDE.md, AGENTS.md, copilot-instructions.md, and skill definitions -- for quality problems that degrade agent performance. It checks for bloated content that wastes context window tokens, duplicated instructions across files, vague or contradictory rules, broken file references, and violations of skill metadata conventions. Think of it as ESLint for the prose you feed to coding agents: it catches the problems that cause agents to silently ignore your instructions or behave unpredictably.
 
-The linter runs 24 rules across 7 categories, using the cl100k_base tokenizer to estimate token counts. It requires no network access, no API keys, and no running agents. Results are deterministic.
+The linter runs 35 rules across 8 categories, using the cl100k_base tokenizer to estimate token counts. It requires no network access, no API keys, and no running agents. Results are deterministic.
 
 ## When to Use It
 
@@ -70,7 +70,7 @@ Running `agenteval lint` on a project with several issues produces output like t
 
 ## Quick Overview
 
-agenteval lint runs 24 rules across 7 categories. Here is what each category checks:
+agenteval lint runs 35 rules across 8 categories. Here is what each category checks:
 
 | Category | What it catches |
 |----------|----------------|

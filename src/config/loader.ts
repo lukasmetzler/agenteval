@@ -34,8 +34,18 @@ export function parseConfigFile(filePath: string): Config {
 	return ConfigSchema.parse(parsed);
 }
 
-export function loadConfig(cwd?: string): Config {
-	const startDir = cwd ?? process.cwd();
+export function loadConfig(cwdOrFile?: string): Config {
+	const input = cwdOrFile ?? process.cwd();
+
+	// If the argument is a direct path to a YAML file, use it
+	if (input.endsWith(".yaml") || input.endsWith(".yml")) {
+		if (!existsSync(input)) {
+			throw new Error(`Config file not found: ${input}`);
+		}
+		return parseConfigFile(resolve(input));
+	}
+
+	const startDir = input;
 	const configPath = findConfigFile(startDir);
 
 	if (!configPath) {

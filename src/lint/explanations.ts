@@ -200,6 +200,11 @@ export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
 		why: "The Overview section is the first thing Claude reads after the frontmatter. Without it, the skill lacks a clear statement of purpose.",
 		fix: "Add a '## Overview' section after the frontmatter with 1-2 sentences explaining what this skill does.",
 	},
+	"drift/stale-reference": {
+		what: "Checks if source files referenced in instructions have been modified more recently than the instructions themselves.",
+		why: "Stale instructions that describe refactored code mislead the AI agent. It confidently follows outdated guidance.",
+		fix: "Review the referenced file's changes and update the instructions to match the current code.",
+	},
 	"skill/first-person-body": {
 		what: "Detects first-person language ('I will', 'I deploy') in the skill body.",
 		why: "Skill bodies should use imperative or third-person voice. They describe what the agent should DO, not what 'I' do.",

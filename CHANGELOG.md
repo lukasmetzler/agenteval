@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-04-05
+
+Instruction drift detection, inspired by community feedback on Reddit.
+
+### Added
+
+- New lint rule `drift/stale-reference`: warns when source files referenced in instructions have been modified more recently than the instruction file itself (7-day threshold). Catches the #1 problem reported by users — instructions describing refactored code that the AI confidently follows.
+- Human-readable time differences in drift warnings ("3 weeks", "2 months")
+
 ## [0.7.3] - 2026-04-03
 
 ### Added

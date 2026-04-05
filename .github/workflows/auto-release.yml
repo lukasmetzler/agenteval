@@ -101,7 +101,14 @@ jobs:
             agenteval-darwin-x64/agenteval-darwin-x64
           generate_release_notes: true
 
-      # --- Publish to npm ---
+  publish-npm:
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -116,19 +123,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # --- Update Homebrew tap ---
+  update-homebrew:
+    needs: [check-version, build, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+
       - name: Update Homebrew formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
 
-          # Compute SHA256 for each binary
           SHA_DARWIN_ARM64=$(sha256sum agenteval-darwin-arm64/agenteval-darwin-arm64 | cut -d' ' -f1)
           SHA_DARWIN_X64=$(sha256sum agenteval-darwin-x64/agenteval-darwin-x64 | cut -d' ' -f1)
           SHA_LINUX_X64=$(sha256sum agenteval-linux-x64/agenteval-linux-x64 | cut -d' ' -f1)
 
-          # Clone tap repo
           git clone "https://x-access-token:${GH_TOKEN}@github.com/lukasmetzler/homebrew-agenteval.git" /tmp/homebrew-tap
           cd /tmp/homebrew-tap
 

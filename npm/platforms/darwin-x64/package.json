@@ -1,6 +1,6 @@
 {
-	"name": "@agenteval-cli/darwin-x64",
-	"version": "0.8.0",
+	"name": "@agenteval/darwin-x64",
+	"version": "0.8.1",
 	"description": "agenteval darwin-x64 binary",
 	"repository": {
 		"type": "git",

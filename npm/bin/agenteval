@@ -4,9 +4,9 @@ const { execFileSync } = require("child_process");
 const { join } = require("path");
 
 const PLATFORMS = {
-	"linux-x64": "@agenteval-cli/linux-x64",
-	"darwin-arm64": "@agenteval-cli/darwin-arm64",
-	"darwin-x64": "@agenteval-cli/darwin-x64",
+	"linux-x64": "@agenteval/linux-x64",
+	"darwin-arm64": "@agenteval/darwin-arm64",
+	"darwin-x64": "@agenteval/darwin-x64",
 };
 
 const key = `${process.platform === "win32" ? "win32" : process.platform}-${process.arch}`;

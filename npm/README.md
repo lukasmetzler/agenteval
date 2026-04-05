@@ -5,6 +5,7 @@ Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, 
 agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does.
 
 [![npm](https://img.shields.io/npm/v/agenteval-cli)](https://www.npmjs.com/package/agenteval-cli)
+[![npm downloads](https://img.shields.io/npm/dm/agenteval-cli)](https://www.npmjs.com/package/agenteval-cli)
 [![CI](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml/badge.svg)](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/lukasmetzler/agenteval/blob/main/LICENSE)
 

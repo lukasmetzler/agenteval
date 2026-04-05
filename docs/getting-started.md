@@ -92,19 +92,15 @@ Or use it in development mode from the repo:
 bun run dev -- lint
 ```
 
-### Verify the version
+### Verify the installation
+
+Check that agenteval is installed and shows the current version:
 
 ```bash
 agenteval --version
 ```
 
-Expected output:
-
-```
-0.8.1
-```
-
-### Verify the installation
+Then confirm all commands are available:
 
 Run the help command to confirm everything works:
 

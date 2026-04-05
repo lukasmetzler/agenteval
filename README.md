@@ -6,6 +6,7 @@ agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It f
 
 [![CI](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml/badge.svg)](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/agenteval-cli?label=npm)](https://www.npmjs.com/package/agenteval-cli)
+[![npm downloads](https://img.shields.io/npm/dm/agenteval-cli)](https://www.npmjs.com/package/agenteval-cli)
 [![Version](https://img.shields.io/github/v/release/lukasmetzler/agenteval?label=release)](https://github.com/lukasmetzler/agenteval/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

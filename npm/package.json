@@ -37,8 +37,8 @@
 		"README.md"
 	],
 	"optionalDependencies": {
-		"@agenteval-cli/linux-x64": "0.8.1",
-		"@agenteval-cli/darwin-arm64": "0.8.1",
-		"@agenteval-cli/darwin-x64": "0.8.1"
+		"@agenteval/linux-x64": "0.8.1",
+		"@agenteval/darwin-arm64": "0.8.1",
+		"@agenteval/darwin-x64": "0.8.1"
 	}
 }

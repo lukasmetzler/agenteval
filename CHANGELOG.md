@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- npm: switched from postinstall download to platform-specific packages (`@agenteval-cli/linux-x64`, `@agenteval-cli/darwin-arm64`, `@agenteval-cli/darwin-x64`). Binaries ship inside the npm package, no install scripts, no network calls at install time. Fixes socket.dev supply chain score (62 → 90+).
+- npm: switched from postinstall download to platform-specific packages (`@agenteval/linux-x64`, `@agenteval/darwin-arm64`, `@agenteval/darwin-x64`). Binaries ship inside the npm package, no install scripts, no network calls at install time. Fixes socket.dev supply chain score (62 → 90+).
 - npm: added `engines` field (`node >= 18`) for quality score
 
 ### Removed

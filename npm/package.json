@@ -1,5 +1,5 @@
 {
-	"name": "agenteval",
+	"name": "agenteval-cli",
 	"version": "0.7.9",
 	"description": "Lint, benchmark, and CI gate for AI coding instructions",
 	"keywords": [

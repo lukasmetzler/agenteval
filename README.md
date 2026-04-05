@@ -116,7 +116,7 @@ curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install
 
 **npm**:
 ```bash
-npm install -g agenteval
+npm install -g agenteval-cli
 ```
 
 **Download binary** from [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases).

@@ -71,6 +71,7 @@ agenteval ci                      # Run all tasks, fail on regressions
 | `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
 | `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
 | `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
+| `agenteval watch` | Watch files, re-lint on save | |
 | `agenteval update` | Self-update to the latest version | |
 | `agenteval doctor` | Check environment health | |
 

@@ -11,6 +11,7 @@ import { registerResultsCommand } from "./commands/results.js";
 import { registerRunCommand } from "./commands/run.js";
 import { registerTrendsCommand } from "./commands/trends.js";
 import { registerUpdateCommand } from "./commands/update.js";
+import { registerWatchCommand } from "./commands/watch.js";
 import { checkForUpdate } from "./update-check.js";
 import { version } from "./version.js";
 
@@ -31,6 +32,7 @@ registerHarvestCommand(program);
 registerCICommand(program);
 registerTrendsCommand(program);
 registerUpdateCommand(program);
+registerWatchCommand(program);
 
 await checkForUpdate();
 

@@ -1,0 +1,13 @@
+{
+	"name": "@agenteval-cli/darwin-arm64",
+	"version": "0.8.0",
+	"description": "agenteval darwin-arm64 binary",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lukasmetzler/agenteval.git"
+	},
+	"license": "MIT",
+	"os": ["darwin"],
+	"cpu": ["arm64"],
+	"files": ["bin/"]
+}

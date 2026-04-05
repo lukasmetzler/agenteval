@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-04-05
+
+### Changed
+
+- npm: switched from postinstall download to platform-specific packages (`@agenteval-cli/linux-x64`, `@agenteval-cli/darwin-arm64`, `@agenteval-cli/darwin-x64`). Binaries ship inside the npm package, no install scripts, no network calls at install time. Fixes socket.dev supply chain score (62 → 90+).
+- npm: added `engines` field (`node >= 18`) for quality score
+
+### Removed
+
+- npm: `install.mjs` postinstall script (replaced by optionalDependencies pattern)
+
 ## [0.8.0] - 2026-04-05
 
 Reliability and polish release.

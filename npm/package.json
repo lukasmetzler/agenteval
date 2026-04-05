@@ -1,6 +1,6 @@
 {
 	"name": "agenteval-cli",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"description": "Lint, benchmark, and CI gate for AI coding instructions",
 	"keywords": [
 		"cli",
@@ -12,7 +12,9 @@
 		"instructions",
 		"agents",
 		"lint",
-		"benchmark"
+		"benchmark",
+		"cursor",
+		"agenteval"
 	],
 	"repository": {
 		"type": "git",
@@ -24,15 +26,19 @@
 		"url": "https://github.com/lukasmetzler/agenteval/issues"
 	},
 	"license": "MIT",
+	"engines": {
+		"node": ">=18"
+	},
 	"bin": {
 		"agenteval": "bin/agenteval"
 	},
-	"scripts": {
-		"postinstall": "node install.mjs"
-	},
 	"files": [
 		"bin/",
-		"install.mjs",
 		"README.md"
-	]
+	],
+	"optionalDependencies": {
+		"@agenteval-cli/linux-x64": "0.8.1",
+		"@agenteval-cli/darwin-arm64": "0.8.1",
+		"@agenteval-cli/darwin-x64": "0.8.1"
+	}
 }

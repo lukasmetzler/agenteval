@@ -102,26 +102,51 @@ jobs:
           generate_release_notes: true
 
   publish-npm:
-    needs: [check-version, release]
+    needs: [check-version, build, release]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/download-artifact@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Publish to npm
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+
+          publish_platform() {
+            local platform_dir=$1
+            local binary=$2
+
+            cd npm/platforms/$platform_dir
+            sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" package.json
+            mkdir -p bin
+            cp ../../../${binary}/${binary} bin/agenteval
+            chmod +x bin/agenteval
+            npm publish --access public || echo "Failed to publish $platform_dir (may already exist)"
+            cd ../../..
+          }
+
+          publish_platform "linux-x64" "agenteval-linux-x64"
+          publish_platform "darwin-arm64" "agenteval-darwin-arm64"
+          publish_platform "darwin-x64" "agenteval-darwin-x64"
+
+      - name: Publish main package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
           cd npm
-          sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/g" package.json
           npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   update-homebrew:
     needs: [check-version, build, release]

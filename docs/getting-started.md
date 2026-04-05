@@ -31,10 +31,11 @@ agenteval ships as a standalone binary. No Bun or Node required to run it.
 ### Homebrew (recommended)
 
 ```bash
-brew install lukasmetzler/agenteval/agenteval
+brew tap lukasmetzler/agenteval
+brew install agenteval
 ```
 
-Installs the latest binary via Homebrew. Works on macOS and Linux. Updates with `brew upgrade agenteval`.
+Adds the tap once, then installs the latest binary. Works on macOS and Linux. Updates with `brew upgrade agenteval`.
 
 ### Quick install
 

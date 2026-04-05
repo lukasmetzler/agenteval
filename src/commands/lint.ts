@@ -1,7 +1,10 @@
+import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
+import type { Config } from "../config/schema.js";
+import { applyFixes } from "../lint/fixer.js";
 import { runLint } from "../lint/index.js";
-import type { Severity } from "../lint/types.js";
+import type { LintResult, Severity } from "../lint/types.js";
 import { ConsoleFormatter } from "../output/formatter.js";
 import { JsonFormatter } from "../output/json.js";
 import { MarkdownFormatter } from "../output/markdown.js";
@@ -14,6 +17,7 @@ interface LintOptions {
 	format: string;
 	severity: string;
 	quiet?: boolean;
+	fix?: boolean;
 	explain?: boolean;
 }
 
@@ -26,26 +30,21 @@ export function registerLintCommand(program: Command): void {
 		.option("-f, --format <type>", "output format: console, json, markdown", "console")
 		.option("--severity <level>", "minimum severity: info, warning, error", "info")
 		.option("--quiet", "only show errors")
+		.option("--fix", "auto-fix filler phrases and simple issues")
 		.option("--explain", "show detailed explanation for each rule triggered")
 		.action(async (globs: string[], options: LintOptions) => {
 			try {
 				const config = loadConfig(options.config);
+				if (globs.length > 0) config.instructionGlobs = globs;
+				if (options.quiet) logger.level = "error";
 
-				if (globs.length > 0) {
-					config.instructionGlobs = globs;
+				let result = await runLint(config, process.cwd());
+
+				if (options.fix) {
+					result = await runFixAndRelint(result, config);
 				}
 
-				if (options.quiet) {
-					logger.level = "error";
-				}
-
-				const result = await runLint(config, process.cwd());
-
-				const minSeverity = options.severity as Severity;
-				const minOrder = SEVERITY_ORDER[minSeverity] ?? 0;
-				result.diagnostics = result.diagnostics.filter(
-					(d) => SEVERITY_ORDER[d.severity] >= minOrder,
-				);
+				result.diagnostics = filterBySeverity(result.diagnostics, options.severity as Severity);
 
 				const formatter = createFormatter(options.format, options.explain);
 				console.log(formatter.format(result));
@@ -57,6 +56,32 @@ export function registerLintCommand(program: Command): void {
 				process.exit(2);
 			}
 		});
+}
+
+async function runFixAndRelint(result: LintResult, config: Config): Promise<LintResult> {
+	const files = [...new Set(result.diagnostics.map((d) => d.filePath))];
+	let totalFixes = 0;
+
+	for (const file of files) {
+		const fileDiags = result.diagnostics.filter((d) => d.filePath === file);
+		const fixResult = applyFixes(file, fileDiags);
+		if (fixResult.written) {
+			console.log(chalk.green(`  Fixed ${fixResult.fixesApplied} issue(s) in ${file}`));
+			totalFixes += fixResult.fixesApplied;
+		}
+	}
+
+	if (totalFixes > 0) {
+		console.log(chalk.green(`\n  ${totalFixes} fix(es) applied. Re-running lint...\n`));
+		return runLint(config, process.cwd());
+	}
+
+	return result;
+}
+
+function filterBySeverity(diagnostics: LintResult["diagnostics"], minSeverity: Severity) {
+	const minOrder = SEVERITY_ORDER[minSeverity] ?? 0;
+	return diagnostics.filter((d) => SEVERITY_ORDER[d.severity] >= minOrder);
 }
 
 function createFormatter(format: string, explain?: boolean) {

@@ -1,4 +1,4 @@
-import { watch } from "node:fs";
+import { existsSync, watch } from "node:fs";
 import { resolve } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
@@ -56,7 +56,9 @@ export function registerWatchCommand(program: Command): void {
 			for (const file of files) {
 				const fullPath = resolve(cwd, file);
 				try {
-					const watcher = watch(fullPath, () => {
+					const watcher = watch(fullPath, (eventType) => {
+						// File was deleted, skip re-lint
+						if (eventType === "rename" && !existsSync(fullPath)) return;
 						if (debounceTimer) clearTimeout(debounceTimer);
 						debounceTimer = setTimeout(async () => {
 							console.log(chalk.dim(`\n  Change detected: ${file}`));
@@ -72,6 +74,7 @@ export function registerWatchCommand(program: Command): void {
 
 			// Keep process alive, clean up on exit
 			process.on("SIGINT", () => {
+				if (debounceTimer) clearTimeout(debounceTimer);
 				for (const w of watchers) w.close();
 				console.log(chalk.dim("\n  Stopped watching."));
 				process.exit(0);

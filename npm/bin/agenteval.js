@@ -50,8 +50,15 @@ function download(url, maxRedirects) {
 		https.get(options, (res) => {
 			if (res.statusCode === 301 || res.statusCode === 302) {
 				const location = res.headers.location;
-				if (!location || (!location.startsWith("https://") && !location.startsWith("https://github.com"))) {
-					reject(new Error(`Unsafe redirect to ${location}`));
+				const ALLOWED_HOSTS = ["github.com", "objects.githubusercontent.com"];
+				try {
+					const redirectUrl = new URL(location || "");
+					if (redirectUrl.protocol !== "https:" || !ALLOWED_HOSTS.some(h => redirectUrl.hostname.endsWith(h))) {
+						reject(new Error(`Unsafe redirect to ${location}`));
+						return;
+					}
+				} catch {
+					reject(new Error(`Invalid redirect URL: ${location}`));
 					return;
 				}
 				return download(location, maxRedirects - 1).then(resolve, reject);

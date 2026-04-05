@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-04-05
+
+### Changed
+
+- npm: switched to lazy download approach. Package is now ~5KB (was ~100MB). Binary downloads on first `agenteval` command, cached in `~/.agenteval/bin/`. No install scripts, no bundled binaries. Fixes socket.dev supply chain score.
+- Removed `@agenteval/linux-x64`, `@agenteval/darwin-arm64`, `@agenteval/darwin-x64` platform packages (100MB each was flagged by security scanners)
+
 ## [0.8.1] - 2026-04-05
 
 ### Changed

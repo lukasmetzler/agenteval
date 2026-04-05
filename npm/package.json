@@ -1,6 +1,6 @@
 {
 	"name": "agenteval-cli",
-	"version": "0.8.1",
+	"version": "0.8.2",
 	"description": "Lint, benchmark, and CI gate for AI coding instructions",
 	"keywords": [
 		"cli",
@@ -35,10 +35,5 @@
 	"files": [
 		"bin/",
 		"README.md"
-	],
-	"optionalDependencies": {
-		"@agenteval/linux-x64": "0.8.1",
-		"@agenteval/darwin-arm64": "0.8.1",
-		"@agenteval/darwin-x64": "0.8.1"
-	}
+	]
 }

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.13] - 2026-04-06
+
+### Fixed
+
+- watch: clear debounce timer on SIGINT exit (was causing hanging process)
+- watch: skip re-lint when watched file is deleted (was causing errors)
+- npm shim: strict redirect whitelist, only follows redirects to github.com and objects.githubusercontent.com (was allowing any HTTPS URL)
+
 ## [0.8.12] - 2026-04-06
 
 ### Added

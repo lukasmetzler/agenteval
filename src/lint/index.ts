@@ -9,6 +9,7 @@ import { AntiPatternCheckerRule } from "./antiPatternChecker.js";
 import { BloatScorerRule } from "./bloatScorer.js";
 import { ContextBudgetCheckerRule } from "./contextBudgetChecker.js";
 import { DeadSectionAnalyzerRule } from "./deadSectionAnalyzer.js";
+import { DriftDetectorRule } from "./driftDetector.js";
 import { OverlapDetectorRule } from "./overlapDetector.js";
 import { SkillValidatorRule } from "./skillValidator.js";
 import { TokenCounterRule, countTokens } from "./tokenCounter.js";
@@ -22,6 +23,7 @@ export const ALL_RULES: LintRule[] = [
 	new DeadSectionAnalyzerRule(),
 	new ContextBudgetCheckerRule(),
 	new SkillValidatorRule(),
+	new DriftDetectorRule(),
 ];
 
 function parseFrontmatterYaml(raw: string | null): Record<string, unknown> | null {

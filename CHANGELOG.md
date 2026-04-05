@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9] - 2026-04-06
+
+### Added
+
+- `agenteval init --hook`: installs a git pre-commit hook that lints instruction files before each commit. Only runs when instruction files are staged. Appends to existing hooks without overwriting.
+
+### Changed
+
+- `agenteval init` no longer exits with error if agenteval.yaml exists (skips silently, allows running `init --hook` separately)
+
 ## [0.8.6] - 2026-04-06
 
 ### Added

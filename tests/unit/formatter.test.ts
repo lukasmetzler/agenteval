@@ -47,6 +47,11 @@ describe("ConsoleFormatter", () => {
 		expect(plain).toContain("3 files");
 	});
 
+	test("uses the singular for one file", () => {
+		const plain = stripAnsi(fmt.format(emptyResult));
+		expect(plain).toContain("1 file  ");
+	});
+
 	test("groups diagnostics by file", () => {
 		const output = fmt.format(sampleResult);
 		const plain = stripAnsi(output);

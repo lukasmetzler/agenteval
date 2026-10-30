@@ -20,7 +20,6 @@
 		"type": "git",
 		"url": "https://github.com/lukasmetzler/agenteval.git"
 	},
-	"author": "Lukas Metzler",
 	"homepage": "https://github.com/lukasmetzler/agenteval",
 	"bugs": {
 		"url": "https://github.com/lukasmetzler/agenteval/issues"

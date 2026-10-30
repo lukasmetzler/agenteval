@@ -67,7 +67,7 @@ describe("agent output parsers", () => {
 			18240,
 			910,
 			19650,
-			"gemini-3.1-pro",
+			"gemini-4-argon",
 		]);
 	});
 

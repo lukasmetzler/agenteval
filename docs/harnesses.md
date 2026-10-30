@@ -3,7 +3,7 @@
 A harness is the agent CLI that `agenteval run` and `agenteval ci` drive. Each one runs headless in an isolated git worktree, with permission prompts turned off, and reports usage as JSON where the CLI supports it.
 
 ```bash
-agenteval run --task tasks/add-endpoint.yaml --harness codex --model gpt-5.4
+agenteval run --task tasks/add-endpoint.yaml --harness claude-code --model claude-sonnet-5-5
 ```
 
 ## Built-in harnesses

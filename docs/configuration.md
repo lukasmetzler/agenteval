@@ -295,9 +295,9 @@ Each key under `harnesses` defines a custom harness adapter that passes the prom
 
 ## Supported Models
 
-The model field determines the context window size used for budget calculations. Claude values come from the Claude API model table as of 2026-10-06.
+The `model` field sets the context window that budget checks use. The values come from each vendor's model pages: the Claude API model table (2026-10-06), OpenAI's models page (2026-10-30, maximum input tokens), and the Gemini API models page (2026-10-28).
 
-| Model ID | Context Window | Provider |
+| Model ID | Context window | Provider |
 |----------|---------------|----------|
 | `claude-fable-5-1`, `claude-fable-5` | 1,000,000 | Anthropic |
 | `claude-opus-5-5`, `claude-opus-5` | 1,000,000 | Anthropic |
@@ -307,13 +307,8 @@ The model field determines the context window size used for budget calculations.
 | `claude-sonnet-4-6` | 1,000,000 | Anthropic |
 | `claude-haiku-4-5` | 200,000 | Anthropic |
 | `fable`, `opus`, `sonnet`, `haiku` (Claude Code aliases) | 1,000,000 | Anthropic |
-| `gpt-5.4`, `gpt-5.3`, `gpt-5.3-codex`, `gpt-4.1` | 1,000,000 | OpenAI |
-| `gpt-4o` | 128,000 | OpenAI |
-| `o3` | 200,000 | OpenAI |
-| `gemini-3.1` | 2,000,000 | Google |
-| `gemini-2.5-pro` | 1,000,000 | Google |
-
-The OpenAI and Google entries have not been rechecked since v0.8.
+| `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-luna` | 922,000 | OpenAI |
+| `gemini-4-argon`, `gemini-3.8-flash`, `gemini-3.1-pro-preview`, `gemini-2.5-pro` | 1,048,576 | Google |
 
 Models not in this table use a 200,000-token window, and lint reports `context-budget/unknown-model` so the fallback isn't silent. Set `lint.maxTotalTokens` for a model that isn't listed.
 

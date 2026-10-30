@@ -2,11 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in agenteval, please report it responsibly.
-
-**Do NOT open a public GitHub issue for security vulnerabilities.**
-
-Instead, email: lukasxmetzler@gmail.com (or use GitHub's private vulnerability reporting if enabled)
+Report vulnerabilities privately through [GitHub's vulnerability reporting form](https://github.com/lukasmetzler/agenteval/security/advisories/new) (**Security** tab → **Report a vulnerability**). Public issues are visible to everyone, so don't use them for security reports.
 
 ## What Counts as a Security Issue
 

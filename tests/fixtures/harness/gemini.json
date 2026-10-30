@@ -1,1 +1,1 @@
-{"response":"Done.","stats":{"models":{"gemini-3.1-pro":{"api":{"totalRequests":3,"totalErrors":0,"totalLatencyMs":9120},"tokens":{"prompt":18240,"candidates":910,"total":19650,"cached":12000,"thoughts":500,"tool":0}}},"tools":{"totalCalls":4,"totalSuccess":4,"totalFail":0}}}
+{"response":"Done.","stats":{"models":{"gemini-4-argon":{"api":{"totalRequests":3,"totalErrors":0,"totalLatencyMs":9120},"tokens":{"prompt":18240,"candidates":910,"total":19650,"cached":12000,"thoughts":500,"tool":0}}},"tools":{"totalCalls":4,"totalSuccess":4,"totalFail":0}}}

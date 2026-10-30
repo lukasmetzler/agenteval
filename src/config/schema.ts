@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 /**
- * Context windows (input tokens) for budget checks. Claude values from the
- * Claude API model table (2026-10-06); entries for other vendors are kept as
- * last verified. Unknown models fall back to 200k with a lint note.
+ * Context windows (input tokens) for budget checks, from each vendor's model
+ * pages: Claude API model table (2026-10-06), OpenAI models (2026-10-30, max
+ * input tokens), Gemini API models (2026-10-28). Unknown models fall back to
+ * 200k with a lint note.
  */
 export const ModelContextWindows: Record<string, number> = {
 	// Anthropic — current
@@ -25,17 +26,16 @@ export const ModelContextWindows: Record<string, number> = {
 	opus: 1_000_000,
 	sonnet: 1_000_000,
 	haiku: 1_000_000,
-	// OpenAI — GPT-5.x family
-	"gpt-5.4": 1_000_000,
-	"gpt-5.3": 1_000_000,
-	"gpt-5.3-codex": 1_000_000,
-	// OpenAI — GPT-4.x (legacy)
-	"gpt-4o": 128_000,
-	"gpt-4.1": 1_000_000,
-	o3: 200_000,
-	// Google — Gemini family
-	"gemini-3.1": 2_000_000,
-	"gemini-2.5-pro": 1_000_000,
+	// OpenAI — GPT-6 flagships
+	"gpt-6-astra": 922_000,
+	"gpt-6.1-sol": 922_000,
+	"gpt-6.1-terra": 922_000,
+	"gpt-6-luna": 922_000,
+	// Google — Gemini
+	"gemini-4-argon": 1_048_576,
+	"gemini-3.8-flash": 1_048_576,
+	"gemini-3.1-pro-preview": 1_048_576,
+	"gemini-2.5-pro": 1_048_576,
 };
 
 /**

@@ -17,7 +17,8 @@ Instead, email: lukasxmetzler@gmail.com (or use GitHub's private vulnerability r
 
 ## What Is NOT a Security Issue
 
-- The eval runner intentionally spawns AI agents with `--dangerously-skip-permissions` -- this is by design for isolated worktree evaluation
+- The eval runner intentionally spawns AI agents in each CLI's own non-interactive auto-approve mode, inside a git worktree under `.agenteval/worktrees/`. This is by design: an eval can't stop for permission prompts. The modes are `claude --permission-mode bypassPermissions`, `codex exec -s workspace-write`, `gemini --approval-mode yolo`, `agy --dangerously-skip-permissions`, `copilot --allow-all-tools`, `agent --force` (Cursor), `opencode run --auto`, and `devin --permission-mode dangerous`. agenteval adds no sandbox of its own. Apart from what the CLI's mode restricts (Codex's `workspace-write` sandbox, for example), the agent runs as your user and can reach what that user can. Run evals on a machine or CI runner where that is acceptable.
+- The `harvest --live --analyze` judge runs `claude -p` with all tools disabled (`--tools ""`), so a diff that contains instructions aimed at the judge can't make it run commands or edit files.
 - Lint rules reading instruction files -- these are the files the tool is designed to analyze
 
 ## Response Timeline

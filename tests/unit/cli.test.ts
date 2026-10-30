@@ -1,4 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
+
+// Each test spawns a real `bun` process; 5 s is too tight on a loaded machine.
+setDefaultTimeout(30_000);
+
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -156,5 +160,20 @@ describe("CLI", () => {
 		} catch {
 			// Expected: task file not found should cause non-zero exit
 		}
+	});
+});
+
+describe("lint --quiet", () => {
+	test("prints only errors", async () => {
+		const dir = join(import.meta.dir, "../fixtures/toolchain/bun-oxlint");
+		const result =
+			await $`bun run ${join(import.meta.dir, "../../src/cli.ts")} lint --quiet --format json`
+				.cwd(dir)
+				.nothrow()
+				.text();
+		const severities = new Set(
+			JSON.parse(result).diagnostics.map((d: { severity: string }) => d.severity),
+		);
+		expect([...severities]).toEqual(["error"]);
 	});
 });

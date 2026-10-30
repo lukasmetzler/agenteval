@@ -1,4 +1,8 @@
-import { getModelContextWindow } from "../config/schema.js";
+import { FALLBACK_CONTEXT_WINDOW, getModelContextWindow, isKnownModel } from "../config/schema.js";
+import { isLoadedAtStartup } from "../markdown/classify.js";
+import { resolveImportGraph } from "../markdown/imports.js";
+import { importRoots } from "./importResolver.js";
+import { countTokens } from "./tokenCounter.js";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
 
 export class ContextBudgetCheckerRule implements LintRule {
@@ -6,8 +10,24 @@ export class ContextBudgetCheckerRule implements LintRule {
 
 	async run(ctx: LintContext): Promise<Diagnostic[]> {
 		const diagnostics: Diagnostic[] = [];
+		if (!isKnownModel(ctx.config.model) && ctx.config.lint.maxTotalTokens === undefined) {
+			diagnostics.push({
+				ruleId: "context-budget/unknown-model",
+				severity: "info",
+				message: `Unknown model "${ctx.config.model}"; assuming a ${FALLBACK_CONTEXT_WINDOW.toLocaleString("en-US")}-token context window`,
+				filePath: "(config)",
+				suggestion: "Set lint.maxTotalTokens, or use a known model id such as claude-opus-5-5",
+			});
+		}
 
-		const totalTokens = ctx.files.reduce((sum, f) => sum + f.tokens, 0);
+		const startup = ctx.files.filter((f) => isLoadedAtStartup(f, ctx.cwd));
+		const startupPaths = new Set(startup.map((f) => f.path));
+		const { imported } = resolveImportGraph(importRoots(startup));
+		let importedTokens = 0;
+		for (const [path, content] of imported) {
+			if (!startupPaths.has(path)) importedTokens += countTokens(content);
+		}
+		const totalTokens = startup.reduce((sum, f) => sum + f.tokens, 0) + importedTokens;
 		const modelWindow = getModelContextWindow(ctx.config.model);
 		const budgetTokens =
 			ctx.config.lint.maxTotalTokens ?? Math.floor(modelWindow * ctx.config.contextBudget);
@@ -18,18 +38,18 @@ export class ContextBudgetCheckerRule implements LintRule {
 			diagnostics.push({
 				ruleId: "context-budget/exceeded",
 				severity: "error",
-				message: `Total instruction tokens (~${totalTokens}) exceed budget of ${budgetTokens} (${ctx.config.contextBudget * 100}% of ${modelWindow} context window)`,
+				message: `Startup instruction tokens (~${totalTokens}, incl. @imports) exceed budget of ${budgetTokens} (${ctx.config.contextBudget * 100}% of ${modelWindow} context window)`,
 				filePath: "(all files)",
-				meta: { totalTokens, budgetTokens, modelWindow, ratio },
+				meta: { totalTokens, importedTokens, budgetTokens, modelWindow, ratio },
 				suggestion: "Remove low-value content or increase contextBudget in config",
 			});
 		} else if (ratio > 0.8) {
 			diagnostics.push({
 				ruleId: "context-budget/near-limit",
 				severity: "warning",
-				message: `Total instruction tokens (~${totalTokens}) are at ${Math.round(ratio * 100)}% of budget (${budgetTokens})`,
+				message: `Startup instruction tokens (~${totalTokens}, incl. @imports) are at ${Math.round(ratio * 100)}% of budget (${budgetTokens})`,
 				filePath: "(all files)",
-				meta: { totalTokens, budgetTokens, modelWindow, ratio },
+				meta: { totalTokens, importedTokens, budgetTokens, modelWindow, ratio },
 				suggestion: "Consider trimming before adding more instructions",
 			});
 		}

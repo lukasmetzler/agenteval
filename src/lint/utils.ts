@@ -1,9 +1,10 @@
 /**
  * Strip fenced code blocks from markdown text.
- * Removes content between ``` markers (including the markers).
+ * Blanks content between ``` markers (including the markers) but keeps the
+ * newlines, so line numbers computed on the result match the original file.
  */
 export function stripCodeBlocks(text: string): string {
-	return text.replace(/```[\s\S]*?```/g, "");
+	return text.replace(/```[\s\S]*?```/g, (block) => block.replace(/[^\n]/g, ""));
 }
 
 /**
@@ -11,7 +12,7 @@ export function stripCodeBlocks(text: string): string {
  * Removes content between single backticks.
  */
 export function stripInlineCode(text: string): string {
-	return text.replace(/`[^`]+`/g, "");
+	return text.replace(/`[^`\n]+`/g, "");
 }
 
 /**

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { InstructionSet, RawRunResult, RunMetrics, TaskDefinition } from "../run/types.js";
+import type { RawRunResult, RunMetrics, TaskDefinition } from "../run/types.js";
 import type { HarnessAdapter } from "./types.js";
 
 export interface MockBehavior {
@@ -20,6 +20,7 @@ export interface MockBehavior {
  */
 export class MockAdapter implements HarnessAdapter {
 	name = "mock";
+	readonly instructionTarget = "CLAUDE.md";
 	private behavior: MockBehavior;
 
 	constructor(behavior: MockBehavior) {
@@ -30,7 +31,7 @@ export class MockAdapter implements HarnessAdapter {
 		return true;
 	}
 
-	async injectInstructions(_worktreePath: string, _instructions: InstructionSet): Promise<void> {
+	async injectInstructions(_worktreePath: string, _sourcePath: string): Promise<void> {
 		// Mock does nothing for instruction injection
 	}
 

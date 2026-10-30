@@ -1,0 +1,4 @@
+{"type":"step_start","timestamp":1761840000000,"part":{"type":"step-start"}}
+{"type":"text","part":{"type":"text","text":"Working on it"}}
+{"type":"step_finish","part":{"type":"step-finish","tokens":{"input":9000,"output":300,"reasoning":50,"cache":{"read":0,"write":0}},"cost":0.012}}
+{"type":"step_finish","part":{"type":"step-finish","tokens":{"input":9800,"output":120,"reasoning":0,"cache":{"read":9000,"write":0}},"cost":0.004}}

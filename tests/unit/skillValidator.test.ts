@@ -78,13 +78,86 @@ describe("SkillValidatorRule", () => {
 		expect(diags.some((d) => d.ruleId === "skill/description-second-person")).toBe(true);
 	});
 
-	test("skips files without frontmatter", async () => {
+	test("flags SKILL.md without frontmatter", async () => {
 		const file = makeParsedFile(
 			"# Just a regular markdown file\n\nNo frontmatter here.",
 			"SKILL.md",
 		);
 		const diags = await rule.run(makeContext([file]));
+		expect(diags.map((d) => d.ruleId)).toEqual(["skill/frontmatter-invalid"]);
+	});
+
+	test("ignores non-skill files with frontmatter", async () => {
+		const rule_ = makeParsedFile(
+			"---\npaths:\n  - src/**\n---\n\n# API rules",
+			".claude/rules/api.md",
+		);
+		const agent = makeParsedFile(
+			"---\nname: reviewer\ndescription: Reviews code\ntools: Read\n---\n\nReview.",
+			".claude/agents/reviewer.md",
+		);
+		const copilot = makeParsedFile(
+			'---\napplyTo: "**/*.ts"\n---\n\nUse strict mode.',
+			".github/instructions/ts.instructions.md",
+		);
+		const diags = await rule.run(makeContext([rule_, agent, copilot]));
 		expect(diags).toHaveLength(0);
+	});
+
+	test("parses CRLF frontmatter", async () => {
+		const file = makeParsedFile(
+			"---\r\nname: my-skill\r\ndescription: Use when processing PDF files.\r\n---\r\n\r\n## Overview\r\n\r\nProcesses PDFs.\r\n",
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags).toHaveLength(0);
+	});
+
+	test("flags leading, trailing, and double hyphens in name", async () => {
+		for (const name of ["-skill", "skill-", "my--skill"]) {
+			const file = makeParsedFile(
+				`---\nname: ${name}\ndescription: Use when testing.\n---\n\n## Overview\n`,
+				"SKILL.md",
+			);
+			const diags = await rule.run(makeContext([file]));
+			expect(diags.some((d) => d.ruleId === "skill/name-invalid-hyphens")).toBe(true);
+		}
+	});
+
+	test("flags name that does not match its skills/ directory", async () => {
+		const file = makeParsedFile(
+			"---\nname: pdf-tools\ndescription: Use when processing PDFs.\n---\n\n## Overview\n",
+			".claude/skills/pdf/SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/name-directory-mismatch")).toBe(true);
+	});
+
+	test("accepts name matching its skills/ directory and spec fields", async () => {
+		const file = makeParsedFile(
+			"---\nname: pdf\ndescription: Use when processing PDFs.\nlicense: MIT\ncompatibility: Requires poppler\nwhen_to_use: Any PDF task\neffort: xhigh\n---\n\n## Overview\n",
+			".agents/skills/pdf/SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags).toHaveLength(0);
+	});
+
+	test("flags description + when_to_use over the 1536-char listing cap", async () => {
+		const file = makeParsedFile(
+			`---\nname: my-skill\ndescription: Use when ${"a".repeat(1000)}\nwhen_to_use: ${"b".repeat(600)}\n---\n\n## Overview\n`,
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/listing-truncated")).toBe(true);
+	});
+
+	test("flags compatibility over 500 chars", async () => {
+		const file = makeParsedFile(
+			`---\nname: my-skill\ndescription: Use when testing.\ncompatibility: ${"x".repeat(501)}\n---\n\n## Overview\n`,
+			"SKILL.md",
+		);
+		const diags = await rule.run(makeContext([file]));
+		expect(diags.some((d) => d.ruleId === "skill/compatibility-too-long")).toBe(true);
 	});
 
 	test("flags body exceeding 500 lines", async () => {

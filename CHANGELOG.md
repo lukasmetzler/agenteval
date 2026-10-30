@@ -5,6 +5,88 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-10-30
+
+Catch-up with six months of agent ecosystem changes. Research and sources: `docs/research/2026-10-30-agent-ecosystem.md`.
+
+### Added
+
+- Lint discovers every current instruction format by default: nested `CLAUDE.md`/`AGENTS.md`, `CLAUDE.local.md`, `GEMINI.md`, `.agents/skills/`, `.cursor/rules/*.mdc`, `.devin/rules/` and `.windsurf/rules/`, `.kiro/steering/`, `.junie/`, and `.github/instructions/**/*.instructions.md`.
+- Files are classified by kind (instruction, skill, subagent, command, Claude rule, Copilot path instruction, Cursor/Devin/Kiro rule), and `frontmatter/*` rules check each kind's documented fields.
+- `@import` resolution (4 hops, relative to the importing file) with `import/missing`, `import/cycle`, and `import/too-deep`. Imports count toward the context budget.
+- `agent-limits/*` rules for documented loading limits: Codex's 32 KiB AGENTS.md chain, Claude's 200-line recommendation and 40k-character truncation of nested files, Cursor ignoring `.md` in `.cursor/rules`, Claude Code ignoring AGENTS.md next to CLAUDE.md.
+- Toolchain detection (`src/toolchain/`): package manager from lockfile or `packageManager`, scripts, and oxlint, oxfmt, Biome, ESLint, Prettier, TypeScript 6/7, Ruff, ty, Black, mypy. `doctor` prints it.
+- `toolchain/*` rules: `missing-script`, `wrong-package-manager`, `absent-tool` (`npx eslint` in an oxlint repo), `undocumented`.
+- `lint-delta` assertion and live-review rubric: run the repo's oxlint, ESLint, Biome, Ruff, and tsc on the agent's diff and count only findings on added lines. Harvest adds it to emitted tasks when a linter is available.
+- Harnesses for Codex, Gemini CLI, Antigravity, Copilot CLI, and Amp, built on one declarative `CliAdapter`. Results record real tokens, cost, turns, and model from each CLI's JSON output.
+- `run --trials N` with pass rate, pass@k, pass^k, and mean ± sd; `run --baseline` runs each trial with all instruction files removed and reports the Δ. `run --format json`.
+- `ci --trials N` gates on the mean score; `ci --format json|junit`.
+- `lint --format sarif` (SARIF 2.1.0) and `lint --format github` (Actions annotations).
+- `run --model`, `ci --model`, and task fields `model`, `trials`, `setup`.
+- Results store `changedFiles` and `metrics.tokensCacheRead`.
+- Harvest signals for Codex, VS Code Copilot, the Copilot coding agent (bot email, `Agent-Logs-Url`), Amp (`Amp-Thread-ID`), Aider author names, Factory, OpenCode, and GitHub bot accounts. The attributed model is recorded as `detectedModel`.
+- `liveReview.judgeModel` (default `sonnet`).
+- `context-budget/unknown-model` note instead of a silent 200k fallback.
+- `AGENTEVAL_NO_UPDATE_CHECK=1`; the update check is also skipped when `CI` is set.
+- `schema.json` is generated from the Zod schema (`bun run schema`) and checked by a test.
+- Docs: `docs/harnesses.md`, `docs/toolchain.md`, all 65 lint rule IDs in `docs/lint.md`.
+- Agent Skill `skills/agenteval/SKILL.md` (Agent Skills spec): lint instruction files after editing them and fix the findings. A test checks it passes agenteval's own lint.
+
+### Changed
+
+- Skill validation follows the open Agent Skills spec: `name` must match its directory and has hyphen rules, `effort: xhigh`, `when_to_use`/`license`/`compatibility`/`arguments`/`disallowed-tools`/`background` are known, and listings over 1536 characters are flagged. It runs only on `SKILL.md`.
+- The context budget counts only files loaded at session start (root instruction files, rules without `paths`) plus their imports.
+- Instructions are injected where the harness's agent reads them (`AGENTS.md` for Codex, `GEMINI.md` for Gemini) instead of under the source file's name.
+- `--harness` accepts `harnesses:` keys, and a config entry overrides a built-in of the same name. `auto` picks the first installed CLI whose instruction file exists instead of failing when several exist.
+- `windsurf` is an alias for the new `devin` harness. `cursor` runs `agent -p --force`, `opencode` runs `opencode run --format json --auto`.
+- `no-new-warnings` without `command` means `lint-delta`.
+- The `--analyze` judge runs with all tools disabled (`--tools ""`, `dontAsk`) instead of `--dangerously-skip-permissions`, gets the prompt on stdin, and a failed judgement drops the rubric instead of scoring 5/10.
+- Model table updated to the Claude 5 family; `claude-sonnet-4-6` is 1M. Retired `claude-sonnet-4-20250514`, `claude-opus-4-20250514`, and `claude-haiku-3-5-20241022` removed. Default model `claude-opus-5-5`.
+- Output shows repo-relative paths instead of bare filenames.
+- Diagnostics from the logger go to stderr.
+- Harvest's test command runs the `test` script through the repo's package manager.
+
+### Fixed
+
+- `.claude/rules/*.md`, `.claude/agents/*.md`, and `*.instructions.md` no longer get `skill/description-missing` errors.
+- Files the agent creates are included in the diff and scored; injected instruction files are not.
+- Diff parsing works with `diff.mnemonicPrefix`, `diff.noprefix`, colour, and external diff drivers.
+- Run IDs no longer collide for parallel CI tasks or trials started in the same second.
+- Timeouts send SIGKILL 10 seconds after SIGTERM; assertion and setup commands time out too.
+- Harvest no longer flags humans such as `jules.smith@` or `codex.fan@`, reads commit bodies, and matches the Copilot coding agent.
+- `lint --fix` no longer collapses spaces across the whole file; it edits changed prose lines only.
+- `watch` picks up new files and honours `lint.ignore`; `doctor` honours `lint.ignore`.
+- Mentioned paths resolve relative to the instruction file, with a repo-root fallback.
+- SKILL.md frontmatter with CRLF line endings parses.
+- GitHub Action: inputs no longer interpolated into the shell script, `latest` resolution works, binary installs to `RUNNER_TEMP`, linux-arm64 fails with a clear message.
+- The pre-commit hook regex matches current instruction file names.
+- Line numbers for findings below a fenced code block were off by the block's length.
+- Harvested tasks ran at `HEAD`, where the commit's change already exists. They now start from the source commit's parent.
+- A failed agent run that printed output was scored as a success. A non-zero exit or a failure in the agent's JSON output now makes the run an `error` with the agent's reason.
+- Efficiency ignores prompt-cache reads. Counting them put almost every multi-turn Claude Code run at 0.
+- Codex output tokens no longer double-count reasoning tokens.
+- `watch` missed files in directories created after startup on Bun 1.3 (the version release binaries are built with). It now also re-resolves the globs every 2 seconds.
+- The pre-commit hook reported "lint errors found" and blocked the commit when `agenteval` wasn't on PATH. It now skips with an install hint.
+- Placeholder and glob paths such as `src/<name>.test.ts` or `docs/$TOPIC.md` are no longer reported as missing files.
+- `run.timeout` in the config never applied: the task loader gave every task a 300 s timeout. Tasks without `timeout` now use `run.timeout`.
+- `lint --quiet` claimed to show only errors but printed every diagnostic. It now filters to errors.
+- The update check announced an "update" when the local version was newer than the latest release. It now compares versions.
+- `harvest` suggested `--min-confidence 0.3` when it found nothing, which can't find more commits (the lowest signal is 0.6). It now says which signals it looks for.
+- `--explain` printed nothing for the 24 rules added in this release; every rule has an explanation now, enforced by a test.
+- Harvest snapshots read all files of a commit with one `git cat-file --batch` instead of one `git show` per file, and honour `lint.ignore`. With the wider default globs, a dry run on a repo with fixture CLAUDE.md files had grown to about 1,500 git processes.
+- `harvest --config` now applies to instruction snapshots too.
+- A `ci` task whose run errored or timed out reports that run's error instead of "below minimum".
+- `trends` leaves out baseline-arm runs.
+- Heading anchors keep repeated hyphens, as GitHub does, so `#llm-assisted-rubrics---analyze` is no longer flagged as broken.
+- Paths at the end of a sentence (`src/foo.ts.`) lose the trailing period before the existence check.
+- Anti-pattern findings point at the matching line instead of the section heading.
+- `skill/description-first-person` also catches "I deploy", "I run", and similar.
+- The `results` table's ID column fits the 26-character run ids.
+- The `bloat/filler-phrases` suggestion quotes phrases that are actually in its list.
+- `resultRetention` is validated when the config loads (`<N>d`), instead of failing later in `results --prune`.
+- Config and init-template descriptions for `tokensBudget`, `overlapThreshold`, `bloatThreshold`, and glob paths now say what the code does.
+- `skill/description-truncation` claimed descriptions over 250 characters get truncated. Claude Code truncates at 1536 (`skill/listing-truncated`); the note now explains the shared listing budget instead.
+
 ## [0.8.14] - 2026-04-06
 
 ### Fixed

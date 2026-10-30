@@ -1,6 +1,6 @@
 {
 	"name": "agenteval",
-	"version": "0.8.14",
+	"version": "0.9.0",
 	"description": "Measure whether your AI coding instructions actually make agents perform better",
 	"type": "module",
 	"keywords": [
@@ -40,7 +40,8 @@
 		"lint": "biome check --write .",
 		"lint:ci": "biome ci .",
 		"typecheck": "tsc --noEmit",
-		"check": "bun run lint:ci && bun run typecheck && bun run test"
+		"check": "bun run lint:ci && bun run typecheck && bun run test",
+		"schema": "bun run scripts/gen-schema.ts"
 	},
 	"dependencies": {
 		"chalk": "5.6.2",
@@ -58,6 +59,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.10",
 		"@types/bun": "^1.3.11",
+		"oxlint": "^1.90.0",
 		"typescript": "^6.0.2"
 	}
 }

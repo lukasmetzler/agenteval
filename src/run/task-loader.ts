@@ -5,10 +5,19 @@ import { z } from "zod";
 import type { TaskDefinition } from "./types.js";
 
 const TaskAssertionSchema = z.object({
-	type: z.enum(["files-changed", "files-unchanged", "test-pass", "no-new-warnings", "convention"]),
+	type: z.enum([
+		"files-changed",
+		"files-unchanged",
+		"test-pass",
+		"no-new-warnings",
+		"convention",
+		"lint-delta",
+	]),
 	pattern: z.string().optional(),
 	command: z.string().optional(),
 	expect: z.string().optional(),
+	tools: z.union([z.literal("auto"), z.array(z.string())]).optional(),
+	maxNew: z.number().int().min(0).optional(),
 });
 
 const ScoringWeightsSchema = z.object({
@@ -22,10 +31,11 @@ const TaskDefinitionSchema = z.object({
 	name: z.string(),
 	description: z.string(),
 	prompt: z.string().optional(),
-	harness: z
-		.enum(["claude-code", "cursor", "opencode", "windsurf", "copilot", "generic", "auto"])
-		.default("auto"),
-	timeout: z.number().min(1).default(300),
+	harness: z.string().default("auto"),
+	model: z.string().optional(),
+	timeout: z.number().min(1).optional(),
+	trials: z.number().int().min(1).optional(),
+	setup: z.array(z.string()).optional(),
 	assertions: z.array(TaskAssertionSchema).default([]),
 	scoring: ScoringWeightsSchema.default(ScoringWeightsSchema.parse({})),
 	sourceCommit: z.string().optional(),
@@ -33,6 +43,7 @@ const TaskDefinitionSchema = z.object({
 	prUrl: z.string().optional(),
 	prBody: z.string().optional(),
 	detectionConfidence: z.number().min(0).max(1).optional(),
+	detectedModel: z.string().optional(),
 	harvestDate: z.string().optional(),
 });
 
@@ -85,7 +96,6 @@ function createAdHocTask(description: string): TaskDefinition {
 		description,
 		prompt: description,
 		harness: "auto",
-		timeout: 300,
 		assertions: [],
 		scoring: {
 			correctness: 0.4,

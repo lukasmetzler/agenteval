@@ -1,5 +1,6 @@
 import type { Heading, Html, Root } from "mdast";
 import { toString as mdastToString } from "mdast-util-to-string";
+import { parse as parseYaml } from "yaml";
 
 export interface Section {
 	heading: string;
@@ -108,4 +109,33 @@ export function extractFrontmatter(tree: Root): string | null {
 		}
 	}
 	return null;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Parse YAML frontmatter into a plain object. Returns null when there is no
+ * frontmatter, when the YAML is malformed, or when it is not a mapping.
+ */
+export function parseFrontmatter(tree: Root): Record<string, unknown> | null {
+	const raw = extractFrontmatter(tree);
+	if (raw === null) return null;
+	try {
+		const parsed: unknown = parseYaml(raw);
+		if (parsed === null || parsed === undefined) return {};
+		return isPlainObject(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+/** Content after the frontmatter block (or the whole content when there is none). */
+export function extractBody(tree: Root, content: string): string {
+	const first = tree.children[0];
+	if (first?.type === "yaml" && first.position?.end.offset !== undefined) {
+		return content.slice(first.position.end.offset).replace(/^\r?\n/, "");
+	}
+	return content;
 }

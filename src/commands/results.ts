@@ -103,7 +103,7 @@ function printConsoleTable(
 		status: string;
 	}[],
 ): void {
-	const idW = 26;
+	const idW = 28; // run-YYYYMMDD-HHMMSS-xxxxxx is 26 characters
 	const taskW = 18;
 	const harnessW = 13;
 	const scoreW = 7;

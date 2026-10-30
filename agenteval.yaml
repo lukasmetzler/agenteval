@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=./schema.json
+# agenteval's own config: lint this repo's instruction files, not the test fixtures.
+version: 1
+lint:
+  ignore:
+    - "tests/fixtures/**"
+    - "demo/**"

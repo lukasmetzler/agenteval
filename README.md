@@ -1,6 +1,6 @@
 # agenteval
 
-Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules.
+Your CLAUDE.md is untested. So is your AGENTS.md, your GEMINI.md, your Cursor rules, and your skills.
 
 agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does. Then it scores agent performance so you can measure whether your instruction changes actually help.
 
@@ -25,13 +25,15 @@ brew tap lukasmetzler/agenteval && brew install agenteval   # Homebrew
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash  # Shell
 ```
 
-No Bun, no Node at runtime. The binary is self-contained.
+The Homebrew and curl installs are a self-contained binary with no Bun or Node needed. The npm package is a small Node wrapper that downloads that binary on first run.
 
 ## Quick Start
 
 ```bash
 agenteval lint                    # Find problems in your instruction files
 agenteval lint --explain          # Same, with explanations for each rule
+agenteval doctor                  # Show detected agent CLIs and toolchain
+agenteval run --task t.yaml --trials 3 --baseline   # Do your instructions help?
 agenteval harvest --dry-run       # Preview what AI commits are in your history
 agenteval ci                      # Run all tasks, fail on regressions
 ```
@@ -39,45 +41,55 @@ agenteval ci                      # Run all tasks, fail on regressions
 ## What It Catches
 
 - Dead references to files, paths, and headings that don't exist
-- Filler phrases that waste context tokens ("make sure to", "it is important that")
+- Filler phrases that waste context tokens ("it is important to note that", "in order to")
 - Contradictions between instruction files ("always use X" and "never use X")
 - Content overlap and duplication across files
 - Token budget overruns that crowd out code context
 - Vague instructions without actionable specifics
 - Stale instructions referencing code that was refactored weeks ago
-- Invalid skill metadata (per Anthropic spec)
+- Invalid skill metadata (per the open Agent Skills spec) and broken rule, subagent, and command frontmatter
+- Missing or circular `@imports`
+- Files an agent silently truncates or ignores (Codex's 32 KiB AGENTS.md cap, `.md` files in `.cursor/rules`, AGENTS.md shadowed by CLAUDE.md)
+- Commands that don't match the repo: `npm install` in a bun repo, `bun run format` with no such script, `npx eslint` in an oxlint repo
 - Broken markdown links and heading anchors
 
 ## Supported Formats
 
 | Format | Pattern |
 |--------|---------|
-| Claude Code | `CLAUDE.md` |
-| OpenAI Codex / AGENTS | `AGENTS.md` |
-| GitHub Copilot | `.github/copilot-instructions.md` |
-| Scoped Copilot | `.github/instructions/*.instructions.md` |
-| Anthropic Skills | `.claude/skills/*/SKILL.md` |
-| Cursor | `.cursorrules`, `.cursor/rules/*.mdc` |
-| Windsurf | `.windsurfrules` |
+| Claude Code | `CLAUDE.md` (nested too), `CLAUDE.local.md`, `.claude/rules/`, `.claude/agents/`, `.claude/commands/` |
+| AGENTS.md (Codex, Copilot, Cursor, OpenCode, Amp, Devin, ...) | `AGENTS.md` (nested too) |
+| Gemini CLI / Antigravity | `GEMINI.md` |
+| GitHub Copilot | `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md` |
+| Agent Skills | `.claude/skills/*/SKILL.md`, `.agents/skills/*/SKILL.md` |
+| Cursor | `.cursor/rules/**/*.mdc` |
+| Devin / Windsurf | `.devin/rules/*.md`, `.windsurf/rules/*.md` |
+| Kiro | `.kiro/steering/*.md` |
+| JetBrains Junie | `.junie/**/*.md` |
+
+Evals run on Claude Code, Codex, Gemini CLI, Antigravity, Copilot CLI, Cursor CLI, OpenCode, Devin, and Amp, or any CLI you configure. See [Harnesses](docs/harnesses.md).
 
 ## Commands
 
 | Command | What it does | Guide |
 |---------|-------------|-------|
 | `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
-| `agenteval lint --fix` | Auto-fix filler phrases and simple issues | [Linting](docs/lint.md) |
+| `agenteval lint --fix` | Remove filler phrases in place | [Linting](docs/lint.md) |
 | `agenteval watch` | Watch files, re-lint on save | |
 | `agenteval harvest` | Build eval tasks from AI commit history | [Harvesting](docs/harvest.md) |
 | `agenteval harvest --live` | Score working tree changes before committing | [Harvesting](docs/harvest.md) |
 | `agenteval run --task <file>` | Run an AI agent, score the result | [Running Evals](docs/run.md) |
+| `agenteval run --trials 3 --baseline` | Repeat, and compare against no instructions | [Running Evals](docs/run.md#trials-and-the-baseline-arm) |
+| `agenteval results` | List stored runs, prune old ones | [Results](docs/results.md) |
 | `agenteval compare <A> <B>` | Diff two runs side by side | [Results](docs/results.md) |
 | `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
 | `agenteval ci --parallel <n>` | Run tasks concurrently | [CI Guide](docs/ci.md) |
+| `agenteval lint --format sarif` | SARIF for code scanning (also `github` annotations) | [Linting](docs/lint.md) |
+| `agenteval doctor` | Check agent CLIs, toolchain, and config | [Toolchain](docs/toolchain.md) |
 | `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
 | `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
 | `agenteval init --hook` | Add pre-commit lint hook | [Configuration](docs/configuration.md) |
 | `agenteval update` | Self-update to the latest version | |
-| `agenteval doctor` | Check environment health | |
 
 ## The Pipeline
 
@@ -99,7 +111,30 @@ flowchart LR
 
 Lint catches problems statically. Harvest builds benchmarks from your git history. Run scores agent performance. Compare tells you what changed. CI gates regressions before they merge.
 
+## Agent Skill
+
+`skills/agenteval/SKILL.md` tells a coding agent to run `agenteval lint` after it edits an instruction file, and to fix each finding by changing the instructions to match the repo. Before an eval, which runs a paid agent, the skill makes the agent ask you first. It follows the open [Agent Skills](https://agentskills.io/specification) spec.
+
+Copy the file into the skills directory your agent reads. Claude Code reads `.claude/skills/`. Codex, Antigravity, and Zed read `.agents/skills/`.
+
+```bash
+dir=.claude/skills/agenteval   # .agents/skills/agenteval for Codex, Antigravity, or Zed
+mkdir -p "$dir"
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/skills/agenteval/SKILL.md \
+	-o "$dir/SKILL.md"
+```
+
+Agents often skip a skill unless something points them at it. Add one line to your CLAUDE.md or AGENTS.md:
+
+```markdown
+After editing CLAUDE.md, AGENTS.md, rules, or skills, use the agenteval skill to lint them.
+```
+
+In a test with Claude Haiku 5.5, the agent ignored the installed skill and wrote a command that doesn't exist. With that line, it loaded the skill, ran `agenteval lint`, switched `npm` to `bun`, and flagged the missing script instead of guessing.
+
 ## CI Integration
+
+
 
 Add agenteval to your GitHub Actions workflow with one line:
 
@@ -135,7 +170,9 @@ See the [CI Guide](docs/ci.md) for thresholds, configuration, and examples.
 | [Core Concepts](docs/concepts.md) | Instructions, tasks, assertions, harnesses, scoring |
 | [Getting Started](docs/getting-started.md) | Installation, first run, full walkthrough |
 | [Linting](docs/lint.md) | All lint rules, output formats, CI integration |
-| [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring pipeline |
+| [Running Evals](docs/run.md) | Task definitions, trials, baseline arm, assertions, scoring |
+| [Harnesses](docs/harnesses.md) | Every supported agent CLI, invocation, and metrics |
+| [Toolchain checks](docs/toolchain.md) | Toolchain detection, `toolchain/*` rules, `lint-delta` |
 | [Harvesting](docs/harvest.md) | AI commit detection, task generation, live review |
 | [CI Guide](docs/ci.md) | Regression detection, thresholds, GitHub Actions example |
 | [Trends](docs/trends.md) | Score history and trend analysis |

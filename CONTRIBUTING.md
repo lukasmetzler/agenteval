@@ -16,11 +16,14 @@ src/
   commands/   # CLI command handlers
   config/     # Zod schema, YAML loader
   harvest/    # Git history mining, live review, rubrics
-  harness/    # AI tool adapters (Claude Code, generic, mock)
+  harness/    # Agent CLI adapters: CliAdapter driven by per-agent specs in builtin.ts,
+              #   GenericAdapter for `harnesses:` entries, MockAdapter, JSON metric parsers
   lint/       # Static analysis rules
-  output/     # Console, JSON, markdown formatters
-  run/        # Eval runner, worktree, scorer
+  markdown/   # Markdown parser, sections, frontmatter, file-kind classification, @imports
+  output/     # Console, JSON, markdown, SARIF/GitHub, CI (JSON/JUnit), trial report formatters
+  run/        # Eval runner, worktree, scorer, trials
   store/      # Result persistence, comparison
+  toolchain/  # Repo toolchain detection, shell command extraction, lint-delta runners
   utils/      # Logger, glob, path helpers
 tests/
   unit/       # Per-module unit tests
@@ -51,6 +54,13 @@ Every PR must pass `bun run check`:
 4. Add docs in `docs/<name>.md`
 5. Update README.md command table
 
+## Adding a Harness
+
+1. Add a `CliHarnessSpec` to `BUILTIN_SPECS` in `src/harness/builtin.ts` (binary, instruction target, headless args, prompt on stdin or as the last argument, metric parser)
+2. Add the name to `BUILTIN_HARNESSES` in `src/config/schema.ts`
+3. Add tests in `tests/unit/`
+4. Document in `docs/harnesses.md`
+
 ## Adding a Lint Rule
 
 1. Create rule class implementing `LintRule` in `src/lint/`
@@ -65,8 +75,8 @@ Every PR must pass `bun run check`:
 2. Update `CHANGELOG.md`
 3. Update `package.json` version
 4. Squash-merge to main
-5. Tag with `git tag v<version>`
-6. Push tag -- release workflow builds binaries automatically
+
+Releases are automatic. When a push to main changes `VERSION` and no `v<version>` tag exists yet, `.github/workflows/auto-release.yml` runs the tests, builds the binaries, creates the `v<version>` tag and GitHub release, moves the `v0` tag used by the GitHub Action, publishes `agenteval-cli` to npm (setting `npm/package.json` to that version), and updates the Homebrew formula. Don't tag by hand.
 
 ## Code Style
 

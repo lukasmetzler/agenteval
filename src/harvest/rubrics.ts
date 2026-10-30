@@ -1,3 +1,4 @@
+import type { LintDeltaResult } from "../toolchain/lintDelta.js";
 import type { RubricResult } from "./types.js";
 
 /**
@@ -246,4 +247,30 @@ export function scoreDiffHygiene(diff: string): RubricResult {
 
 	const suggestion = buildHygieneSuggestion(counts);
 	return { name: "diff-hygiene", score, maxScore: 10, details, suggestion };
+}
+
+/**
+ * Score new linter/type-checker findings on the lines a diff adds.
+ * Errors cost 2 points, warnings 1. Returns null when no linter could run.
+ */
+export function scoreLintDelta(delta: LintDeltaResult): RubricResult | null {
+	const ran = delta.runs.filter((r) => r.status === "ok").map((r) => r.tool);
+	if (ran.length === 0) return null;
+	const errors = delta.newDiagnostics.filter((d) => d.severity === "error").length;
+	const warnings = delta.newDiagnostics.length - errors;
+	const score = Math.max(0, 10 - errors * 2 - warnings);
+	const details = [
+		`Ran ${ran.join(", ")} on changed files: ${errors} new error(s), ${warnings} new warning(s)`,
+		...delta.newDiagnostics.slice(0, 5).map((d) => `${d.file}:${d.line} ${d.rule}: ${d.message}`),
+	];
+	return {
+		name: "Lint Delta",
+		score,
+		maxScore: 10,
+		details,
+		suggestion:
+			delta.newDiagnostics.length > 0
+				? "Fix the new findings, or tell the agent how to run the linter in your instructions"
+				: undefined,
+	};
 }

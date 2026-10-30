@@ -1,7 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stringify as yamlStringify } from "yaml";
 import type { TaskDefinition } from "../run/types.js";
+import { detectToolchain, scriptCommand } from "../toolchain/detect.js";
+import { autoLintTools } from "../toolchain/lintDelta.js";
 import type { PRInfo } from "./github.js";
 import type { AICommit, HarvestOptions } from "./types.js";
 
@@ -63,39 +65,24 @@ function inferPrompt(commit: AICommit): string {
 const TEST_FILE_PATTERN = /(?:test|spec|__tests__)/;
 
 /**
- * Detect the appropriate test command for a repository.
- * Reads package.json scripts.test and checks for bun indicators.
- * Falls back to "bun test" if detection fails.
+ * Detect the test command for a repository: the package.json test script run
+ * through the repo's package manager (so local binaries resolve), else the
+ * package manager's built-in runner. Falls back to "bun test".
  */
 export function detectTestCommand(repoPath?: string): string {
 	const fallback = "bun test";
-	if (!repoPath) return fallback;
+	if (!repoPath || !existsSync(repoPath)) return fallback;
 
-	try {
-		const pkgPath = join(repoPath, "package.json");
-		if (!existsSync(pkgPath)) return fallback;
-
-		const raw = readFileSync(pkgPath, "utf-8");
-		const pkg = JSON.parse(raw) as {
-			scripts?: Record<string, string>;
-		};
-		const testScript = pkg.scripts?.test;
-
-		if (testScript) {
-			return testScript;
-		}
-
-		// No test script — check for bun indicators
-		const hasBun =
-			existsSync(join(repoPath, "bunfig.toml")) ||
-			existsSync(join(repoPath, "bun.lockb")) ||
-			existsSync(join(repoPath, "bun.lock"));
-		if (hasBun) return "bun test";
-
-		return "npm test";
-	} catch {
-		return fallback;
+	const toolchain = detectToolchain(repoPath);
+	if (toolchain.scripts.test !== undefined) return scriptCommand(toolchain, "test");
+	if (toolchain.jsPackageManager === "bun" || existsSync(join(repoPath, "bunfig.toml"))) {
+		return "bun test";
 	}
+	if (toolchain.hasPackageJson) return `${toolchain.jsPackageManager ?? "npm"} test`;
+	if (toolchain.packageManagers.includes("uv")) return "uv run pytest";
+	if (toolchain.packageManagers.includes("cargo")) return "cargo test";
+	if (toolchain.packageManagers.includes("go")) return "go test ./...";
+	return fallback;
 }
 
 export interface EmitMetadata {
@@ -126,6 +113,12 @@ export function emitTaskYaml(
 		});
 	}
 
+	// When the repo has a linter or type checker agenteval can run, check that
+	// the agent's diff introduces no new findings.
+	if (repoPath && existsSync(repoPath) && autoLintTools(detectToolchain(repoPath)).length > 0) {
+		assertions.push({ type: "lint-delta" as const, tools: "auto" });
+	}
+
 	let prompt = inferPrompt(commit);
 
 	// Enrich terse prompts with PR body context
@@ -148,6 +141,8 @@ export function emitTaskYaml(
 			conventions: 0.1,
 		},
 	};
+
+	if (commit.detectedModel) task.detectedModel = commit.detectedModel;
 
 	if (metadata?.prInfo) {
 		task.prUrl = metadata.prInfo.url;

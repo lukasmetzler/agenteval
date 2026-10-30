@@ -7,6 +7,10 @@ export interface RawCommit {
 	authorEmail: string;
 	date: string;
 	coAuthorRaw: string;
+	/** Author name (catches "(aider)" suffixes and bot names). */
+	authorName?: string;
+	/** Commit body after the subject, including trailers. */
+	body?: string;
 }
 
 export interface AICommit {
@@ -17,6 +21,8 @@ export interface AICommit {
 	coAuthors: string[];
 	detectionMethod: DetectionMethod;
 	detectedTool?: string;
+	/** Model named in the attribution, e.g. "Claude Opus 5.5" from the co-author trailer. */
+	detectedModel?: string;
 	confidence: number;
 	timestamp: Date;
 	filesChanged: string[];
@@ -31,17 +37,23 @@ export interface HarvestOptions {
 	outputDir?: string;
 	dryRun?: boolean;
 	force?: boolean;
-	harness?: "claude-code" | "cursor" | "opencode" | "windsurf" | "copilot" | "generic" | "auto";
+	/** Built-in harness name, a key of config.harnesses, or "auto". */
+	harness?: string;
 	timeout?: number;
 	minConfidence?: number;
 	github?: boolean;
 	live?: boolean;
 	analyze?: boolean;
+	/** Globs for instruction snapshots; defaults to the repo's agenteval.yaml. */
+	instructionGlobs?: string[];
+	/** lint.ignore patterns, also skipped in snapshots. */
+	instructionIgnore?: string[];
 }
 
 export interface CommitSummary {
 	shortHash: string;
 	tool: string;
+	model?: string;
 	confidence: number;
 	message: string;
 }

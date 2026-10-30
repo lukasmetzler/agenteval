@@ -7,7 +7,30 @@ import { version } from "./version.js";
 const REPO = "lukasmetzler/agenteval";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+/** Whether `candidate` is a higher semver (major.minor.patch) than `current`. */
+export function isNewerVersion(candidate: string, current: string): boolean {
+	const parse = (v: string) => v.replace(/^v/, "").split(/[.-]/).slice(0, 3).map(Number);
+	const [a, b] = [parse(candidate), parse(current)];
+	for (let i = 0; i < 3; i++) {
+		const x = a[i] ?? 0;
+		const y = b[i] ?? 0;
+		if (Number.isNaN(x) || Number.isNaN(y)) return false;
+		if (x !== y) return x > y;
+	}
+	return false;
+}
+
+/** Skip the network check in CI and when the user opts out with AGENTEVAL_NO_UPDATE_CHECK=1. */
+export function updateCheckDisabled(
+	env: Record<string, string | undefined> = process.env,
+): boolean {
+	const truthy = (v: string | undefined) =>
+		v !== undefined && v !== "" && v !== "0" && v !== "false";
+	return truthy(env.AGENTEVAL_NO_UPDATE_CHECK) || truthy(env.CI);
+}
+
 export async function checkForUpdate(): Promise<void> {
+	if (updateCheckDisabled()) return;
 	try {
 		const dir = join(homedir(), ".agenteval");
 		const checkFile = join(dir, "last-update-check");
@@ -16,7 +39,7 @@ export async function checkForUpdate(): Promise<void> {
 		// Show pending notification (from a previous check)
 		if (existsSync(notifyFile)) {
 			const newVersion = readFileSync(notifyFile, "utf-8").trim();
-			if (newVersion !== version) {
+			if (isNewerVersion(newVersion, version)) {
 				process.stderr.write(
 					chalk.dim(
 						`  Update available: ${chalk.white(newVersion)} (current: ${version}). Run: agenteval update\n`,
@@ -48,7 +71,7 @@ export async function checkForUpdate(): Promise<void> {
 			const latest = data.tag_name.replace(/^v/, "");
 			writeFileSync(checkFile, new Date().toISOString());
 
-			if (latest !== version) {
+			if (isNewerVersion(latest, version)) {
 				writeFileSync(notifyFile, latest);
 			}
 		}

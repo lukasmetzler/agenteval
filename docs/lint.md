@@ -1,8 +1,8 @@
 # Linting Instruction Files
 
-`agenteval lint` statically analyzes AI coding instruction files -- CLAUDE.md, AGENTS.md, copilot-instructions.md, and skill definitions -- for quality problems that degrade agent performance. It checks for bloated content that wastes context window tokens, duplicated instructions across files, vague or contradictory rules, broken file references, and violations of skill metadata conventions. Think of it as ESLint for the prose you feed to coding agents: it catches the problems that cause agents to silently ignore your instructions or behave unpredictably.
+`agenteval lint` statically analyzes AI coding instruction files -- CLAUDE.md, AGENTS.md, GEMINI.md, Copilot, Cursor, Devin/Windsurf and Kiro rules, skills, and subagent definitions -- for quality problems that degrade agent performance. It checks for bloated content that wastes context window tokens, duplicated instructions across files, vague or contradictory rules, broken file references, and violations of skill metadata conventions. Think of it as ESLint for the prose you feed to coding agents: it catches the problems that cause agents to silently ignore your instructions or behave unpredictably.
 
-The linter runs 35 rules across 8 categories, using the cl100k_base tokenizer to estimate token counts. It requires no network access, no API keys, and no running agents. Results are deterministic.
+The linter runs 65 rules across 12 categories, using the cl100k_base tokenizer to estimate token counts. It requires no network access, no API keys, and no running agents. Results are deterministic.
 
 ## When to Use It
 
@@ -32,45 +32,89 @@ agenteval lint --severity warning
 # JSON output for CI
 agenteval lint --format json
 
+# Inline annotations on a GitHub pull request
+agenteval lint --format github
+
+# SARIF for GitHub code scanning
+agenteval lint --format sarif > agenteval.sarif
+
 # Markdown report for pull requests
 agenteval lint --format markdown
 ```
 
 ### Auto-Discovery
 
-When called without arguments, `agenteval lint` scans for instruction files matching these default globs:
+When called without arguments, `agenteval lint` scans for every instruction, rule, skill, and agent file format it knows:
 
-- `CLAUDE.md`
-- `AGENTS.md`
-- `.github/copilot-instructions.md`
-- `.claude/**/*.md`
-- `.github/instructions/*.md`
+| Pattern | Kind | Read by |
+|---|---|---|
+| `**/CLAUDE.md`, `CLAUDE.local.md` | instruction | Claude Code (nested files load lazily) |
+| `**/AGENTS.md` | instruction | Codex, Copilot, Cursor, OpenCode, Amp, Devin, Zed, Junie, Claude Code (fallback) |
+| `**/GEMINI.md` | instruction | Gemini CLI, Antigravity |
+| `.github/copilot-instructions.md` | instruction | GitHub Copilot |
+| `.github/instructions/**/*.instructions.md` | Copilot path instruction (`applyTo`) | GitHub Copilot |
+| `.claude/rules/**/*.md` | Claude rule (`paths`) | Claude Code |
+| `.claude/agents/**/*.md` | subagent | Claude Code |
+| `.claude/commands/**/*.md` | slash command | Claude Code |
+| `.claude/skills/*/SKILL.md`, `.agents/skills/*/SKILL.md` | skill | Claude Code, Codex, Cursor, Gemini CLI, and other Agent Skills clients |
+| `.cursor/rules/**/*.{md,mdc}` | Cursor rule (`globs`, `alwaysApply`) | Cursor (reads `.mdc` only; `.md` files are picked up so lint can warn about them) |
+| `.devin/rules/*.md`, `.windsurf/rules/*.md` | Devin rule (`trigger`) | Devin Desktop / Windsurf |
+| `.kiro/steering/*.md` | Kiro steering (`inclusion`) | Kiro |
+| `.junie/**/*.md` | instruction | JetBrains Junie |
 
-Override these defaults in `agenteval.yaml` with the `instructionGlobs` field, or pass explicit globs as positional arguments.
+Each file is classified by its path, and the frontmatter checks for that kind run on it. A `.claude/rules/` file with `paths:` is checked as a rule, not as a skill. `node_modules`, `.git`, `dist`, and `.agenteval` are always skipped.
+
+Override these defaults in `agenteval.yaml` with the `instructionGlobs` field, or pass explicit globs as positional arguments. `@path` imports in CLAUDE.md, GEMINI.md, and rule files are followed (up to 4 hops), checked, and counted toward the context budget, even when the imported file matches no glob.
 
 ### Example Output
 
-Running `agenteval lint` on a project with several issues produces output like this:
+Running `agenteval lint` on a project with a CLAUDE.md and one skill that both have problems produces output like this. Diagnostics are grouped by file, each with its severity, message, rule ID, line, and a suggested fix:
 
 ```
-  ⚠ warn   token-count/file-too-large          CLAUDE.md        ~12340 tokens exceeds limit of 8000
-  ℹ info   token-count/section-heavy            CLAUDE.md:15     Section "Conventions" uses ~5765 tokens (47% of file)
-  ⚠ warn   overlap/high-similarity              CLAUDE.md        CLAUDE.md and AGENTS.md share 42% similarity
-  ⚠ warn   bloat/low-density                    AGENTS.md:8      Section "Overview" has low information density (score: 0.38, threshold: 0.5)
-  ℹ info   bloat/filler-phrases                 AGENTS.md:8      Section "Overview" contains 3 filler phrase(s)
-  ⚠ warn   anti-pattern/role-play               CLAUDE.md:1      Role-playing preambles like "You are an expert...": "You are an expert"
-  ✗ error  anti-pattern/contradictory-rules     CLAUDE.md        Contradictory rules: both "always semicolons" and "never semicolons" found
-  ✗ error  dead-ref/missing-file                AGENTS.md:22     Referenced file "src/utils/deprecated.ts" does not exist
-  ⚠ warn   dead-ref/broken-link                 CLAUDE.md:45     Broken link [style guide](./docs/style.md) — target does not exist
-  ✗ error  context-budget/exceeded              (all files)      Total instruction tokens (~72000) exceed budget of 60000 (30% of 200000 context window)
+  agenteval lint  ·  2 files  ·  ~118 tokens  ·  30ms
+  ──────────────────────────────────────────────────────────────────────
+
+  CLAUDE.md
+     info   Section "Notes" contains 3 filler phrase(s)  (bloat/filler-phrases)
+           line 15
+           → Rewrite without phrases like 'make sure to', 'it is important that'
+     WARN   Role-playing preambles like "You are an expert...": "You are"  (anti-pattern/role-play)
+           line 1
+           → Remove the preamble — models already know how to code
+     info   Vague instructions without specifics: "make sure to"  (anti-pattern/vague-instruction)
+           line 15
+           → Replace with a specific example or threshold
+     WARN   Draft artifacts left in instructions: "TODO"  (anti-pattern/todo-in-instructions)
+           line 15
+           → Either complete the TODO or remove it
+     ERROR  Contradictory rules: both "always semicolons" and "never semicolons" found  (anti-pattern/contradictory-rules)
+           → Remove one of the contradicting rules
+     WARN   Broken link [the style guide](./docs/style.md) — target does not exist  (dead-ref/broken-link)
+           line 13
+           → Fix the link target or remove the link
+     ERROR  Referenced file "src/auth/refresh.ts" does not exist  (dead-ref/missing-file)
+           line 13
+           → Remove the reference or create the missing file
+     ERROR  `bun run lint` runs script "lint", which package.json does not define  (toolchain/missing-script)
+           line 8
+           → Available scripts: test
+
+  .claude/skills/Deploy/SKILL.md
+     ERROR  Skill name "Deploy" must contain only lowercase letters, numbers, and hyphens  (skill/name-invalid-chars)
+           → Use only lowercase letters, numbers, and hyphens
+     info   Skill description should start with trigger conditions (e.g., 'Use when...'). Descriptions that summarize the workflow cause Claude to skip reading the body.  (skill/description-not-trigger)
+           → Rewrite as 'Use when [specific triggering condition]'
+     info   SKILL.md is missing an '## Overview' section. Good skills start with a concise overview of their purpose.  (skill/missing-overview-section)
+           → Add a '## Overview' section after the frontmatter with 1-2 sentences explaining what this skill does
 
   ──────────────────────────────────────────────────────────────────────
-  2 files analyzed · ~72000 tokens · 3 errors · 4 warnings · 2 info · 48ms
+  4 errors  ·  3 warnings  ·  4 info
+  Fix the errors above — they indicate broken references or contradictions that will confuse your AI agent.
 ```
 
 ## Quick Overview
 
-agenteval lint runs 35 rules across 8 categories. Here is what each category checks:
+agenteval lint runs 65 rules across 12 categories. Here is what each category checks:
 
 | Category | What it catches |
 |----------|----------------|
@@ -78,9 +122,14 @@ agenteval lint runs 35 rules across 8 categories. Here is what each category che
 | **OverlapDetector** | Duplicated content across multiple instruction files |
 | **BloatScorer** | Low-density prose, filler phrases, and repetitive wording |
 | **AntiPatternChecker** | Role-play preambles, vague instructions, contradictions, TODOs |
-| **DeadSectionAnalyzer** | References to files or links that no longer exist |
-| **ContextBudgetChecker** | Total instruction tokens exceeding your model's context budget |
-| **SkillValidator** | Invalid metadata in skill definition files (frontmatter) |
+| **DeadSectionAnalyzer** | References to files, links, or anchors that no longer exist |
+| **ContextBudgetChecker** | Tokens loaded at session start exceeding your model's context budget |
+| **SkillValidator** | SKILL.md files that break the Agent Skills spec |
+| **FrontmatterValidator** | Wrong or unknown frontmatter on rules, subagents, commands, and per-agent rule files |
+| **ImportResolver** | `@path` imports that are missing, circular, or too deep |
+| **AgentLimits** | Files an agent truncates, skips, or ignores because of its documented limits |
+| **ToolchainChecker** | Commands that don't match the repo's package manager, scripts, or linters |
+| **DriftDetector** | Referenced files changed long after the instructions describing them |
 
 Run `agenteval lint` and read the output -- it explains each issue it finds. The detailed rule reference below is for when you want to understand a specific rule in depth.
 
@@ -90,20 +139,19 @@ Run `agenteval lint` and read the output -- it explains each issue it finds. The
 |------|-------|---------|-------------|
 | `[globs...]` | | auto-discover | Positional glob patterns for instruction files to lint. Overrides `instructionGlobs` from config. |
 | `--config <path>` | `-c` | auto-discover | Path to `agenteval.yaml` configuration file. |
-| `--format <type>` | `-f` | `console` | Output format. Accepts `console`, `json`, or `markdown`. |
+| `--format <type>` | `-f` | `console` | Output format. Accepts `console`, `json`, `markdown`, `sarif` (SARIF 2.1.0), or `github` (Actions annotations). |
 | `--severity <level>` | | `info` | Minimum severity level to include in output. Accepts `info`, `warning`, or `error`. |
-| `--quiet` | | `false` | Suppress all output except errors. Sets the logger to error level. |
-| `--fix` | | | Auto-fix issues where possible. Not yet implemented; prints a notice and continues. |
+| `--quiet` | | `false` | Show only error-level diagnostics and suppress log output. Overrides `--severity`. |
+| `--fix` | | | Remove filler phrases (`bloat/filler-phrases`) in place, then lint again. Other rules are not auto-fixed. Edits prose lines only; code blocks, tables, and indentation stay as they are. |
+| `--explain` | | | Console format only: print a longer explanation under each rule that fired (why it matters and how to fix it). |
 
 The `--severity` flag filters the output after all rules have run. Setting `--severity warning` hides info-level diagnostics. Setting `--severity error` shows only errors.
 
-The `--quiet` flag is more aggressive: it suppresses all logger output (debug messages, file counts) in addition to filtering to errors only.
+The `--quiet` flag does the same as `--severity error` and also suppresses logger output (warnings such as "No instruction files found", debug messages).
 
 ## Rules Reference
 
-## Rules Reference
-
-agenteval lint runs 24 rules organized into 7 categories. Each rule has a fixed severity and a unique rule ID used for inline suppression and configuration.
+Each rule has a fixed severity and a unique rule ID used for inline suppression and configuration. The first seven categories have one section per rule with examples; the newer categories are summarized in tables after the SkillValidator section.
 
 ---
 
@@ -436,7 +484,7 @@ Checks whether the total token count across all instruction files fits within th
 budget = modelContextWindow * contextBudget
 ```
 
-For example, with the default model (`claude-sonnet-4-6`, 200,000 token window) and default `contextBudget` (0.3), the budget is 60,000 tokens. If `lint.maxTotalTokens` is set, it overrides this calculation.
+For example, with the default model (`claude-opus-5-5`, 1,000,000 token window) and default `contextBudget` (0.3), the budget is 300,000 tokens. If `lint.maxTotalTokens` is set, it overrides this calculation. Only files loaded at session start count (see [Other rules](#other-rules)).
 
 **Why it matters.** If instruction files consume too much of the context window, there is not enough room left for the codebase, conversation, and tool output. The agent's performance degrades because it cannot see the full picture.
 
@@ -459,7 +507,7 @@ For example, with the default model (`claude-sonnet-4-6`, 200,000 token window) 
 
 ### SkillValidator
 
-Validates skill file metadata according to the Anthropic skill specification. These rules only apply to files with YAML frontmatter containing a `name` field.
+Validates skill file metadata according to the Agent Skills specification. These rules run only on files classified as skills, which means files named `SKILL.md`. Other files with a `name` field in their frontmatter are not checked here.
 
 #### `skill/name-too-long`
 
@@ -566,6 +614,99 @@ description: Formats TypeScript files using Biome.
 
 **How to fix.** Split the skill into multiple smaller skills, or extract reference material into separate files.
 
+#### Other SkillValidator rules
+
+SkillValidator runs only on `SKILL.md` files. The rules follow the open [Agent Skills spec](https://agentskills.io/specification) plus Claude Code's documented extensions.
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `skill/frontmatter-invalid` | error | SKILL.md has no parseable YAML frontmatter. Agents load it with empty metadata, so it never triggers. |
+| `skill/name-invalid-hyphens` | error | `name` starts or ends with `-`, or contains `--`. |
+| `skill/name-directory-mismatch` | error | `name` differs from the skill's directory under `skills/`. The spec requires them to match. |
+| `skill/name-xml-tags` | error | `name` contains XML tags. |
+| `skill/description-too-long` | error | `description` is over 1024 characters. |
+| `skill/description-xml-tags` | error | `description` contains XML tags. |
+| `skill/description-truncation` | info | `description` is over 250 characters. Descriptions share one always-loaded listing budget, and the least-used are dropped first when it runs out. |
+| `skill/listing-truncated` | info | `description` plus `when_to_use` is over 1536 characters, where Claude Code cuts the listing entry. |
+| `skill/description-not-trigger` | info | `description` doesn't start with a trigger ("Use when..."). |
+| `skill/compatibility-too-long` | error | `compatibility` is over 500 characters. |
+| `skill/unknown-field` | warning | A frontmatter key is neither in the spec nor a known Claude Code extension. claude.ai and the API reject skills with non-spec fields on upload. |
+| `skill/invalid-effort` | error | `effort` is not `low`, `medium`, `high`, `xhigh`, or `max`. |
+| `skill/invalid-context` | error | `context` is not `fork`. |
+| `skill/invalid-shell` | error | `shell` is not `bash` or `powershell`. |
+| `skill/unreachable` | warning | `disable-model-invocation: true` together with `user-invocable: false`: nothing can invoke the skill. |
+| `skill/too-long-no-supporting-files` | info | Body is over 300 lines and the skill directory has no other `.md` files. |
+| `skill/missing-overview-section` | info | No `## Overview` heading. |
+| `skill/first-person-body` | info | The body says "I will", "I deploy", and so on. |
+
+### FrontmatterValidator
+
+Checks the frontmatter of every non-skill file kind against what its agent documents. Instruction files (CLAUDE.md, AGENTS.md, ...) are not checked.
+
+| Kind | Known fields |
+|---|---|
+| Claude rule | `paths`, `description` |
+| Copilot path instruction | `applyTo`, `excludeAgent` (`code-review` or `cloud-agent`), `name`, `description` |
+| Cursor rule | `description`, `globs`, `alwaysApply` |
+| Devin/Windsurf rule | `trigger` (`always_on`, `glob`, `model_decision`, `manual`), `globs`, `description` |
+| Kiro steering | `inclusion` (`always`, `fileMatch`, `manual`, `auto`), `fileMatchPattern`, `name`, `description` |
+| Subagent | `name` (required, max 256, no `:`), `description` (required), `tools`, `model`, `skills` (max 32), `effort`, `isolation`, and the other documented fields |
+| Slash command | `description`, `argument-hint`, `allowed-tools`, `model`, `disable-model-invocation` |
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `frontmatter/malformed` | error | The frontmatter isn't a YAML mapping, so the agent ignores it. |
+| `frontmatter/missing-required` | error | A required field is missing (subagent `name` or `description`). |
+| `frontmatter/invalid-value` | error | A field has the wrong type or an unknown enum value. |
+| `frontmatter/unknown-field` | warning | A key the agent doesn't document, often a typo (`glob` instead of `globs`). |
+| `frontmatter/never-applied` | warning or error | The file can never activate: a Copilot instruction without `applyTo`, a Devin `trigger: glob` without `globs`, a Kiro `fileMatch` without `fileMatchPattern`, or Kiro `auto` without `name` and `description`. |
+
+### ImportResolver
+
+Follows `@path` imports in instruction and Claude rule files the way Claude Code does: relative to the importing file, ignored inside code, at most 4 hops. Only tokens that look like files count (`@AGENTS.md`, `@docs/style.md`, `@./notes`), so `@types/node` or `@alice` in prose are not imports. Home-directory imports (`@~/...`) are personal and skipped.
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `import/missing` | error | The imported file does not exist. |
+| `import/cycle` | warning | An import leads back to a file already in the chain. |
+| `import/too-deep` | warning | An import sits more than 4 hops deep, where Claude Code stops following. |
+
+### AgentLimits
+
+Deterministic checks for limits the agents document. Each one marks content an agent drops without telling you.
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `agent-limits/codex-size` | warning | An AGENTS.md plus its ancestors is over 32 KiB. Codex stops reading there (`project_doc_max_bytes`). |
+| `agent-limits/claude-lines` | info | A CLAUDE.md is over 200 lines, where Claude Code starts warning. |
+| `agent-limits/claude-truncation` | warning | A nested CLAUDE.md is over 40,000 characters. Claude Code truncates lazily loaded files there on 200K-context models. |
+| `agent-limits/cursor-md-ignored` | warning | A `.md` file in `.cursor/rules/`. Cursor only reads `.mdc`. |
+| `agent-limits/cursor-lines` | info | A Cursor rule is over 500 lines. |
+| `agent-limits/claude-ignores-agents-md` | info | Root CLAUDE.md and AGENTS.md both exist and CLAUDE.md doesn't import `@AGENTS.md`. Claude Code reads AGENTS.md only when there is no CLAUDE.md. |
+
+### ToolchainChecker
+
+Reads the shell commands in fenced shell blocks and inline code, and compares them with the repo's real toolchain: lockfile, `package.json` scripts, and linter configs. See [Toolchain checks](toolchain.md) for what is detected and how.
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `toolchain/missing-script` | error | `bun run format` (or `npm run`, `pnpm x`, `yarn x`) names a script `package.json` doesn't define. |
+| `toolchain/wrong-package-manager` | warning | `npm install` in a repo whose lockfile says bun, pnpm, or yarn. |
+| `toolchain/absent-tool` | warning | `npx eslint .` in a repo that lints with oxlint, or `black .` in a repo that formats with Ruff. |
+| `toolchain/undocumented` | info | The repo has a linter, type checker, or test script that no instruction file tells the agent how to run. |
+
+### Other rules
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `dead-ref/broken-anchor` | warning | A `#anchor` link points at a heading that doesn't exist (same file or linked file). |
+| `dead-ref/undefined-reference` | warning | A `[text][ref]` link has no `[ref]: url` definition. |
+| `drift/stale-reference` | warning | A file the instructions mention changed in git more than 7 days after the instruction file last did. |
+| `context-budget/unknown-model` | info | `model` isn't in agenteval's table, so the budget assumes a 200,000-token window. Set `lint.maxTotalTokens` to silence it. |
+| `lint/no-files` | warning | No file matched `instructionGlobs`. |
+
+The context budget counts only what an agent loads at session start: root instruction files, rules without `paths`, and everything they `@import`. Nested CLAUDE.md/AGENTS.md files, path-scoped rules, skills, and subagents load on demand and are not counted.
+
 ## Inline Suppression
 
 Suppress specific rules or all rules for the next section using HTML comments.
@@ -629,7 +770,7 @@ instructionGlobs:
   - ".claude/**/*.md"
 
 # Model determines context window size for budget calculation
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # What fraction of the context window instructions may consume (0-1)
 contextBudget: 0.3
@@ -735,20 +876,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install agenteval
-        run: bun install
-
       - name: Lint instruction files
-        run: bunx agenteval lint --severity warning --format json
+        uses: lukasmetzler/agenteval@v0
+        with:
+          command: lint
+          args: "--format github"
 
       - name: Lint instruction files (PR comment)
         if: failure()
         run: |
-          bunx agenteval lint --format markdown > lint-report.md
+          npx -y agenteval-cli lint --format markdown > lint-report.md
           gh pr comment "${{ github.event.pull_request.number }}" --body-file lint-report.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -757,8 +894,8 @@ jobs:
 This workflow:
 
 1. Triggers only when instruction files or the agenteval config change.
-2. Runs lint at `warning` severity -- warnings and errors both cause a failure.
-3. On failure, posts the markdown report as a PR comment so the author sees what to fix.
+2. Runs lint through the agenteval GitHub Action, which installs the release binary. `--format github` turns each diagnostic into an inline annotation on the pull request. The step fails only when there is at least one error-level diagnostic; warnings and info are reported but don't fail the build.
+3. On failure, posts the markdown report as a PR comment so the author sees what to fix. Outside the Action, `npx -y agenteval-cli` runs the npm package without a global install.
 
 ### Exit Codes
 
@@ -774,14 +911,26 @@ Only error-level diagnostics affect the exit code. Warnings and info diagnostics
 
 ### Console (default)
 
-Human-readable, colorized output for terminal use.
+Human-readable, colorized output for terminal use, grouped by file. This is the same project as in [Example Output](#example-output), run with `--severity warning`:
 
 ```
-  ⚠ warn   token-count/file-too-large          CLAUDE.md        ~12340 tokens exceeds limit of 8000
-  ✗ error  dead-ref/missing-file                AGENTS.md:22     Referenced file "src/utils/deprecated.ts" does not exist
+  agenteval lint  ·  2 files  ·  ~118 tokens  ·  35ms
+  ──────────────────────────────────────────────────────────────────────
+
+  CLAUDE.md
+     WARN   Role-playing preambles like "You are an expert...": "You are"  (anti-pattern/role-play)
+           line 1
+           → Remove the preamble — models already know how to code
+     WARN   Draft artifacts left in instructions: "TODO"  (anti-pattern/todo-in-instructions)
+           line 15
+           → Either complete the TODO or remove it
+     ERROR  Contradictory rules: both "always semicolons" and "never semicolons" found  (anti-pattern/contradictory-rules)
+           → Remove one of the contradicting rules
+     ...
 
   ──────────────────────────────────────────────────────────────────────
-  2 files analyzed · ~15230 tokens · 1 error · 1 warning · 34ms
+  4 errors  ·  3 warnings
+  Fix the errors above — they indicate broken references or contradictions that will confuse your AI agent.
 ```
 
 ### JSON
@@ -792,34 +941,40 @@ Machine-readable output for CI pipelines, custom tooling, and programmatic analy
 {
   "diagnostics": [
     {
-      "ruleId": "token-count/file-too-large",
+      "ruleId": "anti-pattern/role-play",
       "severity": "warning",
-      "message": "~12340 tokens exceeds limit of 8000",
-      "filePath": "/path/to/CLAUDE.md",
+      "message": "Role-playing preambles like \"You are an expert...\": \"You are\"",
+      "filePath": "/path/to/project/CLAUDE.md",
+      "line": 1,
+      "section": "Project",
       "meta": {
-        "tokens": 12340,
-        "limit": 8000
-      }
+        "match": "You are",
+        "patternId": "role-play"
+      },
+      "suggestion": "Remove the preamble — models already know how to code"
     },
     {
       "ruleId": "dead-ref/missing-file",
       "severity": "error",
-      "message": "Referenced file \"src/utils/deprecated.ts\" does not exist",
-      "filePath": "/path/to/AGENTS.md",
-      "line": 22,
+      "message": "Referenced file \"src/auth/refresh.ts\" does not exist",
+      "filePath": "/path/to/project/CLAUDE.md",
+      "line": 13,
       "meta": {
-        "referencedPath": "src/utils/deprecated.ts",
-        "resolved": "/path/to/src/utils/deprecated.ts"
-      }
+        "referencedPath": "src/auth/refresh.ts",
+        "resolved": "/path/to/project/src/auth/refresh.ts"
+      },
+      "suggestion": "Remove the reference or create the missing file"
     }
   ],
   "stats": {
     "filesAnalyzed": 2,
-    "totalTokens": 15230,
-    "duration": 34.5
+    "totalTokens": 118,
+    "duration": 35.30098099999998
   }
 }
 ```
+
+The example is shortened to two diagnostics. `line`, `section`, `meta`, and `suggestion` are present only when the rule sets them.
 
 ### Markdown
 
@@ -828,15 +983,20 @@ Structured report suitable for pull request comments, documentation, or sharing.
 ```markdown
 # agenteval Lint Report
 
-**2** files analyzed · **~15230** tokens · **34ms**
+**2** files analyzed · **~118** tokens · **36ms**
 
-## Errors (1)
+## Errors (4)
 
-- **dead-ref/missing-file** in `AGENTS.md`:22 — Referenced file "src/utils/deprecated.ts" does not exist
+- **anti-pattern/contradictory-rules** in `CLAUDE.md` — Contradictory rules: both "always semicolons" and "never semicolons" found
+- **dead-ref/missing-file** in `CLAUDE.md`:13 — Referenced file "src/auth/refresh.ts" does not exist
+- **skill/name-invalid-chars** in `.claude/skills/Deploy/SKILL.md` — Skill name "Deploy" must contain only lowercase letters, numbers, and hyphens
+- **toolchain/missing-script** in `CLAUDE.md`:8 — `bun run lint` runs script "lint", which package.json does not define
 
-## Warnings (1)
+## Warnings (3)
 
-- **token-count/file-too-large** in `CLAUDE.md` — ~12340 tokens exceeds limit of 8000
+- **anti-pattern/role-play** in `CLAUDE.md`:1 — Role-playing preambles like "You are an expert...": "You are"
+- **anti-pattern/todo-in-instructions** in `CLAUDE.md`:15 — Draft artifacts left in instructions: "TODO"
+- **dead-ref/broken-link** in `CLAUDE.md`:13 — Broken link [the style guide](./docs/style.md) — target does not exist
 ```
 
 ## Token Counting
@@ -850,7 +1010,8 @@ The token counts are deliberately conservative: they may overcount slightly, whi
 ### "No instruction files found"
 
 ```
-⚠ warn   lint/no-files  (none)  No instruction files found matching: CLAUDE.md, AGENTS.md, ...
+  (none)
+     WARN   No instruction files found matching: **/CLAUDE.md, CLAUDE.local.md, **/AGENTS.md, ...  (lint/no-files)
 ```
 
 **Cause.** None of the default globs matched any files in the current working directory.
@@ -893,13 +1054,13 @@ lint:
 
 ### Context budget exceeded but files seem small
 
-**Cause.** The context budget is a fraction of the model's context window, not the full window. With the default settings (30% of 200,000 = 60,000 tokens), even modest instruction files can add up.
+**Cause.** The context budget is a fraction of the model's context window, not the full window. The default model (`claude-opus-5-5`) has a 1,000,000-token window, so the default budget is 300,000 tokens. A model with a smaller window, or a model name agenteval doesn't know (it then assumes 200,000 tokens and reports `context-budget/unknown-model`), gives a much smaller budget.
 
 **Fix.** Check which model and budget fraction you have configured:
 
 ```yaml
-model: claude-sonnet-4-6   # 200,000 token window
-contextBudget: 0.3                 # 30% = 60,000 token budget
+model: claude-haiku-4-5   # 200,000 token window
+contextBudget: 0.3        # 30% = 60,000 token budget
 ```
 
 To increase the budget, either raise `contextBudget` or set `lint.maxTotalTokens` explicitly:

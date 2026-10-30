@@ -39,23 +39,49 @@ runs:
           arm64|aarch64) ARCH="arm64" ;;
           *)             echo "::error::Unsupported arch: $ARCH"; exit 1 ;;
         esac
+        # Releases ship linux-x64, darwin-arm64 and darwin-x64 binaries.
+        if [ "$PLATFORM-$ARCH" = "linux-arm64" ]; then
+          echo "::error::No linux-arm64 release binary. Use an x64 runner or 'npm install -g agenteval-cli'."
+          exit 1
+        fi
         echo "binary=agenteval-${PLATFORM}-${ARCH}" >> "$GITHUB_OUTPUT"
 
     - name: Install agenteval
       shell: bash
+      env:
+        AGENTEVAL_VERSION: ${{ inputs.version }}
+        AGENTEVAL_BINARY: ${{ steps.platform.outputs.binary }}
       run: |
-        if [ "${{ inputs.version }}" = "latest" ]; then
-          VERSION=$(curl -fsSL "https://api.github.com/repos/lukasmetzler/agenteval/releases/latest" | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
+        if [ "$AGENTEVAL_VERSION" = "latest" ]; then
+          # The API pretty-prints JSON ("tag_name": "v1.2.3"), so allow whitespace after the colon.
+          VERSION=$(curl -fsSL "https://api.github.com/repos/lukasmetzler/agenteval/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not resolve the latest agenteval release"
+            exit 1
+          fi
         else
-          VERSION="v${{ inputs.version }}"
+          VERSION="v${AGENTEVAL_VERSION#v}"
         fi
-        URL="https://github.com/lukasmetzler/agenteval/releases/download/${VERSION}/${{ steps.platform.outputs.binary }}"
+        BIN_DIR="${RUNNER_TEMP:-/tmp}/agenteval-bin"
+        mkdir -p "$BIN_DIR"
+        URL="https://github.com/lukasmetzler/agenteval/releases/download/${VERSION}/${AGENTEVAL_BINARY}"
         echo "::group::Installing agenteval ${VERSION}"
-        curl -fsSL "$URL" -o /usr/local/bin/agenteval
-        chmod +x /usr/local/bin/agenteval
-        agenteval --version
+        curl -fsSL "$URL" -o "$BIN_DIR/agenteval"
+        chmod +x "$BIN_DIR/agenteval"
+        echo "$BIN_DIR" >> "$GITHUB_PATH"
+        "$BIN_DIR/agenteval" --version
         echo "::endgroup::"
 
     - name: Run agenteval
       shell: bash
-      run: agenteval ${{ inputs.command }} ${{ inputs.args }}
+      # Inputs arrive as environment variables, never interpolated into the script,
+      # so a crafted input can't inject shell code. Word splitting is intended
+      # ("harvest --dry-run"); globbing is disabled.
+      env:
+        AGENTEVAL_COMMAND: ${{ inputs.command }}
+        AGENTEVAL_ARGS: ${{ inputs.args }}
+        AGENTEVAL_NO_UPDATE_CHECK: "1"
+      run: |
+        set -f
+        # shellcheck disable=SC2086
+        agenteval $AGENTEVAL_COMMAND $AGENTEVAL_ARGS

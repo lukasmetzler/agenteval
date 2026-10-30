@@ -4,10 +4,13 @@ import type { Command } from "commander";
 import { glob } from "glob";
 import { loadConfig } from "../config/loader.js";
 import type { Config } from "../config/schema.js";
+import { isKnownHarness, knownHarnesses } from "../harness/registry.js";
+import { formatCIJson, formatCIJunit } from "../output/ci.js";
 import { header, kvLine, rule, scoreColor } from "../output/terminal.js";
 import { executeRun } from "../run/index.js";
 import { loadTask } from "../run/task-loader.js";
-import type { InstructionSet, StoredResult, TaskDefinition } from "../run/types.js";
+import { runTrials } from "../run/trials.js";
+import type { InstructionSet, StoredResult } from "../run/types.js";
 import { listResults, writeResult } from "../store/index.js";
 import { logger } from "../utils/logger.js";
 
@@ -19,6 +22,9 @@ interface CIOptions {
 	harness?: string;
 	config?: string;
 	parallel?: string;
+	trials?: string;
+	format?: string;
+	model?: string;
 }
 
 interface CITaskResult {
@@ -40,18 +46,9 @@ interface ResolvedCIConfig {
 	maxRegression: number;
 	instructions: InstructionSet;
 	harness?: string;
+	model?: string;
+	trials?: number;
 }
-
-const VALID_HARNESSES = [
-	"claude-code",
-	"cursor",
-	"opencode",
-	"windsurf",
-	"copilot",
-	"generic",
-	"auto",
-	"mock",
-];
 
 export function registerCICommand(program: Command): void {
 	program
@@ -62,7 +59,10 @@ export function registerCICommand(program: Command): void {
 		.option("--max-regression <n>", "max allowed score drop vs previous run 0-1")
 		.option("--instructions <path>", "instruction file to use")
 		.option("--harness <name>", "override harness for all tasks")
+		.option("--model <model>", "override the agent model for all tasks")
 		.option("--parallel <n>", "run up to N tasks in parallel")
+		.option("--trials <n>", "attempts per task; the gate uses the mean score")
+		.option("--format <format>", "report format: console, json, junit", "console")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (options: CIOptions) => {
 			try {
@@ -88,15 +88,14 @@ function resolveCIConfig(options: CIOptions): ResolvedCIConfig {
 
 	validateThresholds(minScore, maxRegression);
 
-	if (options.harness && !VALID_HARNESSES.includes(options.harness)) {
-		throw new Error(`Unknown harness "${options.harness}". Valid: ${VALID_HARNESSES.join(", ")}`);
+	if (options.harness && !isKnownHarness(options.harness, config)) {
+		throw new Error(
+			`Unknown harness "${options.harness}". Valid: ${knownHarnesses(config).join(", ")}, auto`,
+		);
 	}
 
 	const instructionFile = options.instructions ?? config.ci.instructions;
-	const instructions: InstructionSet = {
-		sourcePath: resolve(cwd, instructionFile),
-		targetFilename: instructionFile.split("/").pop() ?? "CLAUDE.md",
-	};
+	const instructions: InstructionSet = { sourcePath: resolve(cwd, instructionFile) };
 
 	return {
 		config,
@@ -107,6 +106,8 @@ function resolveCIConfig(options: CIOptions): ResolvedCIConfig {
 		maxRegression,
 		instructions,
 		harness: options.harness,
+		model: options.model,
+		trials: options.trials !== undefined ? Number.parseInt(options.trials, 10) : undefined,
 	};
 }
 
@@ -120,14 +121,19 @@ function validateThresholds(minScore: number, maxRegression: number): void {
 }
 
 function evaluateTaskResult(
-	result: StoredResult,
+	results: StoredResult[],
 	resultsDir: string,
 	minScore: number,
 	maxRegression: number,
 ): CITaskResult {
-	const previous = findPreviousResult(resultsDir, result.task, result.id);
-	const overall = result.scores.overall ?? 0;
-	const previousScore = previous?.scores.overall ?? null;
+	const first = results[0];
+	if (!first) throw new Error("no results to evaluate");
+	const overall = meanScore(results);
+	const previousScore = findPreviousScore(
+		resultsDir,
+		first.task,
+		new Set(results.map((r) => r.id)),
+	);
 	const delta = previousScore !== null ? overall - previousScore : null;
 
 	let status: "pass" | "fail" = "pass";
@@ -141,20 +147,51 @@ function evaluateTaskResult(
 		reason = `regressed ${Math.abs(delta).toFixed(2)} (max: ${maxRegression})`;
 	}
 
+	const failed = results.find((r) => r.status !== "success");
+	if (failed) {
+		status = "fail";
+		reason = `run ${failed.status}: ${failed.error ?? "no details"}`;
+	}
 	return {
-		task: result.task,
+		task: first.task,
 		score: overall,
 		previousScore,
 		delta,
 		status,
 		reason,
-		runStatus: result.status,
+		runStatus: failed?.status ?? "success",
 	};
+}
+
+/** Mean overall score; runs without a score count as 0. */
+function meanScore(results: StoredResult[]): number {
+	return results.reduce((sum, r) => sum + (r.scores.overall ?? 0), 0) / results.length;
+}
+
+/**
+ * Score of the most recent earlier run of a task. When that run was one of
+ * several trials, the mean over its whole trial group.
+ */
+export function findPreviousScore(
+	resultsDir: string,
+	taskName: string,
+	currentIds: Set<string>,
+): number | null {
+	const all = listResults(resultsDir, { task: taskName }).filter((r) => !currentIds.has(r.id));
+	const latest = all.find((r) => r.trial?.arm !== "baseline");
+	if (!latest) return null;
+	const group = latest.trial?.group;
+	if (!group) return latest.scores.overall ?? 0;
+	return meanScore(all.filter((r) => r.trial?.group === group && r.trial.arm === "instructions"));
 }
 
 function formatDelta(delta: number | null): string {
 	if (delta === null) return chalk.dim("new");
-	return delta >= 0 ? chalk.green(`+${delta.toFixed(2)}`) : chalk.red(delta.toFixed(2));
+	// Round first so float noise prints as +0.00, not -0.00.
+	const rounded = Number(delta.toFixed(2));
+	return rounded >= 0
+		? chalk.green(`+${Math.abs(rounded).toFixed(2)}`)
+		: chalk.red(rounded.toFixed(2));
 }
 
 async function runSingleTask(
@@ -165,16 +202,32 @@ async function runSingleTask(
 	const task = loadTask(taskPath, rc.cwd);
 
 	if (rc.harness) {
-		task.harness = rc.harness as TaskDefinition["harness"];
+		task.harness = rc.harness;
+	}
+	if (rc.model) {
+		task.model = rc.model;
 	}
 
 	process.stderr.write(chalk.dim(`  ${label} Running ${task.name}...`));
 
 	try {
-		const result = await executeRun(rc.config, task, rc.instructions, rc.cwd);
-		writeResult(result, rc.resultsDir);
+		const trials = rc.trials ?? task.trials ?? 1;
+		const runs =
+			trials > 1
+				? (
+						await runTrials({
+							config: rc.config,
+							task,
+							instructions: rc.instructions,
+							cwd: rc.cwd,
+							trials,
+							baseline: false,
+						})
+					).instructions
+				: [await executeRun(rc.config, task, rc.instructions, rc.cwd)];
+		for (const run of runs) writeResult(run, rc.resultsDir);
 
-		const taskResult = evaluateTaskResult(result, rc.resultsDir, rc.minScore, rc.maxRegression);
+		const taskResult = evaluateTaskResult(runs, rc.resultsDir, rc.minScore, rc.maxRegression);
 		const icon = taskResult.status === "pass" ? chalk.green("\u2713") : chalk.red("\u2717");
 		const scoreStr = scoreColor(taskResult.score, 1);
 		const deltaStr = formatDelta(taskResult.delta);
@@ -207,14 +260,21 @@ async function runCI(options: CIOptions): Promise<void> {
 		process.exit(2);
 	}
 
+	const format = options.format ?? "console";
+	if (!["console", "json", "junit"].includes(format)) {
+		throw new Error(`Unknown format "${format}". Valid: console, json, junit`);
+	}
+	// Machine formats own stdout; the human header goes to stderr with the progress lines.
+	const out = format === "console" ? console.log : console.error;
+
 	// 2. Print header
 	const instructionFile = options.instructions ?? rc.config.ci.instructions;
-	console.log(header("agenteval ci"));
-	console.log(kvLine("Tasks", chalk.cyan(String(taskFiles.length))));
-	console.log(kvLine("Instructions", chalk.cyan(instructionFile)));
-	console.log(kvLine("Min score", chalk.cyan(String(rc.minScore))));
-	console.log(kvLine("Max regression", chalk.cyan(String(rc.maxRegression))));
-	console.log("");
+	out(header("agenteval ci"));
+	out(kvLine("Tasks", chalk.cyan(String(taskFiles.length))));
+	out(kvLine("Instructions", chalk.cyan(instructionFile)));
+	out(kvLine("Min score", chalk.cyan(String(rc.minScore))));
+	out(kvLine("Max regression", chalk.cyan(String(rc.maxRegression))));
+	out("");
 
 	// 3. Run tasks (sequential or parallel)
 	const concurrency = options.parallel ? Math.max(1, Number.parseInt(options.parallel, 10)) : 1;
@@ -222,7 +282,7 @@ async function runCI(options: CIOptions): Promise<void> {
 	const startTime = performance.now();
 
 	if (concurrency > 1) {
-		console.log(kvLine("Parallel", chalk.cyan(String(concurrency))));
+		out(kvLine("Parallel", chalk.cyan(String(concurrency))));
 		results.push(...(await runTasksParallel(rc, taskFiles, concurrency)));
 	} else {
 		for (let i = 0; i < taskFiles.length; i++) {
@@ -236,24 +296,15 @@ async function runCI(options: CIOptions): Promise<void> {
 	const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
 
 	// 4. Print summary
-	printCISummary(results, elapsed);
+	if (format === "json") console.log(formatCIJson(results, Number(elapsed)));
+	else if (format === "junit") console.log(formatCIJunit(results, Number(elapsed)));
+	else printCISummary(results, elapsed);
 
 	// 5. Exit with appropriate code
 	const failures = results.filter((r) => r.status === "fail");
 	if (failures.length > 0) {
 		process.exit(1);
 	}
-}
-
-export function findPreviousResult(
-	resultsDir: string,
-	taskName: string,
-	currentRunId: string,
-): StoredResult | null {
-	const all = listResults(resultsDir, { task: taskName });
-	// Skip the result we just wrote (it's the current run)
-	const previous = all.find((r) => r.id !== currentRunId);
-	return previous ?? null;
 }
 
 async function runTasksParallel(

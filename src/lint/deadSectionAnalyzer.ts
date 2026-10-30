@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { resolveMentionedPath } from "../utils/path.js";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
 import { stripCodeBlocks } from "./utils.js";
 
@@ -16,10 +17,9 @@ const FILE_PATH_PATTERN =
 export function headingToAnchor(heading: string): string {
 	return heading
 		.toLowerCase()
+		.trim()
 		.replace(/[^\w\s-]/g, "")
-		.replace(/\s+/g, "-")
-		.replace(/-+/g, "-")
-		.replace(/^-|-$/g, "");
+		.replace(/\s/g, "-");
 }
 
 /**
@@ -137,8 +137,10 @@ export function extractFileReferences(content: string): { path: string; line: nu
 	for (let i = 0; i < lines.length; i++) {
 		const regex = new RegExp(FILE_PATH_PATTERN.source, "gi");
 		for (const match of lines[i].matchAll(regex)) {
-			const filePath = match[1].replace(/[`"']/g, "");
-			if (filePath.includes("*") || filePath.includes("{")) continue;
+			// A path at the end of a sentence keeps its period or colon in the match.
+			const filePath = match[1].replace(/[`"']/g, "").replace(/[.:;!?]+$/, "");
+			// Globs and templates (`src/**/*.ts`, `src/<name>.test.ts`, `docs/$TOPIC.md`) are patterns, not files.
+			if (/[*{<>$[]/.test(filePath)) continue;
 			refs.push({ path: filePath, line: i + 1 });
 		}
 	}
@@ -314,7 +316,7 @@ function checkBareFileRefs(file: { path: string; content: string }, cwd: string)
 	const fileRefs = extractFileReferences(proseOnly);
 
 	for (const ref of fileRefs) {
-		const resolved = resolve(cwd, ref.path);
+		const resolved = resolveMentionedPath(ref.path, file.path, cwd, existsSync);
 		if (!existsSync(resolved)) {
 			diagnostics.push({
 				ruleId: "dead-ref/missing-file",

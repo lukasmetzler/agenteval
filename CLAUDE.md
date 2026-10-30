@@ -12,11 +12,11 @@ curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install
 
 # Development
 bun install             # install dependencies
-bun test                # run all tests (417 tests)
+bun test                # run all tests (556 tests)
 bun run dev -- init     # create starter agenteval.yaml
 bun run dev -- doctor   # environment health check
 bun run dev -- lint     # lint instruction files
-bun run dev -- run      # run eval (needs --task flag)
+bun run dev -- run      # run eval (needs --task flag; --trials N --baseline)
 bun run dev -- results  # view stored results
 bun run dev -- compare  # compare two runs
 bun run dev -- harvest  # mine git history for eval datasets
@@ -31,6 +31,7 @@ bun run build:darwin-x64 # cross-compile darwin-x64
 bun run lint            # biome check
 bun run typecheck       # tsc --noEmit
 bun run check           # lint + typecheck + test (CI equivalent)
+bun run schema          # regenerate schema.json from the Zod config schema
 ```
 
 ## Architecture
@@ -39,26 +40,28 @@ bun run check           # lint + typecheck + test (CI equivalent)
 src/
 ├── lint/       # Static analysis rules (Phase 1)
 ├── run/        # Eval runner, worktree, scorer (Phase 2)
-├── harness/    # Adapter pattern: claude-code, cursor, opencode, windsurf, copilot, generic, mock
+├── harness/    # CliAdapter + one spec per agent CLI (builtin.ts), generic, mock; JSON usage parsers
 ├── store/      # Result persistence + comparison (Phase 2)
 ├── harvest/    # Git history mining: detect AI commits, emit task YAML (Phase 3)
+├── toolchain/  # Detect package manager/linters, parse shell commands, run linters for lint-delta
 ├── config/     # Zod schema, YAML loader
-├── markdown/   # Parser, section extractor, frontmatter
-├── output/     # Console, JSON, markdown formatters
+├── markdown/   # Parser, section extractor, frontmatter, file-kind classification, @imports
+├── output/     # Console, JSON, markdown, SARIF, GitHub annotation, trial and CI report formatters
 ├── commands/   # CLI command handlers (init, doctor, lint, run, results, compare, harvest, ci, trends, watch, update)
 └── utils/      # Logger, glob, path helpers
 ```
 
-The lint pipeline: config -> glob files -> parse markdown -> count tokens -> run rules -> format output.
+The lint pipeline: config -> glob files -> parse markdown + classify file kind -> count tokens -> run rules -> format output.
 
-The eval pipeline: load task -> create worktree -> inject instructions -> spawn agent -> capture diff -> score assertions -> store result.
+The eval pipeline: load task -> create worktree -> setup commands -> inject instructions (or strip them for the baseline arm) -> baseline commit -> spawn agent -> capture diff (incl. untracked) -> run assertion commands + lint-delta -> score -> store result. `--trials` repeats this per arm (`src/run/trials.ts`).
 
-The harvest pipeline: git log -> parse commits -> detect AI signals (14 tools, co-author/email/message) -> filter by confidence -> snapshot instructions -> emit TaskDefinition YAML.
+The harvest pipeline: git log -> parse commits -> detect AI signals (co-author and session trailers, bot accounts, message footers; records the model) -> filter by confidence -> snapshot instructions -> emit TaskDefinition YAML.
 
-The live review pipeline: git diff (working tree) -> run heuristic rubrics (scope-discipline, test-coverage, diff-hygiene) + optional LLM rubrics (convention-compliance, progressive-disclosure via --analyze) -> weighted score and report.
+The live review pipeline: git diff (working tree) -> run heuristic rubrics (scope-discipline, test-coverage, diff-hygiene, lint-delta) + optional LLM rubrics (convention-compliance, progressive-disclosure via --analyze) -> weighted score and report.
 
 All lint rules implement the `LintRule` interface in `src/lint/types.ts`.
-All harness adapters implement the `HarnessAdapter` interface in `src/harness/types.ts`.
+All harness adapters implement the `HarnessAdapter` interface in `src/harness/types.ts`. New agent CLIs are a `CliHarnessSpec` entry in `src/harness/builtin.ts`, not a new class.
+File formats, agent limits, CLI flags, and attribution signals are sourced in `docs/research/2026-10-30-agent-ecosystem.md`; update it when they change.
 Token counting uses js-tiktoken (cl100k_base), numbers are approximate (~estimated).
 
 ## Conventions
@@ -67,6 +70,7 @@ Token counting uses js-tiktoken (cl100k_base), numbers are approximate (~estimat
 - Biome for formatting (tabs) and linting (recommended + strict cherry-picks)
 - TypeScript strict mode
 - Tests use Bun's built-in test runner with real fixture files (no mocking)
+- Fixture text for token-counted content must be words, not one repeated character: js-tiktoken is quadratic on long single-character runs and hangs the test
 - Feature branches: `feat/<name>`, bug fixes: `fix/<name>`, maintenance: `chore/<name>`
 - Squash-merge to main, tagged releases with semver
 - VERSION file is single source of truth for version string

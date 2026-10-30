@@ -79,7 +79,8 @@ export class AntiPatternCheckerRule implements LintRule {
 							severity: ap.severity,
 							message: `${ap.description}: "${match[0]}"`,
 							filePath: file.path,
-							line: section.startLine,
+							// Code stripping keeps newlines, so the offset maps to the source line.
+							line: section.startLine + (proseOnly.slice(0, match.index).match(/\n/g)?.length ?? 0),
 							section: section.heading,
 							meta: { match: match[0], patternId: ap.id },
 							suggestion: ap.suggestion,

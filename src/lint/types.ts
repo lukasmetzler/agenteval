@@ -1,5 +1,6 @@
 import type { Root } from "mdast";
 import type { Config } from "../config/schema.js";
+import type { FileKind } from "../markdown/classify.js";
 import type { Section, SuppressionComment } from "../markdown/sections.js";
 
 export type Severity = "error" | "warning" | "info";
@@ -37,7 +38,10 @@ export interface LintContext {
 
 export interface ParsedFile {
 	path: string;
+	kind: FileKind;
 	content: string;
+	/** Content after the frontmatter block. */
+	body: string;
 	tree: Root;
 	sections: Section[];
 	suppressions: SuppressionComment[];

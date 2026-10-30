@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
-import { findPreviousResult } from "../../src/commands/ci.js";
+import { findPreviousScore } from "../../src/commands/ci.js";
 import { ConfigSchema } from "../../src/config/schema.js";
 import type { StoredResult } from "../../src/run/types.js";
 
@@ -56,7 +56,7 @@ function makeStoredResult(overrides: Partial<StoredResult>): StoredResult {
 	};
 }
 
-describe("findPreviousResult", () => {
+describe("findPreviousScore", () => {
 	test("skips current run and returns previous", () => {
 		const tmp = mkdtempSync(join(tmpdir(), "agenteval-ci-test-"));
 		try {
@@ -90,10 +90,7 @@ describe("findPreviousResult", () => {
 			writeFileSync(join(tmp, "run-001.json"), JSON.stringify(previous), "utf-8");
 			writeFileSync(join(tmp, "run-002.json"), JSON.stringify(current), "utf-8");
 
-			const result = findPreviousResult(tmp, "my-task", "run-002");
-			expect(result).not.toBeNull();
-			expect(result?.id).toBe("run-001");
-			expect(result?.scores.overall).toBe(0.75);
+			expect(findPreviousScore(tmp, "my-task", new Set(["run-002"]))).toBe(0.75);
 		} finally {
 			rmSync(tmp, { recursive: true, force: true });
 		}
@@ -102,8 +99,7 @@ describe("findPreviousResult", () => {
 	test("returns null when no history exists", () => {
 		const tmp = mkdtempSync(join(tmpdir(), "agenteval-ci-test-"));
 		try {
-			const result = findPreviousResult(tmp, "my-task", "run-001");
-			expect(result).toBeNull();
+			expect(findPreviousScore(tmp, "my-task", new Set(["run-001"]))).toBeNull();
 		} finally {
 			rmSync(tmp, { recursive: true, force: true });
 		}
@@ -132,6 +128,41 @@ describe("CI CLI", () => {
 			expect(proc.exitCode).not.toBe(0);
 			const stderr = proc.stderr.toString();
 			expect(stderr).toContain("harvest");
+		} finally {
+			rmSync(tmp, { recursive: true, force: true });
+		}
+	});
+
+	test("averages the previous trial group and ignores its baseline arm", () => {
+		const tmp = mkdtempSync(join(tmpdir(), "agenteval-ci-test-"));
+		try {
+			const scored = (
+				id: string,
+				overall: number,
+				arm: "instructions" | "baseline",
+				group = "g1",
+			) =>
+				makeStoredResult({
+					id,
+					task: "my-task",
+					timestamp: `2026-01-01T00:00:0${id.slice(-1)}Z`,
+					scores: {
+						correctness: null,
+						precision: null,
+						efficiency: null,
+						conventions: null,
+						overall,
+					},
+					trial: { group, index: 1, of: 2, arm },
+				});
+			for (const r of [
+				scored("run-1", 0.6, "instructions"),
+				scored("run-2", 0.8, "instructions"),
+				scored("run-3", 0.1, "baseline"),
+			]) {
+				writeFileSync(join(tmp, `${r.id}.json`), JSON.stringify(r), "utf-8");
+			}
+			expect(findPreviousScore(tmp, "my-task", new Set())).toBeCloseTo(0.7, 10);
 		} finally {
 			rmSync(tmp, { recursive: true, force: true });
 		}

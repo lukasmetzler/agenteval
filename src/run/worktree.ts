@@ -5,23 +5,16 @@ import { logger } from "../utils/logger.js";
 const DEFAULT_MAX_AGE_MS = 3_600_000; // 1 hour
 
 /**
- * Generate a unique run ID in the format "run-YYYYMMDD-HHMMSS".
- * Appends a counter suffix on collision.
+ * Generate a unique run ID: "run-YYYYMMDD-HHMMSS-xxxxxx". The random suffix
+ * keeps IDs unique for parallel runs and trials started in the same second,
+ * which a check against already-written result files cannot catch.
  */
-export function generateRunId(resultsDir?: string): string {
+export function generateRunId(): string {
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, "0");
-	const base = `run-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-
-	if (!resultsDir || !existsSync(resultsDir)) return base;
-
-	let id = base;
-	let counter = 2;
-	while (existsSync(join(resultsDir, `${id}.json`))) {
-		id = `${base}-${counter}`;
-		counter++;
-	}
-	return id;
+	const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+	const suffix = crypto.getRandomValues(new Uint8Array(3));
+	return `run-${stamp}-${Buffer.from(suffix).toString("hex")}`;
 }
 
 /**
@@ -32,11 +25,12 @@ export async function createWorktree(
 	runId: string,
 	cwd: string,
 	worktreesDir: string,
+	ref = "HEAD",
 ): Promise<string> {
 	const worktreePath = join(cwd, worktreesDir, runId);
 	mkdirSync(join(cwd, worktreesDir), { recursive: true });
 
-	const proc = Bun.spawn(["git", "worktree", "add", worktreePath, "HEAD", "--detach"], {
+	const proc = Bun.spawn(["git", "worktree", "add", worktreePath, ref, "--detach"], {
 		cwd,
 		stdout: "pipe",
 		stderr: "pipe",
@@ -45,9 +39,11 @@ export async function createWorktree(
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
 		const stderr = await new Response(proc.stderr).text();
-		throw new Error(
-			`Failed to create isolated worktree: ${stderr.trim()}\nThis can happen if git worktrees are disabled or the repo has uncommitted changes that conflict.`,
-		);
+		const hint =
+			ref === "HEAD"
+				? "This can happen if git worktrees are disabled or the repo has uncommitted changes that conflict."
+				: `Could not check out ${ref}. In CI, fetch full history (actions/checkout with fetch-depth: 0).`;
+		throw new Error(`Failed to create isolated worktree: ${stderr.trim()}\n${hint}`);
 	}
 
 	logger.debug(`Created worktree at ${worktreePath}`);

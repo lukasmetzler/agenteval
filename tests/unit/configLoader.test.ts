@@ -37,8 +37,8 @@ describe("loadConfig", () => {
 	test("returns defaults when no config file exists", () => {
 		const config = loadConfig("/tmp");
 		expect(config.version).toBe(1);
-		expect(config.instructionGlobs).toContain("CLAUDE.md");
-		expect(config.model).toBe("claude-sonnet-4-6");
+		expect(config.instructionGlobs).toContain("**/CLAUDE.md");
+		expect(config.model).toBe("claude-opus-5-5");
 		expect(config.contextBudget).toBe(0.3);
 	});
 });

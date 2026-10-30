@@ -1,6 +1,6 @@
 # agenteval-cli
 
-Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules.
+Your CLAUDE.md is untested. So is your AGENTS.md, your GEMINI.md, your copilot-instructions.md, and your Cursor rules.
 
 agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does.
 
@@ -18,10 +18,10 @@ npm install -g agenteval-cli
 Or run without installing:
 
 ```bash
-npx agenteval-cli lint
+npx -y agenteval-cli lint
 ```
 
-This installs a lightweight wrapper (~3 KB) that downloads the prebuilt native binary for your platform on first run. No Bun or Node runtime needed at execution time.
+This installs a small Node wrapper script (about 5 KB, Node 18+). On first run it downloads the prebuilt native binary for your platform from GitHub Releases to `~/.agenteval/bin/` and runs it; it downloads again when the package version changes. The package has no install script. Bun is not needed; Node runs only the wrapper.
 
 ### Supported Platforms
 
@@ -56,23 +56,28 @@ agenteval update
 ## What It Catches
 
 - Dead references to files that don't exist in your repo
-- Filler phrases that waste context tokens ("make sure to", "it is important that")
-- Contradictions between instruction files
+- Filler phrases that waste context tokens ("in order to", "it is important to note that")
+- Contradictory rules ("always X" and "never X" in the same file)
 - Content overlap and duplication across multiple files
 - Token budget overruns that crowd out code context
 - Vague instructions without actionable specifics
 - Stale instructions referencing code that was refactored weeks ago
 - Broken markdown links and heading anchors
-- Invalid skill metadata (per Anthropic spec)
+- Invalid skill metadata (per the Agent Skills spec) and wrong frontmatter on rules and subagents
+- Commands that don't match the repo's package manager, scripts, or linters
 
 ## Supported Instruction Formats
 
-- `CLAUDE.md` (Claude Code)
-- `AGENTS.md` (OpenAI Codex, generic agents)
-- `.github/copilot-instructions.md` (GitHub Copilot)
-- `.github/instructions/*.instructions.md` (scoped Copilot instructions)
-- `.claude/skills/*/SKILL.md` (Anthropic skills)
-- `.cursorrules` and `.cursor/rules/*.mdc` (Cursor)
+- `CLAUDE.md` and `CLAUDE.local.md` (Claude Code), including nested `CLAUDE.md` files
+- `AGENTS.md` (Codex, Copilot, Cursor, OpenCode, Amp, Devin, and other agents)
+- `GEMINI.md` (Gemini CLI, Antigravity)
+- `.claude/**` rules, skills, subagents, and slash commands (Claude Code)
+- `.agents/skills/` (Agent Skills shared across tools)
+- `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` (GitHub Copilot)
+- `.cursor/rules/**/*.mdc` (Cursor)
+- `.devin/rules/*.md` and `.windsurf/rules/*.md` (Devin / Windsurf)
+- `.kiro/steering/*.md` (Kiro)
+- `.junie/**/*.md` (JetBrains Junie)
 
 ## CI Integration
 
@@ -96,7 +101,7 @@ agenteval works with zero configuration. To customize, create an `agenteval.yaml
 
 ```yaml
 version: 1
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 contextBudget: 0.3
 lint:
   maxTokensPerFile: 8000

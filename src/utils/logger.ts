@@ -9,6 +9,7 @@ const levels: Record<LogLevel, number> = {
 	error: 3,
 };
 
+/** Diagnostics go to stderr so stdout stays clean for results (--format json, pipes). */
 class Logger {
 	level: LogLevel = "info";
 
@@ -18,19 +19,19 @@ class Logger {
 
 	debug(msg: string, ...args: unknown[]): void {
 		if (this.shouldLog("debug")) {
-			console.debug(`${chalk.dim("[debug]")} ${msg}`, ...args);
+			console.error(`${chalk.dim("[debug]")} ${msg}`, ...args);
 		}
 	}
 
 	info(msg: string, ...args: unknown[]): void {
 		if (this.shouldLog("info")) {
-			console.info(msg, ...args);
+			console.error(msg, ...args);
 		}
 	}
 
 	warn(msg: string, ...args: unknown[]): void {
 		if (this.shouldLog("warn")) {
-			console.warn(`${chalk.yellow("[warn]")} ${msg}`, ...args);
+			console.error(`${chalk.yellow("[warn]")} ${msg}`, ...args);
 		}
 	}
 

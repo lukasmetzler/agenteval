@@ -2,7 +2,7 @@
 
 ## Overview
 
-agenteval works with zero configuration out of the box. All commands use sensible defaults. When you need to customize behavior, create an `agenteval.yaml` file in your project root.
+agenteval works with zero configuration out of the box. All commands use sensible defaults. When you need to customize behavior, create an `agenteval.yaml` file in your project root (`agenteval init` writes a starter file).
 
 A [JSON Schema](https://raw.githubusercontent.com/lukasmetzler/agenteval/main/schema.json) is available for editor autocomplete. Add this comment to the top of your config file:
 
@@ -45,31 +45,32 @@ version: 1
 
 # Glob patterns for auto-discovering instruction files to lint.
 # These are scanned by `agenteval lint` when no arguments are provided.
+# The default (shown) covers every format agenteval knows; set this only to narrow it.
 instructionGlobs:
-  - "CLAUDE.md"
-  - "AGENTS.md"
-  - ".github/copilot-instructions.md"
+  - "**/CLAUDE.md"
+  - "CLAUDE.local.md"
+  - "**/AGENTS.md"
+  - "**/GEMINI.md"
   - ".claude/**/*.md"
-  - ".github/instructions/*.md"
-
-# Explicit instruction file sources. Use this when different files
-# should be associated with different harnesses.
-instructions:
-  - path: "CLAUDE.md"
-    harness: claude-code          # optional: bind this file to a specific harness
-  - path: "AGENTS.md"
-    harness: generic
+  - ".agents/skills/**/*.md"
+  - ".github/copilot-instructions.md"
+  - ".github/instructions/**/*.instructions.md"
+  - ".cursor/rules/**/*.{md,mdc}"
+  - ".devin/rules/*.md"
+  - ".windsurf/rules/*.md"
+  - ".kiro/steering/*.md"
+  - ".junie/**/*.md"
 
 # ─── Model & Context Budget ───────────────────────────────
 
 # Model name for context window calculations.
 # Used by the context budget checker to determine token limits.
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # What fraction of the model's context window your instruction
 # files should consume (0.0 to 1.0).
-# At 0.3, with a 200k context model, instruction files can use
-# up to ~60,000 tokens total before triggering a warning.
+# At 0.3, with a 1M context model, the files loaded at session start
+# (plus their @imports) can use up to ~300,000 tokens before an error.
 contextBudget: 0.3
 
 # ─── Lint Settings ────────────────────────────────────────
@@ -94,8 +95,9 @@ lint:
   # Set this to override the automatic calculation.
   # maxTotalTokens: 50000
 
-  # Custom anti-pattern regex strings.
-  # Each match triggers a warning with rule ID anti-pattern/custom.
+  # Custom anti-pattern regex strings (case-insensitive).
+  # Each match triggers a warning with rule ID anti-pattern/custom-0,
+  # anti-pattern/custom-1, ... in list order.
   antiPatterns:
     - "DO NOT"                    # Aggressive phrasing often wastes tokens
     - "IMPORTANT:"                # Meta-instructions that models ignore
@@ -109,11 +111,11 @@ lint:
 
 run:
   # Default timeout for eval runs (seconds).
-  # Can be overridden per-task in the task YAML file.
+  # Used by every task that sets no `timeout` of its own.
   timeout: 300
 
-  # Token budget for efficiency scoring.
-  # The efficiency score measures: 1 - (tokensUsed / tokensBudget).
+  # Token count that scores 0 on efficiency. Not passed to the agent.
+  # efficiency = 1 - (tokensTotal - tokensCacheRead) / tokensBudget, clamped to 0..1.
   tokensBudget: 50000
 
   # Directory for storing run result JSON files.
@@ -138,12 +140,15 @@ harvest:
   outputDir: "tasks/harvested"
 
   # Minimum detection confidence for including a commit (0.0 to 1.0).
-  # co-author-tag = 0.9, author-email = 0.8, message-pattern = 0.6.
-  # Default 0.5 includes all co-author and email matches, filters most message-only.
+  # co-author or session trailer = 0.9, agent's own account = 0.8,
+  # message pattern = 0.6. The default 0.5 includes all three; any value
+  # from 0 to 0.6 selects the same commits.
   minConfidence: 0.5
 
   # Harness field set in generated task YAML files.
-  # Options: claude-code, opencode, copilot, generic, auto
+  # A built-in harness (claude-code, codex, gemini, antigravity, copilot,
+  # cursor, opencode, devin, amp), a harnesses: key, or auto.
+  # auto is resolved when the task runs, not when it is harvested.
   defaultHarness: auto
 
   # Timeout field set in generated task YAML files (seconds).
@@ -152,6 +157,8 @@ harvest:
 # ─── Live Review ─────────────────────────────────────────
 
 liveReview:
+  # Model for the --analyze rubrics: a Claude Code alias or a full model id.
+  judgeModel: sonnet
   rubrics:
     scopeDiscipline:
       enabled: true
@@ -160,6 +167,9 @@ liveReview:
       enabled: true
       weight: 1.0
     diffHygiene:
+      enabled: true
+      weight: 1.0
+    lintDelta:             # repo linters on the changed lines
       enabled: true
       weight: 1.0
     conventionCompliance:
@@ -178,8 +188,8 @@ ci:
   # Minimum acceptable score (0-1). Tasks scoring below this fail.
   minScore: 0.5
 
-  # Maximum allowed score regression vs the previous run (0-1).
-  # If a task's score drops more than this compared to its last run, it fails.
+  # Maximum allowed score regression vs the previous run (0-1), in score
+  # points: 0.1 means 0.80 -> 0.69 fails. Not a percentage.
   maxRegression: 0.1
 
   # Instruction file to inject for all tasks.
@@ -189,18 +199,15 @@ ci:
 
 # Custom harness configurations.
 # Each key is a harness name you can reference with --harness or in task YAML.
+# The prompt is appended as the last argument.
 harnesses:
-  # Override the built-in Claude Code adapter settings
-  claude-code:
-    command: "claude"
-    args: ["--print", "--dangerously-skip-permissions"]
-
-  # Define a custom harness for any CLI tool
   my-custom-agent:
     command: "my-agent"
-    args: ["--run", "--non-interactive", "--timeout", "120"]
-    instructionPath: "AGENTS.md"    # Override which instruction file is injected
+    args: ["--run", "--non-interactive"]
+    instructionPath: "AGENTS.md"    # where the instruction file is copied (default AGENTS.md)
 ```
+
+A `harnesses:` key with a built-in name (for example `claude-code`) replaces the built-in adapter with this generic one: the prompt goes in as the last argument, the instruction file is copied to `instructionPath` (default `AGENTS.md`, not `CLAUDE.md`), and tokens are read only from a Claude-Code-style result event or text like `total tokens: 1234`. You lose the built-in flags and metric parsing, so only do this on purpose.
 
 ## Field Reference
 
@@ -209,9 +216,9 @@ harnesses:
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
 | `version` | integer | **required** | Must be `1` | Config schema version. |
-| `instructionGlobs` | string[] | `["CLAUDE.md", "AGENTS.md", ...]` | | Glob patterns for instruction file discovery. |
-| `instructions` | object[] | `[]` | Each must have `path` | Explicit instruction sources with optional harness binding. |
-| `model` | string | `claude-sonnet-4-6` | | Model name for context window lookup. |
+| `instructionGlobs` | string[] | every known format (see [Auto-Discovery](lint.md#auto-discovery)) | | Glob patterns for instruction file discovery. |
+| `instructions` | object[] | `[]` | Each must have `path` | Unused. Still accepted so older config files parse; it has no effect. Use `--instructions` on `run`/`ci` or `ci.instructions`. |
+| `model` | string | `claude-opus-5-5` | | Model name for context window lookup. |
 | `contextBudget` | number | `0.3` | 0.0-1.0 | Fraction of context window budgeted for instructions. |
 
 ### `lint` Section
@@ -221,37 +228,37 @@ harnesses:
 | `overlapThreshold` | number | `0.3` | 0.0-1.0 | Similarity score above which two files are flagged as overlapping. |
 | `bloatThreshold` | number | `0.5` | 0.0-1.0 | Information density below which sections are flagged as bloated. |
 | `maxTokensPerFile` | number | `8000` | | Token limit per file before a warning is emitted. |
-| `maxTotalTokens` | number | none | | Hard token limit across all files. Overrides `contextBudget * window`. |
-| `antiPatterns` | string[] | `[]` | Valid regex | Custom regex patterns. Each match in any instruction file produces a warning. |
-| `ignore` | string[] | `[]` | Valid glob | Glob patterns for files to exclude from linting. |
+| `maxTotalTokens` | number | none | | Token limit for everything loaded at session start (root files, rules without `paths`, and their `@imports`). Overrides `contextBudget * window`. |
+| `antiPatterns` | string[] | `[]` | Valid regex | Custom regex patterns, matched case-insensitively. Each match produces a warning with rule ID `anti-pattern/custom-<index>` (`custom-0` for the first pattern). Invalid patterns are dropped silently. |
+| `ignore` | string[] | `[]` | Valid glob | Glob patterns for files to exclude from linting. `node_modules`, `.git`, `dist`, and `.agenteval` are always excluded. |
 
 ### `run` Section
 
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
-| `timeout` | number | `300` | >= 1 | Default task timeout in seconds. |
-| `tokensBudget` | number | `50000` | | Token budget used for efficiency score calculation. |
+| `timeout` | number | `300` | >= 1 | Agent timeout in seconds for tasks that set no `timeout` of their own (ad-hoc tasks included). |
+| `tokensBudget` | number | `50000` | | Denominator of the efficiency score: `1 - (tokensTotal - tokensCacheRead) / tokensBudget`, clamped to 0..1. Not passed to the agent. |
 | `resultsDir` | string | `.agenteval/results` | | Directory for result JSON files. |
 | `worktreesDir` | string | `.agenteval/worktrees` | | Directory for temporary git worktrees. |
 | `staleWorktreeMaxAge` | number | `3600000` | | Worktree age threshold for cleanup (milliseconds). |
-| `resultRetention` | string | `90d` | Format: `<N>d` | How long to keep results before pruning. |
+| `resultRetention` | string | `90d` | Format: `<N>d` (days only) | How long to keep results before `results --prune` deletes them. |
 
 ### `harvest` Section
 
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
 | `outputDir` | string | `tasks/harvested` | | Directory for generated task YAML files. |
-| `minConfidence` | number | `0.5` | 0.0-1.0 | Detection confidence threshold. |
-| `defaultHarness` | string | `auto` | Valid harness name | Harness field in generated tasks. |
+| `minConfidence` | number | `0.5` | 0.0-1.0 | Detection confidence threshold. Signals score 0.9, 0.8, or 0.6, so values from 0 to 0.6 behave the same. |
+| `defaultHarness` | string | `auto` | Valid harness name | Harness field in generated tasks. `auto` is resolved at run time. |
 | `defaultTimeout` | number | `300` | >= 1 | Timeout field in generated tasks (seconds). |
 
 ### `ci` Section
 
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
-| `tasksDir` | string | `tasks/harvested` | | Directory containing task YAML files to run. |
+| `tasksDir` | string | `tasks/harvested` | | Directory containing task files to run. Only `*.yaml` files directly in it are read. |
 | `minScore` | number | `0.5` | 0.0-1.0 | Minimum acceptable score. Tasks below this fail. |
-| `maxRegression` | number | `0.1` | 0.0-1.0 | Maximum allowed score drop vs previous run. |
+| `maxRegression` | number | `0.1` | 0.0-1.0 | Maximum allowed score drop vs previous run, in score points. |
 | `instructions` | string | `CLAUDE.md` | | Instruction file to inject for all tasks. |
 
 ### `liveReview` Section
@@ -260,12 +267,15 @@ Controls the `harvest --live` rubric system.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `judgeModel` | string | `sonnet` | Model for the `--analyze` rubrics. A Claude Code alias tracks the current model of that tier. |
 | `rubrics.scopeDiscipline.enabled` | boolean | `true` | Enable scope-discipline rubric. |
 | `rubrics.scopeDiscipline.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.testCoverage.enabled` | boolean | `true` | Enable test-coverage rubric. |
 | `rubrics.testCoverage.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.diffHygiene.enabled` | boolean | `true` | Enable diff-hygiene rubric. |
 | `rubrics.diffHygiene.weight` | number | `1.0` | Weight in overall score calculation. |
+| `rubrics.lintDelta.enabled` | boolean | `true` | Enable the lint-delta rubric (detected linters on changed lines). |
+| `rubrics.lintDelta.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.conventionCompliance.enabled` | boolean | `true` | Enable LLM convention-compliance rubric (requires `--analyze`). |
 | `rubrics.conventionCompliance.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.progressiveDisclosure.enabled` | boolean | `true` | Enable LLM progressive-disclosure rubric (requires `--analyze`). |
@@ -275,32 +285,37 @@ Disabled rubrics are excluded from results and the weighted average. The `conven
 
 ### `harnesses` Section
 
-Each key under `harnesses` defines a custom harness adapter:
+Each key under `harnesses` defines a custom harness adapter that passes the prompt as its last argument. A key with a built-in name (for example `codex`) replaces the built-in with this generic adapter, including its `AGENTS.md` default for `instructionPath`. See [Harnesses](harnesses.md#custom-harnesses).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `command` | string | Yes | The CLI executable to run. Must be on PATH or an absolute path. |
 | `args` | string[] | No | Command-line arguments passed to the executable. |
-| `instructionPath` | string | No | Override which instruction file is injected for this harness. |
+| `instructionPath` | string | No | Where the instruction file is copied in the worktree. Default `AGENTS.md`. |
 
 ## Supported Models
 
-The model field determines the context window size used for budget calculations:
+The model field determines the context window size used for budget calculations. Claude values come from the Claude API model table as of 2026-10-06.
 
 | Model ID | Context Window | Provider |
 |----------|---------------|----------|
-| `claude-opus-4-6` | 1,000,000 | Anthropic |
-| `claude-sonnet-4-6` | 200,000 | Anthropic |
+| `claude-fable-5-1`, `claude-fable-5` | 1,000,000 | Anthropic |
+| `claude-opus-5-5`, `claude-opus-5` | 1,000,000 | Anthropic |
+| `claude-sonnet-5-5`, `claude-sonnet-5` | 1,000,000 | Anthropic |
+| `claude-haiku-5-5` | 1,000,000 | Anthropic |
+| `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6` | 1,000,000 | Anthropic |
+| `claude-sonnet-4-6` | 1,000,000 | Anthropic |
 | `claude-haiku-4-5` | 200,000 | Anthropic |
-| `gpt-5.4` | 1,000,000 | OpenAI |
-| `gpt-5.3` | 1,000,000 | OpenAI |
-| `gpt-5.3-codex` | 1,000,000 | OpenAI |
+| `fable`, `opus`, `sonnet`, `haiku` (Claude Code aliases) | 1,000,000 | Anthropic |
+| `gpt-5.4`, `gpt-5.3`, `gpt-5.3-codex`, `gpt-4.1` | 1,000,000 | OpenAI |
+| `gpt-4o` | 128,000 | OpenAI |
+| `o3` | 200,000 | OpenAI |
 | `gemini-3.1` | 2,000,000 | Google |
 | `gemini-2.5-pro` | 1,000,000 | Google |
 
-Legacy models (`claude-sonnet-4-6`, `claude-opus-4-20250514`, `gpt-4o`, `gpt-4.1`, `o3`) are still recognized for backward compatibility.
+The OpenAI and Google entries have not been rechecked since v0.8.
 
-Models not in this table default to 200,000 tokens. Set the `model` field to any string and the context budget calculator will use 200,000 as the window size.
+Models not in this table use a 200,000-token window, and lint reports `context-budget/unknown-model` so the fallback isn't silent. Set `lint.maxTotalTokens` for a model that isn't listed.
 
 ## Token Counting
 
@@ -319,9 +334,9 @@ CLI flags  >  agenteval.yaml  >  built-in defaults
 ```
 
 For example:
-- `--min-confidence 0.3` overrides `harvest.minConfidence: 0.5` in the config
-- `--timeout 600` overrides `run.timeout: 300` in the config
-- Task YAML `timeout: 120` overrides the default but the CLI `--timeout` is not used for run
+- `--min-confidence 0.8` overrides `harvest.minConfidence: 0.5` in the config
+- `harvest --timeout 600` overrides `harvest.defaultTimeout` for the emitted task files
+- The agent timeout for a run is the task's `timeout` if set, else `run.timeout` (default 300). `run` and `ci` have no `--timeout` flag.
 
 ## Recommended .gitignore
 

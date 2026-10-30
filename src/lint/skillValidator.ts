@@ -1,15 +1,19 @@
 import { readdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { parse as parseYaml } from "yaml";
-import type { Diagnostic, LintContext, LintRule } from "./types.js";
+import { basename, dirname } from "node:path";
+import type { Diagnostic, LintContext, LintRule, ParsedFile } from "./types.js";
 
 const NAME_MAX_LENGTH = 64;
 const NAME_PATTERN = /^[a-z0-9-]+$/;
+const NAME_HYPHEN_PATTERN = /^-|-$|--/;
 const RESERVED_WORDS = ["anthropic", "claude"];
 const DESCRIPTION_MAX_LENGTH = 1024;
 const DESCRIPTION_TRUNCATION_LENGTH = 250;
+// Claude Code truncates description + when_to_use in the skill listing at this length.
+const LISTING_MAX_LENGTH = 1536;
+const COMPATIBILITY_MAX_LENGTH = 500;
 const XML_TAG_PATTERN = /<\/?[a-zA-Z][^>]*>/;
-const FIRST_PERSON_PATTERN = /\b(I can|I will|I help|I am|I'll|I'm)\b/i;
+const FIRST_PERSON_PATTERN =
+	/\b(I'll|I'm)\b|\bI\s+(can|will|help|am|deploy|run|create|generate|analyze|check|build|test|fix)\b/i;
 const BODY_FIRST_PERSON_PATTERN =
 	/\bI\s+(will|can|should|would|deploy|run|create|generate|analyze|check|build|test|fix)\b/i;
 const TRIGGER_PREFIXES =
@@ -18,26 +22,38 @@ const SUPPORTING_FILES_LINE_THRESHOLD = 300;
 const SECOND_PERSON_PATTERN = /\b(You can|You will|You should|You'll|You're)\b/i;
 const MAX_BODY_LINES = 500;
 
-const VALID_SKILL_FIELDS = new Set([
+// Open Agent Skills spec fields (agentskills.io/specification).
+const SPEC_SKILL_FIELDS = new Set([
 	"name",
 	"description",
+	"license",
+	"compatibility",
+	"metadata",
+	"allowed-tools",
+]);
+
+// Claude Code extensions (code.claude.com/docs/en/skills), plus fields used by common skill packs.
+const VALID_SKILL_FIELDS = new Set([
+	...SPEC_SKILL_FIELDS,
+	"when_to_use",
 	"argument-hint",
+	"arguments",
 	"disable-model-invocation",
 	"user-invocable",
-	"allowed-tools",
+	"disallowed-tools",
 	"model",
 	"effort",
 	"context",
 	"agent",
+	"background",
 	"hooks",
 	"paths",
 	"shell",
 	"preamble-tier",
-	"metadata",
 	"version",
 ]);
 
-const VALID_EFFORT_VALUES = new Set(["low", "medium", "high", "max"]);
+const VALID_EFFORT_VALUES = new Set(["low", "medium", "high", "xhigh", "max"]);
 const VALID_CONTEXT_VALUES = new Set(["fork"]);
 const VALID_SHELL_VALUES = new Set(["bash", "powershell"]);
 
@@ -48,36 +64,42 @@ export class SkillValidatorRule implements LintRule {
 		const diagnostics: Diagnostic[] = [];
 
 		for (const file of ctx.files) {
-			if (!file.frontmatter) continue;
+			if (file.kind !== "skill") continue;
 
-			const fm = this.parseFrontmatter(file.content);
-			if (!fm) continue;
+			const fm = file.frontmatter;
+			if (!fm) {
+				diagnostics.push(this.missingFrontmatter(file));
+				continue;
+			}
 
 			diagnostics.push(...this.validateName(fm, file.path));
 			diagnostics.push(...this.validateDescription(fm, file.path));
+			diagnostics.push(...this.validateListingLength(fm, file.path));
+			diagnostics.push(...this.validateCompatibility(fm, file.path));
 			diagnostics.push(...this.validateUnknownFields(fm, file.path));
 			diagnostics.push(...this.validateEffort(fm, file.path));
 			diagnostics.push(...this.validateContext(fm, file.path));
 			diagnostics.push(...this.validateShell(fm, file.path));
 			diagnostics.push(...this.validateUnreachable(fm, file.path));
-			diagnostics.push(...this.validateBodyLength(file.content, file.path));
+			diagnostics.push(...this.validateBodyLength(file.body, file.path));
 			diagnostics.push(...this.validateDescriptionTrigger(fm, file.path));
-			diagnostics.push(...this.validateSupportingFiles(file.content, file.path));
-			diagnostics.push(...this.validateOverviewSection(file.content, file.path));
-			diagnostics.push(...this.validateBodyFirstPerson(file.content, file.path));
+			diagnostics.push(...this.validateSupportingFiles(file.body, file.path));
+			diagnostics.push(...this.validateOverviewSection(file.body, file.path));
+			diagnostics.push(...this.validateBodyFirstPerson(file.body, file.path));
 		}
 
 		return diagnostics;
 	}
 
-	private parseFrontmatter(content: string): Record<string, unknown> | null {
-		const match = /^---\n([\s\S]*?)\n---/.exec(content);
-		if (!match?.[1]) return null;
-		try {
-			return parseYaml(match[1]) as Record<string, unknown>;
-		} catch {
-			return null;
-		}
+	private missingFrontmatter(file: ParsedFile): Diagnostic {
+		return {
+			ruleId: "skill/frontmatter-invalid",
+			severity: "error",
+			message:
+				"SKILL.md has no parseable YAML frontmatter. Agents load such skills with empty metadata, so they never trigger.",
+			filePath: file.path,
+			suggestion: "Start the file with a --- block containing at least name and description",
+		};
 	}
 
 	private validateName(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
@@ -104,6 +126,26 @@ export class SkillValidatorRule implements LintRule {
 				message: `Skill name "${name}" must contain only lowercase letters, numbers, and hyphens`,
 				filePath,
 				suggestion: "Use only lowercase letters, numbers, and hyphens",
+			});
+		}
+
+		if (NAME_HYPHEN_PATTERN.test(name)) {
+			diagnostics.push({
+				ruleId: "skill/name-invalid-hyphens",
+				severity: "error",
+				message: `Skill name "${name}" must not start or end with a hyphen or contain "--"`,
+				filePath,
+			});
+		}
+
+		const dir = basename(dirname(filePath));
+		if (basename(dirname(dirname(filePath))) === "skills" && dir !== name) {
+			diagnostics.push({
+				ruleId: "skill/name-directory-mismatch",
+				severity: "error",
+				message: `Skill name "${name}" does not match its directory "${dir}". The Agent Skills spec requires them to be equal.`,
+				filePath,
+				suggestion: `Rename the directory to "${name}" or set name: ${dir}`,
 			});
 		}
 
@@ -160,7 +202,7 @@ export class SkillValidatorRule implements LintRule {
 			diagnostics.push({
 				ruleId: "skill/description-truncation",
 				severity: "info",
-				message: "Description exceeds 250 characters and will be truncated in skill listings.",
+				message: `Description is ${desc.length} characters. Every skill's description shares one listing budget (1% of the context window in Claude Code), and the least-used ones are dropped first when it runs out.`,
 				filePath,
 				meta: { length: desc.length, limit: DESCRIPTION_TRUNCATION_LENGTH },
 			});
@@ -200,6 +242,36 @@ export class SkillValidatorRule implements LintRule {
 		return diagnostics;
 	}
 
+	private validateListingLength(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		const desc = typeof fm.description === "string" ? fm.description : "";
+		const whenToUse = typeof fm.when_to_use === "string" ? fm.when_to_use : "";
+		const length = desc.length + whenToUse.length;
+		if (length <= LISTING_MAX_LENGTH) return [];
+		return [
+			{
+				ruleId: "skill/listing-truncated",
+				severity: "info",
+				message: `description + when_to_use is ${length} characters. Claude Code truncates the skill listing entry at ${LISTING_MAX_LENGTH}.`,
+				filePath,
+				meta: { length, limit: LISTING_MAX_LENGTH },
+			},
+		];
+	}
+
+	private validateCompatibility(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
+		if (typeof fm.compatibility !== "string") return [];
+		if (fm.compatibility.length <= COMPATIBILITY_MAX_LENGTH) return [];
+		return [
+			{
+				ruleId: "skill/compatibility-too-long",
+				severity: "error",
+				message: `compatibility exceeds ${COMPATIBILITY_MAX_LENGTH} characters (${fm.compatibility.length})`,
+				filePath,
+				meta: { length: fm.compatibility.length, limit: COMPATIBILITY_MAX_LENGTH },
+			},
+		];
+	}
+
 	private validateUnknownFields(fm: Record<string, unknown>, filePath: string): Diagnostic[] {
 		const diagnostics: Diagnostic[] = [];
 		for (const key of Object.keys(fm)) {
@@ -222,7 +294,7 @@ export class SkillValidatorRule implements LintRule {
 				{
 					ruleId: "skill/invalid-effort",
 					severity: "error",
-					message: `Invalid effort value '${String(fm.effort)}'. Must be one of: low, medium, high, max.`,
+					message: `Invalid effort value '${String(fm.effort)}'. Must be one of: low, medium, high, xhigh, max.`,
 					filePath,
 				},
 			];
@@ -275,11 +347,8 @@ export class SkillValidatorRule implements LintRule {
 		return [];
 	}
 
-	private validateBodyLength(content: string, filePath: string): Diagnostic[] {
-		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
-		if (!bodyMatch?.[1]) return [];
-
-		const bodyLines = bodyMatch[1].split("\n").length;
+	private validateBodyLength(body: string, filePath: string): Diagnostic[] {
+		const bodyLines = body.split("\n").length;
 		if (bodyLines > MAX_BODY_LINES) {
 			return [
 				{
@@ -315,11 +384,8 @@ export class SkillValidatorRule implements LintRule {
 		return [];
 	}
 
-	private validateSupportingFiles(content: string, filePath: string): Diagnostic[] {
-		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
-		if (!bodyMatch?.[1]) return [];
-
-		const bodyLines = bodyMatch[1].split("\n").length;
+	private validateSupportingFiles(body: string, filePath: string): Diagnostic[] {
+		const bodyLines = body.split("\n").length;
 		if (bodyLines <= SUPPORTING_FILES_LINE_THRESHOLD) return [];
 
 		try {
@@ -344,11 +410,7 @@ export class SkillValidatorRule implements LintRule {
 		];
 	}
 
-	private validateOverviewSection(content: string, filePath: string): Diagnostic[] {
-		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
-		if (!bodyMatch?.[1]) return [];
-
-		const body = bodyMatch[1];
+	private validateOverviewSection(body: string, filePath: string): Diagnostic[] {
 		if (/^##\s+overview\s*$/im.test(body)) return [];
 
 		return [
@@ -364,11 +426,7 @@ export class SkillValidatorRule implements LintRule {
 		];
 	}
 
-	private validateBodyFirstPerson(content: string, filePath: string): Diagnostic[] {
-		const bodyMatch = /^---\n[\s\S]*?\n---\n(.*)$/s.exec(content);
-		if (!bodyMatch?.[1]) return [];
-
-		const body = bodyMatch[1];
+	private validateBodyFirstPerson(body: string, filePath: string): Diagnostic[] {
 		const match = BODY_FIRST_PERSON_PATTERN.exec(body);
 		if (!match) return [];
 

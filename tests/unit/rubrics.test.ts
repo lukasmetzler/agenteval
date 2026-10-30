@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	scoreDiffHygiene,
+	scoreLintDelta,
 	scoreScopeDiscipline,
 	scoreTestCoverage,
 } from "../../src/harvest/rubrics.js";
@@ -251,5 +252,34 @@ describe("scoreDiffHygiene", () => {
 		].join("\n");
 		const result = scoreDiffHygiene(diff);
 		expect(result.suggestion).toBeUndefined();
+	});
+});
+
+describe("scoreLintDelta", () => {
+	const diag = (severity: "error" | "warning") => ({
+		tool: "oxlint" as const,
+		file: "src/a.ts",
+		line: 3,
+		rule: "eslint(no-debugger)",
+		severity,
+		message: "no debugger",
+	});
+
+	test("returns null when no linter could run", () => {
+		expect(
+			scoreLintDelta({
+				runs: [{ status: "unavailable", tool: "eslint", reason: "eslint not installed" }],
+				newDiagnostics: [],
+			}),
+		).toBeNull();
+	});
+
+	test("deducts 2 per new error and 1 per new warning", () => {
+		const result = scoreLintDelta({
+			runs: [{ status: "ok", tool: "oxlint", diagnostics: [], durationMs: 1 }],
+			newDiagnostics: [diag("error"), diag("error"), diag("warning")],
+		});
+		expect(result?.score).toBe(5);
+		expect(result?.details[0]).toContain("2 new error(s), 1 new warning(s)");
 	});
 });

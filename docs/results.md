@@ -13,16 +13,23 @@ agenteval results
 ```
 
 ```
-  5 result(s):
+  Results (7)
+  ───────────
 
-  ID                        Task                 Harness        Score    Status
-  ───────────────────────────────────────────────────────────────────────────────
-  run-20260401-160000       harvest-abc123d      claude-code    0.91     success
-  run-20260401-150000       refactor-auth        claude-code    0.85     success
-  run-20260401-143022       refactor-auth        claude-code    0.72     success
-  run-20260401-120000       add-tests            copilot        0.45     error
-  run-20260331-200000       fix-login            claude-code    0.88     success
+  ┌──────────────────────────┬──────────────────┬─────────────┬───────┬─────────┐
+  │ ID                       │ Task             │ Harness     │ Score │ Status  │
+  ├──────────────────────────┼──────────────────┼─────────────┼───────┼─────────┤
+  │ run-20261030-203538-026797 │ fix-login        │ mock        │ 0.71  │ success │
+  │ run-20261030-203538-21b8c1 │ add-tests        │ mock        │ N/A   │ error   │
+  │ run-20261030-203528-2ff4ea │ fix-login        │ mock        │ 0.71  │ success │
+  │ run-20261030-203528-dcd4dc │ refactor-auth    │ mock        │ 1.00  │ success │
+  │ run-20261030-203527-cbe245 │ refactor-auth    │ mock        │ 0.81  │ success │
+  │ run-20261030-203526-172b38 │ fix-login        │ mock        │ 1.00  │ success │
+  │ run-20261030-203518-c0f006 │ refactor-auth    │ mock        │ 0.62  │ success │
+  └──────────────────────────┴──────────────────┴─────────────┴───────┴─────────┘
 ```
+
+Results are listed newest first. Runs that ended in `error` or `timeout` have no score (`N/A`).
 
 ### Filtering
 
@@ -50,7 +57,7 @@ agenteval results --export json
 agenteval results --export markdown
 ```
 
-**JSON output** returns the full result objects with all fields: scores per dimension, assertion details, diff summaries, token usage, and timing.
+**JSON output** returns the full stored result objects (see [Result File Structure](#result-file-structure)): scores per dimension, assertion details, diff summaries, token usage, and timing.
 
 **Markdown output** produces a table suitable for pasting into GitHub PRs or reports:
 
@@ -59,7 +66,9 @@ agenteval results --export markdown
 
 | ID | Task | Harness | Score | Status | Date |
 |-----|------|---------|-------|--------|------|
-| run-20260401-160000 | harvest-abc123d | claude-code | 0.91 | success | 2026-04-01 |
+| run-20261030-203538-026797 | fix-login | mock | 0.71 | success | 2026-10-30 |
+| run-20261030-203538-21b8c1 | add-tests | mock | N/A | error | 2026-10-30 |
+| run-20261030-203528-2ff4ea | fix-login | mock | 0.71 | success | 2026-10-30 |
 ```
 
 ### Pruning Old Results
@@ -70,7 +79,7 @@ Results accumulate over time. To remove results older than the retention period:
 agenteval results --prune
 ```
 
-The retention period defaults to 90 days. Configure it in `agenteval.yaml`:
+Age is measured from each result's `timestamp`. The retention period defaults to 90 days. Configure it in `agenteval.yaml` as a number of days with a `d` suffix (other units are rejected):
 
 ```yaml
 run:
@@ -83,7 +92,7 @@ run:
 |--------|------|---------|-------------|
 | `--task <name>` | string | | Show only results for this task name |
 | `--harness <name>` | string | | Show only results from this harness |
-| `--limit <n>` | integer | all | Maximum number of results to display |
+| `--limit <n>` | integer | all | Maximum number of results to display (the newest ones) |
 | `--export <format>` | string | console | Export format: `json` or `markdown` |
 | `--prune` | boolean | `false` | Delete results older than `resultRetention` |
 | `--config <path>`, `-c` | string | auto-discover | Path to `agenteval.yaml` |
@@ -93,22 +102,31 @@ run:
 ### Basic Comparison
 
 ```bash
-agenteval compare run-20260401-143022 run-20260401-150000
+agenteval compare run-20261030-203518-c0f006 run-20261030-203527-cbe245
 ```
 
 ```
-  Comparison: run-20260401-143022 vs run-20260401-150000
+  agenteval compare
+  ─────────────────
 
-  Metric          Run A    Run B    Delta
-  ─────────────────────────────────────────
-  Correctness     0.90     0.75     -0.15
-  Precision       0.80     0.70     -0.10
-  Efficiency      0.85     0.90     +0.05
-  Conventions     0.70     0.60     -0.10
-  Overall         0.85     0.72     -0.13
+  run-20261030-203518-c0f006  vs  run-20261030-203527-cbe245
 
-  Winner: Run A (run-20260401-143022)
+  ┌──────────────┬────────┬────────┬─────────┐
+  │ Metric       │ Run A  │ Run B  │ Delta   │
+  ├──────────────┼────────┼────────┼─────────┤
+  │ Correctness  │ 0.33   │ 0.67   │ +0.33 ▶ │
+  │ Precision    │ 1.00   │ 1.00   │ 0.00 —  │
+  │ Efficiency   │ N/A    │ N/A    │ —       │
+  │ Conventions  │ N/A    │ N/A    │ —       │
+  ├──────────────┼────────┼────────┼─────────┤
+  │ Overall      │ 0.62   │ 0.81   │ +0.19 ▶ │
+  └──────────────┴────────┴────────┴─────────┘
+
+  ──────────────────────────────────────────────────────
+  Run B scored 31% higher. Correctness improved from 0.33 to 0.67.
 ```
+
+When both runs come from harvested tasks that carry an `instructionSnapshot`, an "Instruction Changes" list between the table and the summary shows each instruction file as `added`, `removed`, or `changed`. Compare looks at scores only; it does not diff assertions or token counts.
 
 ### Reading the Comparison
 
@@ -117,8 +135,8 @@ agenteval compare run-20260401-143022 run-20260401-150000
 | Metric | The scoring dimension (see [Running Evals](run.md) for how each is computed) |
 | Run A | Score from the first run ID you provided |
 | Run B | Score from the second run ID you provided |
-| Delta | Run B minus Run A. Positive = B improved. Negative = B regressed. |
-| Winner | The run with the higher overall score, or "Tie" if equal |
+| Delta | Run B minus Run A. Positive = B improved. Negative = B regressed. `▶` marks Run B as better on that row, `◀` Run A, `—` a tie or missing data. |
+| Summary line | Which run scored higher overall and by what percentage, plus the dimension that improved most. If the overall scores can't be compared, the winner falls back to whichever run has a score, then to the count of dimension wins. |
 
 ### Comparison Output Formats
 
@@ -149,24 +167,25 @@ agenteval compare run-A run-B --report
 The typical workflow that uses results and comparison:
 
 ```
-1. Harvest tasks        agenteval harvest --output tasks/
+1. Harvest tasks        agenteval harvest
+       |                  -> tasks/harvested/harvest-e220da2.yaml
        |
-2. Run baseline         agenteval run --task tasks/harvest-abc.yaml
-       |                  -> run-20260401-100000 (score: 0.72)
+2. Run baseline         agenteval run --task tasks/harvested/harvest-e220da2.yaml
+       |                  -> run-20261030-100000-3f9a1c (score: 0.72)
        |
 3. Edit CLAUDE.md       (improve your instructions)
        |
-4. Run again            agenteval run --task tasks/harvest-abc.yaml
-       |                  -> run-20260401-110000 (score: 0.85)
+4. Run again            agenteval run --task tasks/harvested/harvest-e220da2.yaml
+       |                  -> run-20261030-110000-b27e40 (score: 0.85)
        |
-5. Compare              agenteval compare run-20260401-100000 run-20260401-110000
-       |                  -> Overall: +0.13, Winner: Run B
+5. Compare              agenteval compare run-20261030-100000-3f9a1c run-20261030-110000-b27e40
+       |                  -> Overall: +0.13, Run B scored 18% higher
        |
 6. Ship or iterate      Score improved? Ship the CLAUDE.md change.
                          Score dropped? Revert and try a different approach.
 ```
 
-Run this across multiple harvested tasks to build confidence that your instruction change is broadly positive, not just better on one task and worse on others.
+Agents are nondeterministic, so a single run per side can mislead. `agenteval run --trials 3 --baseline` measures the same question with repeated runs and an arm without instructions (see [Trials and the baseline arm](run.md#trials-and-the-baseline-arm)). Run this across multiple harvested tasks to build confidence that your instruction change is broadly positive, not just better on one task and worse on others.
 
 ## Where Results Are Stored
 
@@ -174,9 +193,9 @@ Results are saved as JSON files in `.agenteval/results/` (configurable via `run.
 
 ```
 .agenteval/results/
-  run-20260401-100000.json
-  run-20260401-110000.json
-  run-20260401-120000.json
+  run-20261030-203518-c0f006.json
+  run-20261030-203527-cbe245.json
+  run-20261030-203528-dcd4dc.json
 ```
 
 ### Result File Structure
@@ -185,25 +204,33 @@ Each JSON file contains:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique run identifier (format: `run-YYYYMMDD-HHMMSS`) |
+| `id` | string | Unique run identifier (format: `run-YYYYMMDD-HHMMSS-xxxxxx`, local time plus a random hex suffix) |
 | `timestamp` | string | ISO 8601 timestamp of when the run started |
 | `task` | string | Task name from the YAML file or "ad-hoc" |
-| `harness` | string | Which AI tool was used |
-| `instructions` | string | Path to the instruction file that was injected |
+| `harness` | string | Which harness was used (the resolved name when the task said `auto`) |
+| `instructions` | string | Absolute path to the instruction file that was injected, or `(baseline: no instructions)` for the baseline arm |
 | `status` | string | `success`, `error`, or `timeout` |
 | `metrics.tokensInput` | number or null | Input tokens used (null if unavailable) |
 | `metrics.tokensOutput` | number or null | Output tokens used |
 | `metrics.tokensTotal` | number or null | Total tokens |
 | `metrics.tokenSource` | string | `api`, `estimated`, or `unavailable` |
+| `metrics.tokensCacheRead` | number or null | Input tokens served from the prompt cache (part of `tokensInput`, left out of efficiency). Only from harnesses that report it |
+| `metrics.costUsd` | number or null | Cost the agent CLI reported |
+| `metrics.model` | string or null | Model the agent CLI reported |
+| `metrics.turns` | number or null | Turns the agent CLI reported |
 | `scores.correctness` | number or null | 0.0-1.0, from assertion results |
 | `scores.precision` | number or null | 0.0-1.0, from file change analysis |
 | `scores.efficiency` | number or null | 0.0-1.0, from token usage |
-| `scores.conventions` | number or null | 0.0-1.0, from convention assertions |
+| `scores.conventions` | number or null | 0.0-1.0, from `convention` and `lint-delta` assertions |
 | `scores.overall` | number or null | Weighted average of available dimensions |
-| `scores.confidenceAdjustedOverall` | number or null | Overall score multiplied by detection confidence (harvested tasks only) |
+| `scores.confidenceAdjustedOverall` | number | Overall score multiplied by detection confidence (harvested tasks only). Stored for your own analysis; `ci`, `trends`, and `compare` use `overall` |
 | `assertions` | array | Each assertion with type, expected, actual, passed |
-| `diffSummary` | string | Summary of git diff (e.g., "3 files, +42/-8") |
-| `model` | string or null | Model used (if available from harness) |
+| `diffSummary` | string | Summary of git diff, e.g. `3 file(s) changed, 42 insertion(s), 8 deletion(s)`. Empty for error and timeout runs |
+| `changedFiles` | string[] | Files the agent's diff touched, repo-relative, including new files (successful runs only) |
+| `model` | string or null | Model the CLI reported, else the requested model, else null |
+| `durationMs` | number | Wall-clock time of the agent process (successful runs only) |
+| `trial` | object | `group`, `index`, `of`, `arm` (`instructions` or `baseline`). Present when the run was one of several trials or used `--baseline` |
+| `lint` | object | `tools` (each tool's status: `ok`, `unavailable`, or `failed`) and `newDiagnostics` (findings the diff introduced). Present when the task has `lint-delta` assertions |
 | `error` | string | Error message (only present when status is error/timeout) |
 | `sourceCommit` | string | Source commit hash (present for harvested tasks) |
 | `instructionSnapshot` | object | Map of instruction file contents at source commit (harvested tasks) |

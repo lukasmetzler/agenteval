@@ -11,14 +11,16 @@ const TEMPLATE = `# yaml-language-server: $schema=https://raw.githubusercontent.
 # Full reference: https://github.com/lukasmetzler/agenteval/blob/main/docs/configuration.md
 version: 1
 
-# Which files to analyze. Patterns are relative to this file.
-instructionGlobs:
-  - "CLAUDE.md"
-  - "AGENTS.md"
-  - ".github/copilot-instructions.md"
+# Which files to analyze. Patterns are relative to the directory you run agenteval in.
+# The default covers CLAUDE.md, AGENTS.md, GEMINI.md (root and nested), .claude/,
+# .agents/skills/, Copilot, Cursor, Devin/Windsurf, Kiro, and Junie files.
+# Uncomment to restrict:
+# instructionGlobs:
+#   - "CLAUDE.md"
+#   - "AGENTS.md"
 
 # Model for context budget calculations
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # Max fraction of the model's context window for instructions (0.0-1.0)
 contextBudget: 0.3
@@ -26,8 +28,8 @@ contextBudget: 0.3
 # Lint settings
 lint:
   maxTokensPerFile: 8000       # Warn if a single file exceeds this
-  overlapThreshold: 0.3        # Flag sections with >30% content overlap
-  bloatThreshold: 0.5          # Flag low information density
+  overlapThreshold: 0.3        # Flag file pairs more than 30% similar
+  bloatThreshold: 0.5          # Flag sections with information density below this
 
 # Eval run settings
 run:
@@ -71,9 +73,13 @@ const PRE_COMMIT_HOOK = `#!/bin/sh
 # Installed by: agenteval init --hook
 
 # Only run if instruction files are staged
-STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(CLAUDE|AGENTS|copilot-instructions|SKILL|cursorrules)\\.m?d?c?$' || true)
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)(CLAUDE|AGENTS|GEMINI|SKILL|copilot-instructions)\\.md$|\\.instructions\\.md$|\\.mdc$|^\\.(claude|cursor|devin|windsurf|kiro|junie|agents)/' || true)
 
 if [ -n "$STAGED" ]; then
+  if ! command -v agenteval >/dev/null 2>&1; then
+    echo "agenteval: not found on PATH, skipping instruction lint (install: npm install -g agenteval-cli)"
+    exit 0
+  fi
   echo "agenteval: linting instruction files..."
   agenteval lint --severity error
   if [ $? -ne 0 ]; then

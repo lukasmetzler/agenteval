@@ -1,0 +1,2 @@
+types.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.
+src/a.ts(10,3): error TS2304: Cannot find name 'foo'.

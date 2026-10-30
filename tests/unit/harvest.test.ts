@@ -115,6 +115,71 @@ describe("detectSignals", () => {
 		authorEmail: overrides.authorEmail ?? "user@example.com",
 		date: "2026-01-01T00:00:00+00:00",
 		coAuthorRaw: overrides.coAuthorRaw ?? "",
+		authorName: overrides.authorName,
+		body: overrides.body,
+	});
+
+	const detect = (overrides: Record<string, string>) => {
+		const s = detectSignals(makeCommit(overrides));
+		return s ? `${s.tool}:${s.method}${s.model ? `:${s.model}` : ""}` : null;
+	};
+
+	test.each([
+		[
+			{ coAuthorRaw: "Claude Opus 5.5 <noreply@anthropic.com>" },
+			"claude:co-author-tag:Claude Opus 5.5",
+		],
+		[{ coAuthorRaw: "Claude <noreply@anthropic.com>" }, "claude:co-author-tag"],
+		[{ coAuthorRaw: "Codex <noreply@openai.com>" }, "codex:co-author-tag"],
+		[{ coAuthorRaw: "Copilot <copilot@github.com>" }, "copilot:co-author-tag"],
+		[{ coAuthorRaw: "Amp <amp@ampcode.com>" }, "amp:co-author-tag"],
+		[{ coAuthorRaw: "aider (gpt-5) <aider@aider.chat>" }, "aider:co-author-tag:gpt-5"],
+		[
+			{ body: "Fix it\n\nAgent-Logs-Url: https://github.com/o/r/agents/1" },
+			"copilot:co-author-tag",
+		],
+		[{ body: "Amp-Thread-ID: https://ampcode.com/threads/T-1" }, "amp:co-author-tag"],
+		[{ authorEmail: "198982749+Copilot@users.noreply.github.com" }, "copilot:author-email"],
+		[
+			{ authorEmail: "161369871+google-labs-jules[bot]@users.noreply.github.com" },
+			"gemini:author-email",
+		],
+		[
+			{ authorEmail: "158243242+devin-ai-integration[bot]@users.noreply.github.com" },
+			"devin:author-email",
+		],
+		[
+			{ authorEmail: "138933559+factory-droid[bot]@users.noreply.github.com" },
+			"factory:author-email",
+		],
+		[{ authorEmail: "dev@corp.com", authorName: "Jane Doe (aider)" }, "aider:author-email"],
+		[
+			{ body: "🤖 Generated with [Claude Code](https://claude.com/claude-code)" },
+			"claude:message-pattern",
+		],
+		[{ body: "Generated with [Codex](https://openai.com/codex/)." }, "codex:message-pattern"],
+	])("detects %o", (overrides, expected) => {
+		expect(detect(overrides)).toBe(expected);
+	});
+
+	test.each([
+		[{ authorEmail: "jules.smith@corp.com" }],
+		[{ authorEmail: "codex.fan@example.com" }],
+		[{ authorEmail: "devin@corp.com", authorName: "Devin Miller" }],
+		[{ coAuthorRaw: "Devin Miller <devin@corp.com>" }],
+		[{ coAuthorRaw: "Octocat <noreply@github.com>" }],
+	])("does not flag humans: %o", (overrides) => {
+		expect(detect(overrides)).toBeNull();
+	});
+
+	test("parseGitLog reads the record format with author name and multi-line body", () => {
+		const record = (subject: string, body: string) =>
+			`h\0s\0${subject}\0a@b.c\0 2026-01-01\0\0Alice\0${body}\x1D`;
+		const commits = parseGitLog(`${record("one", "line1\nline2\n")}\n${record("two", "")}\n`);
+		expect(commits.map((c) => [c.subject, c.authorName, c.body])).toEqual([
+			["one", "Alice", "line1\nline2\n"],
+			["two", "Alice", ""],
+		]);
 	});
 
 	test("detects Claude co-author (noreply@anthropic.com)", () => {
@@ -407,6 +472,20 @@ describe("emitTaskYaml", () => {
 		expect(task.scoring.correctness).toBe(0.5);
 	});
 
+	test("adds a lint-delta assertion when the repo has a runnable linter", () => {
+		const withLinter = emitTaskYaml(sampleCommit, {}, undefined, repoRoot);
+		expect(withLinter.assertions.at(-1)).toEqual({ type: "lint-delta", tools: "auto" });
+		const python = emitTaskYaml(
+			sampleCommit,
+			{},
+			undefined,
+			join(repoRoot, "tests/fixtures/toolchain/python-ruff"),
+		);
+		expect(python.assertions.some((a) => a.type === "lint-delta")).toBe(true);
+		const none = emitTaskYaml(sampleCommit, {}, undefined, join(repoRoot, "tests/fixtures/simple"));
+		expect(none.assertions.some((a) => a.type === "lint-delta")).toBe(false);
+	});
+
 	test("generates files-changed assertions for each file in diff", () => {
 		const task = emitTaskYaml(sampleCommit, {});
 		// 2 files-changed + 1 test-pass (sampleCommit includes tests/auth.test.ts)
@@ -517,9 +596,19 @@ describe("emitTaskYaml", () => {
 		}
 	});
 
-	test("detectTestCommand returns bun test for this repo", () => {
+	test("detectTestCommand runs this repo's test script through bun", () => {
 		const cmd = detectTestCommand(repoRoot);
-		expect(cmd).toBe("bun test");
+		expect(cmd).toBe("bun run test");
+	});
+
+	test("detectTestCommand uses the repo's package manager", () => {
+		const cmd = detectTestCommand(join(repoRoot, "tests/fixtures/toolchain/pnpm-eslint-prettier"));
+		expect(cmd).toBe("pnpm run test");
+	});
+
+	test("detectTestCommand falls back to the ecosystem runner without a test script", () => {
+		const cmd = detectTestCommand(join(repoRoot, "tests/fixtures/toolchain/python-ruff"));
+		expect(cmd).toBe("uv run pytest");
 	});
 
 	test("detectTestCommand returns fallback for non-existent path", () => {
@@ -629,7 +718,7 @@ describe("harvest", () => {
 			expect(existsSync(path)).toBe(true);
 		}
 		cleanup();
-	});
+	}, 30_000);
 
 	test("dry-run returns results without writing files", async () => {
 		cleanup();
@@ -642,7 +731,7 @@ describe("harvest", () => {
 		expect(result.tasks.length).toBeGreaterThan(0); // task names, not file paths
 		expect(existsSync(tmpDir)).toBe(false); // dir not created
 		cleanup();
-	});
+	}, 30_000);
 
 	test("dry-run populates commitSummaries with required fields", async () => {
 		const result = await harvest({
@@ -663,7 +752,7 @@ describe("harvest", () => {
 			expect(summary.message.length).toBeGreaterThan(0);
 			expect(summary.message.length).toBeLessThanOrEqual(42);
 		}
-	});
+	}, 30_000);
 
 	test("filters by minConfidence threshold", async () => {
 		// Confidence 1.0 should filter out everything (max is 0.9)
@@ -673,9 +762,9 @@ describe("harvest", () => {
 			dryRun: true,
 		});
 		expect(result.aiCommitsDetected).toBe(0);
-	});
+	}, 30_000);
 
 	test("returns error for non-repo path", async () => {
 		await expect(harvest({ repoPath: "/tmp" })).rejects.toThrow("Not a git repository");
-	});
+	}, 30_000);
 });

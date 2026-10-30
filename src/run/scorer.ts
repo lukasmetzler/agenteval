@@ -1,11 +1,13 @@
 import { minimatch } from "minimatch";
+import type { LintDeltaResult } from "../toolchain/lintDelta.js";
 import { evaluateAssertion } from "./assertions.js";
-import type {
-	AssertionResult,
-	ResultScores,
-	RunMetrics,
-	ScoringWeights,
-	TaskAssertion,
+import {
+	type AssertionResult,
+	CONVENTION_ASSERTIONS,
+	type ResultScores,
+	type RunMetrics,
+	type ScoringWeights,
+	type TaskAssertion,
 } from "./types.js";
 
 interface ScoreRunInput {
@@ -14,6 +16,7 @@ interface ScoreRunInput {
 	changedFiles: string[];
 	diff: string;
 	testResults: Map<string, { passed: boolean; output: string }>;
+	lintDeltas?: Map<string, LintDeltaResult>;
 	metrics: RunMetrics;
 	tokensBudget: number;
 	expectedFilePatterns: string[];
@@ -29,6 +32,7 @@ export function scoreRun(input: ScoreRunInput): {
 			changedFiles: input.changedFiles,
 			diff: input.diff,
 			testResults: input.testResults,
+			lintDeltas: input.lintDeltas ?? new Map(),
 		}),
 	);
 
@@ -64,7 +68,7 @@ export function scoreRun(input: ScoreRunInput): {
 }
 
 function computeCorrectness(results: AssertionResult[]): number {
-	const scorable = results.filter((r) => r.type !== "convention");
+	const scorable = results.filter((r) => !CONVENTION_ASSERTIONS.has(r.type));
 	if (scorable.length === 0) return 1;
 	return scorable.filter((r) => r.passed).length / scorable.length;
 }
@@ -79,15 +83,24 @@ function computePrecision(changedFiles: string[], expectedPatterns: string[]): n
 	return Math.max(0, Math.min(1, 1 - unexpected.length / changedFiles.length));
 }
 
+/**
+ * Tokens the run spent apart from cache reads. Cache reads replay the same
+ * system prompt and history every turn; counting them would make every
+ * multi-turn agent session blow any reasonable budget.
+ */
+export function efficiencyTokens(metrics: RunMetrics): number | null {
+	if (metrics.tokensTotal === null || metrics.tokenSource === "unavailable") return null;
+	return Math.max(0, metrics.tokensTotal - (metrics.tokensCacheRead ?? 0));
+}
+
 function computeEfficiency(metrics: RunMetrics, budget: number): number | null {
-	if (metrics.tokensTotal === null || metrics.tokenSource === "unavailable") {
-		return null;
-	}
-	return Math.max(0, Math.min(1, 1 - metrics.tokensTotal / budget));
+	const tokens = efficiencyTokens(metrics);
+	if (tokens === null) return null;
+	return Math.max(0, Math.min(1, 1 - tokens / budget));
 }
 
 function computeConventions(results: AssertionResult[]): number | null {
-	const conventionResults = results.filter((r) => r.type === "convention");
+	const conventionResults = results.filter((r) => CONVENTION_ASSERTIONS.has(r.type));
 	if (conventionResults.length === 0) return null;
 	return conventionResults.filter((r) => r.passed).length / conventionResults.length;
 }

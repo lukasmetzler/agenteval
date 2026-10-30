@@ -1,5 +1,20 @@
 import { minimatch } from "minimatch";
+import type { LintDeltaResult } from "../toolchain/lintDelta.js";
 import type { AssertionResult, TaskAssertion } from "./types.js";
+
+/** Whether an assertion is evaluated by running linters on the diff. */
+export function isLintDeltaAssertion(assertion: TaskAssertion): boolean {
+	return (
+		assertion.type === "lint-delta" ||
+		(assertion.type === "no-new-warnings" && assertion.command === undefined)
+	);
+}
+
+/** Cache key for a lint-delta assertion's tool selection. */
+export function lintDeltaKey(assertion: TaskAssertion): string {
+	const tools = assertion.tools ?? "auto";
+	return tools === "auto" ? "auto" : [...tools].sort().join(",");
+}
 
 /**
  * Evaluate a single assertion against the actual run results.
@@ -10,8 +25,12 @@ export function evaluateAssertion(
 		changedFiles: string[];
 		diff: string;
 		testResults: Map<string, { passed: boolean; output: string }>;
+		lintDeltas?: Map<string, LintDeltaResult>;
 	},
 ): AssertionResult {
+	if (isLintDeltaAssertion(assertion)) {
+		return evaluateLintDelta(assertion, context.lintDeltas?.get(lintDeltaKey(assertion)));
+	}
 	switch (assertion.type) {
 		case "files-changed":
 			return evaluateFilesChanged(assertion, context.changedFiles);
@@ -19,6 +38,7 @@ export function evaluateAssertion(
 			return evaluateFilesUnchanged(assertion, context.changedFiles);
 		case "test-pass":
 			return evaluateTestPass(assertion, context.testResults);
+		// no-new-warnings with a command keeps its v0.8 meaning: the command exits 0.
 		case "no-new-warnings":
 			return evaluateTestPass(assertion, context.testResults);
 		case "convention":
@@ -116,5 +136,40 @@ function evaluateConvention(assertion: TaskAssertion, diff: string): AssertionRe
 		expected: `${pattern} ${expectPresent ? "present" : "absent"} in changes`,
 		actual: found ? "pattern found in added lines" : "pattern not found in added lines",
 		passed,
+	};
+}
+
+function evaluateLintDelta(
+	assertion: TaskAssertion,
+	delta: LintDeltaResult | undefined,
+): AssertionResult {
+	const maxNew = assertion.maxNew ?? 0;
+	const expected = `at most ${maxNew} new lint/type finding(s)`;
+	if (!delta) {
+		return { type: assertion.type, expected, actual: "linters not run", passed: false };
+	}
+	const ran = delta.runs.filter((r) => r.status === "ok");
+	if (ran.length === 0) {
+		const why = delta.runs.map((r) => (r.status === "ok" ? r.tool : `${r.tool}: ${r.reason}`));
+		return {
+			type: assertion.type,
+			expected,
+			actual: why.length > 0 ? `no linter could run (${why.join("; ")})` : "no linters detected",
+			passed: false,
+		};
+	}
+	const count = delta.newDiagnostics.length;
+	const sample = delta.newDiagnostics
+		.slice(0, 3)
+		.map((d) => `${d.file}:${d.line} ${d.rule}`)
+		.join(", ");
+	return {
+		type: assertion.type,
+		expected,
+		actual:
+			count === 0
+				? `0 new findings (${ran.map((r) => r.tool).join(", ")})`
+				: `${count} new finding(s): ${sample}${count > 3 ? ", ..." : ""}`,
+		passed: count <= maxNew,
 	};
 }

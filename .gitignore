@@ -2,7 +2,7 @@ node_modules/
 dist/
 .agenteval/
 *.tgz
-agenteval
+/agenteval
 agenteval-linux-*
 agenteval-darwin-*
 agenteval-windows-*

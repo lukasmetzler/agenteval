@@ -31,7 +31,7 @@
 		},
 		"instructions": {
 			"default": [],
-			"description": "Explicit instruction file sources with harness mapping",
+			"description": "Unused. Kept so older config files still parse.",
 			"type": "array",
 			"items": {
 				"type": "object",
@@ -132,7 +132,7 @@
 				},
 				"tokensBudget": {
 					"default": 50000,
-					"description": "Token budget passed to the agent",
+					"description": "Token count that scores 0 on efficiency (prompt-cache reads are not counted)",
 					"type": "number"
 				},
 				"resultsDir": {
@@ -152,8 +152,9 @@
 				},
 				"resultRetention": {
 					"default": "90d",
-					"description": "How long to keep results (e.g. 90d, 1y)",
-					"type": "string"
+					"description": "How long to keep results, in days (e.g. 90d)",
+					"type": "string",
+					"pattern": "^\\d+d$"
 				}
 			}
 		},

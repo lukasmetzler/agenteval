@@ -174,3 +174,34 @@ describe("agent failures and replay start point", () => {
 		expect(seen).toEqual([false, true]);
 	});
 });
+
+describe("timeouts", () => {
+	test("a task without timeout uses config run.timeout", async () => {
+		let seen = 0;
+		const probe: HarnessAdapter = {
+			name: "probe",
+			instructionTarget: "CLAUDE.md",
+			isAvailable: async () => true,
+			injectInstructions: async () => {},
+			runTask: async (_w, _t, timeoutSeconds) => {
+				seen = timeoutSeconds;
+				return { stdout: "", stderr: "", exitCode: 0, durationMs: 1, timedOut: false };
+			},
+			parseMetrics: () => ({
+				tokensInput: null,
+				tokensOutput: null,
+				tokensTotal: null,
+				tokenSource: "unavailable",
+			}),
+		};
+		const config = ConfigSchema.parse({ version: 1, run: { timeout: 42 } });
+		await executeRun(config, { ...task, timeout: undefined }, { sourcePath: "CLAUDE.md" }, repo, {
+			adapter: probe,
+		});
+		expect(seen).toBe(42);
+		await executeRun(config, { ...task, timeout: 7 }, { sourcePath: "CLAUDE.md" }, repo, {
+			adapter: probe,
+		});
+		expect(seen).toBe(7);
+	});
+});

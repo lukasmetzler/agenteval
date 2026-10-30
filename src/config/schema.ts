@@ -85,7 +85,10 @@ export type InstructionSource = z.infer<typeof InstructionSourceSchema>;
 
 const RunConfigSchema = z.object({
 	timeout: z.number().min(1).default(300).describe("Seconds before killing the agent"),
-	tokensBudget: z.number().default(50_000).describe("Token budget passed to the agent"),
+	tokensBudget: z
+		.number()
+		.default(50_000)
+		.describe("Token count that scores 0 on efficiency (prompt-cache reads are not counted)"),
 	resultsDir: z
 		.string()
 		.default(".agenteval/results")
@@ -98,7 +101,11 @@ const RunConfigSchema = z.object({
 		.number()
 		.default(3_600_000)
 		.describe("Milliseconds after which leftover worktrees are cleaned up"),
-	resultRetention: z.string().default("90d").describe("How long to keep results (e.g. 90d, 1y)"),
+	resultRetention: z
+		.string()
+		.regex(/^\d+d$/, 'Use a number of days like "90d"')
+		.default("90d")
+		.describe("How long to keep results, in days (e.g. 90d)"),
 });
 
 const HarnessConfigSchema = z.object({
@@ -220,7 +227,7 @@ export const ConfigSchema = z.object({
 	instructions: z
 		.array(InstructionSourceSchema)
 		.default([])
-		.describe("Explicit instruction file sources with harness mapping"),
+		.describe("Unused. Kept so older config files still parse."),
 	model: z
 		.string()
 		.default("claude-opus-5-5")

@@ -162,3 +162,18 @@ describe("CLI", () => {
 		}
 	});
 });
+
+describe("lint --quiet", () => {
+	test("prints only errors", async () => {
+		const dir = join(import.meta.dir, "../fixtures/toolchain/bun-oxlint");
+		const result =
+			await $`bun run ${join(import.meta.dir, "../../src/cli.ts")} lint --quiet --format json`
+				.cwd(dir)
+				.nothrow()
+				.text();
+		const severities = new Set(
+			JSON.parse(result).diagnostics.map((d: { severity: string }) => d.severity),
+		);
+		expect([...severities]).toEqual(["error"]);
+	});
+});

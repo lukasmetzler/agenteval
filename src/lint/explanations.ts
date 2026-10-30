@@ -210,4 +210,124 @@ export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
 		why: "Skill bodies should use imperative or third-person voice. They describe what the agent should DO, not what 'I' do.",
 		fix: "Rewrite 'I deploy...' as 'Deploy...' or 'The skill deploys...'.",
 	},
+	"skill/frontmatter-invalid": {
+		what: "SKILL.md files without parseable YAML frontmatter.",
+		why: "Agents load such a skill with empty metadata. With no name or description, nothing can trigger it.",
+		fix: "Start the file with a --- block holding at least name and description.",
+	},
+	"skill/name-invalid-hyphens": {
+		what: "Skill names that start or end with a hyphen or contain '--'.",
+		why: "The Agent Skills spec forbids these, and clients that validate names reject the skill.",
+		fix: "Use single hyphens between lowercase words, e.g. pdf-tools.",
+	},
+	"skill/name-directory-mismatch": {
+		what: "Skill names that differ from the skill's directory name.",
+		why: "The Agent Skills spec requires name to equal the parent directory. Clients that enforce it skip or reject the skill.",
+		fix: "Rename the directory or the name field so they match.",
+	},
+	"skill/listing-truncated": {
+		what: "Skills whose description plus when_to_use is over 1536 characters.",
+		why: "Claude Code cuts the skill listing entry at 1536 characters, so trigger conditions past that point are never seen.",
+		fix: "Move detail into the body and keep the trigger conditions first.",
+	},
+	"skill/compatibility-too-long": {
+		what: "compatibility fields over 500 characters.",
+		why: "The Agent Skills spec caps compatibility at 500 characters.",
+		fix: "State only hard requirements (runtime, CLI, OS).",
+	},
+	"frontmatter/malformed": {
+		what: "Rule, subagent, or command files whose frontmatter is not a YAML mapping.",
+		why: "The agent ignores frontmatter it cannot parse, so globs, paths, or tool lists in it have no effect.",
+		fix: "Fix the YAML: key: value pairs between --- lines.",
+	},
+	"frontmatter/missing-required": {
+		what: "Subagent files without name or description.",
+		why: "Claude Code needs both to list and delegate to a subagent.",
+		fix: "Add name and description to the frontmatter.",
+	},
+	"frontmatter/invalid-value": {
+		what: "Frontmatter fields with the wrong type or an unknown enum value.",
+		why: "An invalid alwaysApply, trigger, inclusion, or excludeAgent value makes the agent fall back to its default, which is usually not what you meant.",
+		fix: "Use one of the values the message lists.",
+	},
+	"frontmatter/unknown-field": {
+		what: "Frontmatter keys the target agent doesn't document.",
+		why: "Unknown keys are ignored. They are often typos, like glob instead of globs.",
+		fix: "Rename the key to a documented field, or remove it.",
+	},
+	"frontmatter/never-applied": {
+		what: "Rule files that can never activate.",
+		why: "A Copilot instruction without applyTo, a Devin glob trigger without globs, or a Kiro fileMatch without fileMatchPattern is loaded nowhere.",
+		fix: "Add the missing glob field or change the trigger mode.",
+	},
+	"import/missing": {
+		what: "@path imports that point at a missing file.",
+		why: "Claude Code and Gemini CLI silently skip missing imports, so the rules you meant to include never load.",
+		fix: "Fix the path (relative to the importing file) or remove the import.",
+	},
+	"import/cycle": {
+		what: "@path imports that lead back to a file already in the chain.",
+		why: "Cycles waste the import depth budget and usually mean two files import each other by mistake.",
+		fix: "Import shared content from one place only.",
+	},
+	"import/too-deep": {
+		what: "@path imports more than 4 hops deep.",
+		why: "Claude Code stops following imports after 4 hops, so deeper files never load.",
+		fix: "Flatten the chain: import the deep file from a shallower one.",
+	},
+	"agent-limits/codex-size": {
+		what: "AGENTS.md chains over 32 KiB.",
+		why: "Codex concatenates AGENTS.md files from the repo root down and stops at project_doc_max_bytes (32 KiB). The rest is dropped without warning.",
+		fix: "Move detail into nested AGENTS.md files or linked docs.",
+	},
+	"agent-limits/claude-lines": {
+		what: "CLAUDE.md files over 200 lines.",
+		why: "Claude Code recommends staying under 200 lines and warns above it. Long files cost context on every session.",
+		fix: "Split topics into .claude/rules/ files (with paths: to scope them) or @imports.",
+	},
+	"agent-limits/claude-truncation": {
+		what: "Nested CLAUDE.md files over 40,000 characters.",
+		why: "Claude Code truncates lazily loaded files at 40k characters on 200K-context models.",
+		fix: "Split the file or move reference material behind links.",
+	},
+	"agent-limits/cursor-md-ignored": {
+		what: ".md files in .cursor/rules/.",
+		why: "Cursor only reads .mdc files there, so this file has no effect.",
+		fix: "Rename it to .mdc and add description/globs/alwaysApply frontmatter.",
+	},
+	"agent-limits/cursor-lines": {
+		what: "Cursor rules over 500 lines.",
+		why: "Cursor recommends keeping each rule under 500 lines.",
+		fix: "Split the rule by topic or file pattern.",
+	},
+	"agent-limits/claude-ignores-agents-md": {
+		what: "Repos with both CLAUDE.md and AGENTS.md where CLAUDE.md doesn't import AGENTS.md.",
+		why: "Claude Code reads AGENTS.md only when there is no CLAUDE.md, so rules kept only in AGENTS.md never reach it.",
+		fix: "Add @AGENTS.md to CLAUDE.md, or keep shared rules in one file.",
+	},
+	"toolchain/missing-script": {
+		what: "Commands that run a package.json script that doesn't exist.",
+		why: "The agent runs the command, it fails, and the agent improvises.",
+		fix: "Use one of the scripts the message lists, or add the script.",
+	},
+	"toolchain/wrong-package-manager": {
+		what: "npm/yarn/pnpm/bun commands that don't match the repo's lockfile.",
+		why: "Installing with the wrong package manager creates a second lockfile and can resolve different versions.",
+		fix: "Use the package manager the lockfile belongs to.",
+	},
+	"toolchain/absent-tool": {
+		what: "Commands for a linter, formatter, or type checker the repo doesn't use.",
+		why: "Instructions that say eslint in an oxlint repo make the agent run a tool that isn't configured, or install it.",
+		fix: "Replace the command with the tool the message names.",
+	},
+	"toolchain/undocumented": {
+		what: "Linters, type checkers, or test scripts no instruction file mentions.",
+		why: "An agent that doesn't know how to check its work skips the check.",
+		fix: "Add the command (usually the package.json script) to the commands section.",
+	},
+	"context-budget/unknown-model": {
+		what: "Configs whose model isn't in agenteval's context-window table.",
+		why: "The budget then assumes 200,000 tokens, which may be far off.",
+		fix: "Use a known model id, or set lint.maxTotalTokens.",
+	},
 };

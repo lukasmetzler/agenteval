@@ -15,7 +15,8 @@ export interface TaskDefinition {
 	harness: string;
 	/** Model passed to the agent CLI (its --model flag); the CLI default when unset. */
 	model?: string;
-	timeout: number;
+	/** Seconds before the agent is stopped; falls back to config run.timeout. */
+	timeout?: number;
 	/** Independent attempts per run (default 1). Agents are nondeterministic; 3+ is recommended. */
 	trials?: number;
 	/** Shell commands run in the worktree before the agent starts (e.g. "bun install"). */

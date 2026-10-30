@@ -36,11 +36,13 @@ import { cleanStaleWorktrees, createWorktree, generateRunId, removeWorktree } fr
  */
 export async function executeRun(
 	config: Config,
-	task: TaskDefinition,
+	taskDefinition: TaskDefinition,
 	instructions: InstructionSet,
 	cwd: string,
 	options: { adapter?: HarnessAdapter } = {},
 ): Promise<StoredResult> {
+	// A task without its own timeout uses run.timeout from the config.
+	const task = { ...taskDefinition, timeout: taskDefinition.timeout ?? config.run.timeout };
 	const runId = generateRunId();
 	const timestamp = new Date().toISOString();
 
@@ -83,7 +85,7 @@ export async function executeRun(
 		await prepareWorktree(adapter, worktreePath, instructions, cwd);
 
 		// Run agent
-		const timeout = task.timeout ?? config.run.timeout;
+		const timeout = task.timeout;
 		const rawResult = await adapter.runTask(worktreePath, task, timeout);
 
 		if (rawResult.timedOut) {
@@ -221,7 +223,7 @@ async function prepareWorktree(
 }
 
 /** Run task.setup commands in the worktree; returns an error message if one fails. */
-async function runSetup(task: TaskDefinition, worktreePath: string): Promise<string | null> {
+async function runSetup(task: TimedTask, worktreePath: string): Promise<string | null> {
 	for (const command of task.setup ?? []) {
 		const raw = await spawnAgent({
 			command: ["sh", "-c", command],
@@ -255,6 +257,9 @@ function agentFailure(raw: RawRunResult): string | null {
 export function startRef(task: TaskDefinition): string {
 	return task.sourceCommit ? `${task.sourceCommit}^` : "HEAD";
 }
+
+/** A task whose timeout has been resolved against the config. */
+type TimedTask = TaskDefinition & { timeout: number };
 
 /** How a result records which instructions it ran with. */
 export function instructionsLabel(instructions: InstructionSet): string {
@@ -330,7 +335,7 @@ function summarizeDiff(diff: string): string {
 }
 
 async function runAssertionCommands(
-	task: TaskDefinition,
+	task: TimedTask,
 	worktreePath: string,
 ): Promise<Map<string, { passed: boolean; output: string }>> {
 	const results = new Map<string, { passed: boolean; output: string }>();

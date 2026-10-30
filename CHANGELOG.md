@@ -68,6 +68,13 @@ Catch-up with six months of agent ecosystem changes. Research and sources: `docs
 - `watch` missed files in directories created after startup on Bun 1.3 (the version release binaries are built with). It now also re-resolves the globs every 2 seconds.
 - The pre-commit hook reported "lint errors found" and blocked the commit when `agenteval` wasn't on PATH. It now skips with an install hint.
 - Placeholder and glob paths such as `src/<name>.test.ts` or `docs/$TOPIC.md` are no longer reported as missing files.
+- `run.timeout` in the config never applied: the task loader gave every task a 300 s timeout. Tasks without `timeout` now use `run.timeout`.
+- `lint --quiet` claimed to show only errors but printed every diagnostic. It now filters to errors.
+- The update check announced an "update" when the local version was newer than the latest release. It now compares versions.
+- `harvest` suggested `--min-confidence 0.3` when it found nothing, which can't find more commits (the lowest signal is 0.6). It now says which signals it looks for.
+- `--explain` printed nothing for the 24 rules added in this release; every rule has an explanation now, enforced by a test.
+- `resultRetention` is validated when the config loads (`<N>d`), instead of failing later in `results --prune`.
+- Config and init-template descriptions for `tokensBudget`, `overlapThreshold`, `bloatThreshold`, and glob paths now say what the code does.
 - `skill/description-truncation` claimed descriptions over 250 characters get truncated. Claude Code truncates at 1536 (`skill/listing-truncated`); the note now explains the shared listing budget instead.
 
 ## [0.8.14] - 2026-04-06

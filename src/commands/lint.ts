@@ -34,8 +34,8 @@ export function registerLintCommand(program: Command): void {
 			"console",
 		)
 		.option("--severity <level>", "minimum severity: info, warning, error", "info")
-		.option("--quiet", "only show errors")
-		.option("--fix", "auto-fix filler phrases and simple issues")
+		.option("--quiet", "show only errors and suppress log output")
+		.option("--fix", "remove filler phrases in place")
 		.option("--explain", "show detailed explanation for each rule triggered")
 		.action(async (globs: string[], options: LintOptions) => {
 			try {
@@ -49,7 +49,8 @@ export function registerLintCommand(program: Command): void {
 					result = await runFixAndRelint(result, config);
 				}
 
-				result.diagnostics = filterBySeverity(result.diagnostics, options.severity as Severity);
+				const minSeverity = options.quiet ? "error" : (options.severity as Severity);
+				result.diagnostics = filterBySeverity(result.diagnostics, minSeverity);
 
 				const formatter = createFormatter(options.format, options.explain);
 				console.log(formatter.format(result));

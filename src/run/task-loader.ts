@@ -33,7 +33,7 @@ const TaskDefinitionSchema = z.object({
 	prompt: z.string().optional(),
 	harness: z.string().default("auto"),
 	model: z.string().optional(),
-	timeout: z.number().min(1).default(300),
+	timeout: z.number().min(1).optional(),
 	trials: z.number().int().min(1).optional(),
 	setup: z.array(z.string()).optional(),
 	assertions: z.array(TaskAssertionSchema).default([]),
@@ -96,7 +96,6 @@ function createAdHocTask(description: string): TaskDefinition {
 		description,
 		prompt: description,
 		harness: "auto",
-		timeout: 300,
 		assertions: [],
 		scoring: {
 			correctness: 0.4,

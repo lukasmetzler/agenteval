@@ -19,7 +19,8 @@ describe("loadTask", () => {
 	test("loads minimal task with defaults", () => {
 		const task = loadTask(join(tasksDir, "minimal.yaml"), fixturesDir);
 		expect(task.name).toBe("minimal-task");
-		expect(task.timeout).toBe(300);
+		// No timeout in the file: executeRun falls back to config run.timeout.
+		expect(task.timeout).toBeUndefined();
 		expect(task.harness).toBe("auto");
 		expect(task.assertions).toHaveLength(0);
 		expect(task.scoring.correctness).toBe(0.4);

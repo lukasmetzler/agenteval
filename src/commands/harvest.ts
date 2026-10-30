@@ -214,7 +214,9 @@ function printDryRun(result: HarvestResult, elapsed?: string): void {
 	if (result.aiCommitsDetected === 0) {
 		console.log(`\n  ${chalk.yellow("No AI-involved commits detected.")}`);
 		console.log(
-			chalk.dim("  Try --min-confidence 0.3 or check your AI tool adds Co-authored-by trailers."),
+			chalk.dim(
+				"  agenteval looks for Co-authored-by trailers, agent bot accounts, and 'Generated with' footers. Check that your AI tool adds one.",
+			),
 		);
 	}
 
@@ -250,7 +252,9 @@ function printSummary(result: HarvestResult, elapsed?: string): void {
 	if (result.aiCommitsDetected === 0) {
 		console.log(`\n  ${chalk.yellow("No AI-involved commits detected.")}`);
 		console.log(
-			chalk.dim("  Try --min-confidence 0.3 or check your AI tool adds Co-authored-by trailers."),
+			chalk.dim(
+				"  agenteval looks for Co-authored-by trailers, agent bot accounts, and 'Generated with' footers. Check that your AI tool adds one.",
+			),
 		);
 	}
 

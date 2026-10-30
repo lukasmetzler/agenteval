@@ -11,7 +11,7 @@ const TEMPLATE = `# yaml-language-server: $schema=https://raw.githubusercontent.
 # Full reference: https://github.com/lukasmetzler/agenteval/blob/main/docs/configuration.md
 version: 1
 
-# Which files to analyze. Patterns are relative to this file.
+# Which files to analyze. Patterns are relative to the directory you run agenteval in.
 # The default covers CLAUDE.md, AGENTS.md, GEMINI.md (root and nested), .claude/,
 # .agents/skills/, Copilot, Cursor, Devin/Windsurf, Kiro, and Junie files.
 # Uncomment to restrict:
@@ -28,8 +28,8 @@ contextBudget: 0.3
 # Lint settings
 lint:
   maxTokensPerFile: 8000       # Warn if a single file exceeds this
-  overlapThreshold: 0.3        # Flag sections with >30% content overlap
-  bloatThreshold: 0.5          # Flag low information density
+  overlapThreshold: 0.3        # Flag file pairs more than 30% similar
+  bloatThreshold: 0.5          # Flag sections with information density below this
 
 # Eval run settings
 run:

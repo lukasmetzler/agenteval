@@ -25,7 +25,7 @@ brew tap lukasmetzler/agenteval && brew install agenteval   # Homebrew
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash  # Shell
 ```
 
-No Bun, no Node at runtime. The binary is self-contained.
+The Homebrew and curl installs are a self-contained binary with no Bun or Node needed. The npm package is a small Node wrapper that downloads that binary on first run.
 
 ## Quick Start
 
@@ -41,7 +41,7 @@ agenteval ci                      # Run all tasks, fail on regressions
 ## What It Catches
 
 - Dead references to files, paths, and headings that don't exist
-- Filler phrases that waste context tokens ("make sure to", "it is important that")
+- Filler phrases that waste context tokens ("it is important to note that", "in order to")
 - Contradictions between instruction files ("always use X" and "never use X")
 - Content overlap and duplication across files
 - Token budget overruns that crowd out code context
@@ -74,12 +74,13 @@ Evals run on Claude Code, Codex, Gemini CLI, Antigravity, Copilot CLI, Cursor CL
 | Command | What it does | Guide |
 |---------|-------------|-------|
 | `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
-| `agenteval lint --fix` | Auto-fix filler phrases and simple issues | [Linting](docs/lint.md) |
+| `agenteval lint --fix` | Remove filler phrases in place | [Linting](docs/lint.md) |
 | `agenteval watch` | Watch files, re-lint on save | |
 | `agenteval harvest` | Build eval tasks from AI commit history | [Harvesting](docs/harvest.md) |
 | `agenteval harvest --live` | Score working tree changes before committing | [Harvesting](docs/harvest.md) |
 | `agenteval run --task <file>` | Run an AI agent, score the result | [Running Evals](docs/run.md) |
 | `agenteval run --trials 3 --baseline` | Repeat, and compare against no instructions | [Running Evals](docs/run.md#trials-and-the-baseline-arm) |
+| `agenteval results` | List stored runs, prune old ones | [Results](docs/results.md) |
 | `agenteval compare <A> <B>` | Diff two runs side by side | [Results](docs/results.md) |
 | `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
 | `agenteval ci --parallel <n>` | Run tasks concurrently | [CI Guide](docs/ci.md) |
@@ -89,7 +90,6 @@ Evals run on Claude Code, Codex, Gemini CLI, Antigravity, Copilot CLI, Cursor CL
 | `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
 | `agenteval init --hook` | Add pre-commit lint hook | [Configuration](docs/configuration.md) |
 | `agenteval update` | Self-update to the latest version | |
-| `agenteval doctor` | Check environment health | |
 
 ## The Pipeline
 
@@ -128,6 +128,8 @@ After editing CLAUDE.md, AGENTS.md, rules, or skills, use the agenteval skill to
 ```
 
 In a test with Claude Haiku 5.5, the agent ignored the installed skill and wrote a command that doesn't exist. With that line, it loaded the skill, ran `agenteval lint`, switched `npm` to `bun`, and flagged the missing script instead of guessing.
+
+## CI Integration
 
 
 

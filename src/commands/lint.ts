@@ -8,6 +8,7 @@ import type { LintResult, Severity } from "../lint/types.js";
 import { ConsoleFormatter } from "../output/formatter.js";
 import { JsonFormatter } from "../output/json.js";
 import { MarkdownFormatter } from "../output/markdown.js";
+import { GithubFormatter, SarifFormatter } from "../output/sarif.js";
 import { logger } from "../utils/logger.js";
 
 const SEVERITY_ORDER: Record<Severity, number> = { info: 0, warning: 1, error: 2 };
@@ -27,7 +28,11 @@ export function registerLintCommand(program: Command): void {
 		.description("Analyze instruction files for quality issues")
 		.argument("[globs...]", "glob patterns for instruction files")
 		.option("-c, --config <path>", "path to agenteval.yaml")
-		.option("-f, --format <type>", "output format: console, json, markdown", "console")
+		.option(
+			"-f, --format <type>",
+			"output format: console, json, markdown, sarif, github",
+			"console",
+		)
 		.option("--severity <level>", "minimum severity: info, warning, error", "info")
 		.option("--quiet", "only show errors")
 		.option("--fix", "auto-fix filler phrases and simple issues")
@@ -91,10 +96,16 @@ function createFormatter(format: string, explain?: boolean) {
 		case "markdown":
 		case "md":
 			return new MarkdownFormatter();
+		case "sarif":
+			return new SarifFormatter();
+		case "github":
+			return new GithubFormatter();
 		case "console":
 			return new ConsoleFormatter({ explain });
 		default:
-			logger.error(`Unknown format "${format}". Valid formats: console, json, markdown`);
+			logger.error(
+				`Unknown format "${format}". Valid formats: console, json, markdown, sarif, github`,
+			);
 			process.exit(2);
 	}
 }

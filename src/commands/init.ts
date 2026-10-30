@@ -20,7 +20,7 @@ version: 1
 #   - "AGENTS.md"
 
 # Model for context budget calculations
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # Max fraction of the model's context window for instructions (0.0-1.0)
 contextBudget: 0.3

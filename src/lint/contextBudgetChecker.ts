@@ -1,4 +1,4 @@
-import { getModelContextWindow } from "../config/schema.js";
+import { FALLBACK_CONTEXT_WINDOW, getModelContextWindow, isKnownModel } from "../config/schema.js";
 import { isLoadedAtStartup } from "../markdown/classify.js";
 import { resolveImportGraph } from "../markdown/imports.js";
 import { importRoots } from "./importResolver.js";
@@ -10,6 +10,15 @@ export class ContextBudgetCheckerRule implements LintRule {
 
 	async run(ctx: LintContext): Promise<Diagnostic[]> {
 		const diagnostics: Diagnostic[] = [];
+		if (!isKnownModel(ctx.config.model) && ctx.config.lint.maxTotalTokens === undefined) {
+			diagnostics.push({
+				ruleId: "context-budget/unknown-model",
+				severity: "info",
+				message: `Unknown model "${ctx.config.model}"; assuming a ${FALLBACK_CONTEXT_WINDOW.toLocaleString("en-US")}-token context window`,
+				filePath: "(config)",
+				suggestion: "Set lint.maxTotalTokens, or use a known model id such as claude-opus-5-5",
+			});
+		}
 
 		const startup = ctx.files.filter((f) => isLoadedAtStartup(f, ctx.cwd));
 		const startupPaths = new Set(startup.map((f) => f.path));

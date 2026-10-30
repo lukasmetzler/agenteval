@@ -5,6 +5,7 @@ import { glob } from "glob";
 import { loadConfig } from "../config/loader.js";
 import type { Config } from "../config/schema.js";
 import { isKnownHarness, knownHarnesses } from "../harness/registry.js";
+import { formatCIJson, formatCIJunit } from "../output/ci.js";
 import { header, kvLine, rule, scoreColor } from "../output/terminal.js";
 import { executeRun } from "../run/index.js";
 import { loadTask } from "../run/task-loader.js";
@@ -22,6 +23,7 @@ interface CIOptions {
 	config?: string;
 	parallel?: string;
 	trials?: string;
+	format?: string;
 }
 
 interface CITaskResult {
@@ -57,6 +59,7 @@ export function registerCICommand(program: Command): void {
 		.option("--harness <name>", "override harness for all tasks")
 		.option("--parallel <n>", "run up to N tasks in parallel")
 		.option("--trials <n>", "attempts per task; the gate uses the mean score")
+		.option("--format <format>", "report format: console, json, junit", "console")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (options: CIOptions) => {
 			try {
@@ -242,14 +245,21 @@ async function runCI(options: CIOptions): Promise<void> {
 		process.exit(2);
 	}
 
+	const format = options.format ?? "console";
+	if (!["console", "json", "junit"].includes(format)) {
+		throw new Error(`Unknown format "${format}". Valid: console, json, junit`);
+	}
+	// Machine formats own stdout; the human header goes to stderr with the progress lines.
+	const out = format === "console" ? console.log : console.error;
+
 	// 2. Print header
 	const instructionFile = options.instructions ?? rc.config.ci.instructions;
-	console.log(header("agenteval ci"));
-	console.log(kvLine("Tasks", chalk.cyan(String(taskFiles.length))));
-	console.log(kvLine("Instructions", chalk.cyan(instructionFile)));
-	console.log(kvLine("Min score", chalk.cyan(String(rc.minScore))));
-	console.log(kvLine("Max regression", chalk.cyan(String(rc.maxRegression))));
-	console.log("");
+	out(header("agenteval ci"));
+	out(kvLine("Tasks", chalk.cyan(String(taskFiles.length))));
+	out(kvLine("Instructions", chalk.cyan(instructionFile)));
+	out(kvLine("Min score", chalk.cyan(String(rc.minScore))));
+	out(kvLine("Max regression", chalk.cyan(String(rc.maxRegression))));
+	out("");
 
 	// 3. Run tasks (sequential or parallel)
 	const concurrency = options.parallel ? Math.max(1, Number.parseInt(options.parallel, 10)) : 1;
@@ -257,7 +267,7 @@ async function runCI(options: CIOptions): Promise<void> {
 	const startTime = performance.now();
 
 	if (concurrency > 1) {
-		console.log(kvLine("Parallel", chalk.cyan(String(concurrency))));
+		out(kvLine("Parallel", chalk.cyan(String(concurrency))));
 		results.push(...(await runTasksParallel(rc, taskFiles, concurrency)));
 	} else {
 		for (let i = 0; i < taskFiles.length; i++) {
@@ -271,7 +281,9 @@ async function runCI(options: CIOptions): Promise<void> {
 	const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
 
 	// 4. Print summary
-	printCISummary(results, elapsed);
+	if (format === "json") console.log(formatCIJson(results, Number(elapsed)));
+	else if (format === "junit") console.log(formatCIJunit(results, Number(elapsed)));
+	else printCISummary(results, elapsed);
 
 	// 5. Exit with appropriate code
 	const failures = results.filter((r) => r.status === "fail");

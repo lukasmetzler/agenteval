@@ -51,7 +51,7 @@
 			}
 		},
 		"model": {
-			"default": "claude-sonnet-4-6",
+			"default": "claude-opus-5-5",
 			"description": "Target model for context budget calculations",
 			"type": "string"
 		},

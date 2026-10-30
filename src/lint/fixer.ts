@@ -52,20 +52,9 @@ export function applyFixes(filePath: string, diagnostics: Diagnostic[]): FixResu
 
 	// Fix filler phrases
 	if (fixable.some((d) => d.ruleId.startsWith("bloat/"))) {
-		for (const [pattern, replacement] of FILLER_REPLACEMENTS) {
-			const before = content;
-			content = content.replace(pattern, replacement);
-			if (content !== before) fixCount++;
-		}
-
-		// Clean up: collapse multiple spaces, trim lines
-		content = content.replace(/ {2,}/g, " ");
-		content = content
-			.split("\n")
-			.map((line) => line.trimEnd())
-			.join("\n");
-		// Remove lines that became empty after filler removal (but keep intentional blank lines)
-		content = content.replace(/\n{3,}/g, "\n\n");
+		const result = fixFillerPhrases(content);
+		content = result.content;
+		fixCount += result.fixes;
 	}
 
 	if (fixCount > 0) {
@@ -73,6 +62,52 @@ export function applyFixes(filePath: string, diagnostics: Diagnostic[]): FixResu
 	}
 
 	return { file: filePath, fixesApplied: fixCount, written: fixCount > 0 };
+}
+
+function replaceFillers(line: string): { text: string; count: number } {
+	let text = line;
+	let count = 0;
+	for (const [pattern, replacement] of FILLER_REPLACEMENTS) {
+		const before = text;
+		text = text.replace(pattern, replacement);
+		if (text !== before) count++;
+	}
+	return { text, count };
+}
+
+/**
+ * Remove filler phrases from prose lines only. Fenced code blocks are left
+ * alone, and whitespace cleanup touches only lines a replacement changed, so
+ * indentation, tables, and code are preserved.
+ */
+export function fixFillerPhrases(content: string): { content: string; fixes: number } {
+	let fixes = 0;
+	let inFence = false;
+	const out: string[] = [];
+
+	for (const line of content.split("\n")) {
+		if (/^\s*(```|~~~)/.test(line)) {
+			inFence = !inFence;
+			out.push(line);
+			continue;
+		}
+		if (inFence) {
+			out.push(line);
+			continue;
+		}
+		const { text: fixed, count } = replaceFillers(line);
+		fixes += count;
+		if (count === 0) {
+			out.push(line);
+			continue;
+		}
+		const indent = /^\s*/.exec(fixed)?.[0] ?? "";
+		const cleaned = indent + fixed.slice(indent.length).replace(/ {2,}/g, " ").trimEnd();
+		// Drop a line the removal emptied; keep lines that were blank already.
+		if (cleaned.trim().length > 0 || line.trim().length === 0) out.push(cleaned);
+	}
+
+	return { content: out.join("\n"), fixes };
 }
 
 function isFixableRule(ruleId: string): boolean {

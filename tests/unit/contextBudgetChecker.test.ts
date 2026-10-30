@@ -31,7 +31,7 @@ function makeConfig(overrides?: Partial<Config>): Config {
 		version: 1 as const,
 		instructionGlobs: [],
 		instructions: [],
-		model: "claude-sonnet-4-6",
+		model: "claude-haiku-4-5", // 200k window keeps the budget arithmetic below simple
 		contextBudget: 0.3,
 		lint: {
 			overlapThreshold: 0.3,
@@ -123,5 +123,21 @@ describe("ContextBudgetCheckerRule", () => {
 		const diags = await rule.run({ config, files: [root], cwd: dir });
 		rmSync(dir, { recursive: true });
 		expect(diags.some((d) => d.ruleId === "context-budget/exceeded")).toBe(true);
+	});
+});
+
+describe("unknown models", () => {
+	test("notes the fallback window unless maxTotalTokens is set", async () => {
+		const rule = new ContextBudgetCheckerRule();
+		const file = makeFile(10);
+		const unknown = await rule.run({
+			config: makeConfig({ model: "mystery-1" }),
+			files: [file],
+			cwd: "/tmp",
+		});
+		expect(unknown.map((d) => d.ruleId)).toEqual(["context-budget/unknown-model"]);
+		const pinned = makeConfig({ model: "mystery-1" });
+		pinned.lint = { ...pinned.lint, maxTotalTokens: 1000 };
+		expect(await rule.run({ config: pinned, files: [file], cwd: "/tmp" })).toEqual([]);
 	});
 });

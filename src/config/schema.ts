@@ -1,14 +1,30 @@
 import { z } from "zod";
 
+/**
+ * Context windows (input tokens) for budget checks. Claude values from the
+ * Claude API model table (2026-10-06); entries for other vendors are kept as
+ * last verified. Unknown models fall back to 200k with a lint note.
+ */
 export const ModelContextWindows: Record<string, number> = {
-	// Anthropic — Claude 4.5/4.6 family
+	// Anthropic — current
+	"claude-fable-5-1": 1_000_000,
+	"claude-fable-5": 1_000_000,
+	"claude-opus-5-5": 1_000_000,
+	"claude-opus-5": 1_000_000,
+	"claude-sonnet-5-5": 1_000_000,
+	"claude-sonnet-5": 1_000_000,
+	"claude-haiku-5-5": 1_000_000,
+	// Anthropic — previous generation, still served
+	"claude-opus-4-8": 1_000_000,
+	"claude-opus-4-7": 1_000_000,
 	"claude-opus-4-6": 1_000_000,
-	"claude-sonnet-4-6": 200_000,
+	"claude-sonnet-4-6": 1_000_000,
 	"claude-haiku-4-5": 200_000,
-	// Anthropic — Claude 4.x (legacy)
-	"claude-sonnet-4-20250514": 200_000,
-	"claude-opus-4-20250514": 200_000,
-	"claude-haiku-3-5-20241022": 200_000,
+	// Claude Code model aliases (track the current model of each tier)
+	fable: 1_000_000,
+	opus: 1_000_000,
+	sonnet: 1_000_000,
+	haiku: 1_000_000,
 	// OpenAI — GPT-5.x family
 	"gpt-5.4": 1_000_000,
 	"gpt-5.3": 1_000_000,
@@ -207,7 +223,7 @@ export const ConfigSchema = z.object({
 		.describe("Explicit instruction file sources with harness mapping"),
 	model: z
 		.string()
-		.default("claude-sonnet-4-6")
+		.default("claude-opus-5-5")
 		.describe("Target model for context budget calculations"),
 	contextBudget: z
 		.number()
@@ -240,6 +256,12 @@ export function configJsonSchema(): Record<string, unknown> {
 
 export type Config = z.infer<typeof ConfigSchema>;
 
+export const FALLBACK_CONTEXT_WINDOW = 200_000;
+
+export function isKnownModel(model: string): boolean {
+	return ModelContextWindows[model] !== undefined;
+}
+
 export function getModelContextWindow(model: string): number {
-	return ModelContextWindows[model] ?? 200_000;
+	return ModelContextWindows[model] ?? FALLBACK_CONTEXT_WINDOW;
 }

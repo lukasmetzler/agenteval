@@ -7,7 +7,17 @@ import { version } from "./version.js";
 const REPO = "lukasmetzler/agenteval";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+/** Skip the network check in CI and when the user opts out with AGENTEVAL_NO_UPDATE_CHECK=1. */
+export function updateCheckDisabled(
+	env: Record<string, string | undefined> = process.env,
+): boolean {
+	const truthy = (v: string | undefined) =>
+		v !== undefined && v !== "" && v !== "0" && v !== "false";
+	return truthy(env.AGENTEVAL_NO_UPDATE_CHECK) || truthy(env.CI);
+}
+
 export async function checkForUpdate(): Promise<void> {
+	if (updateCheckDisabled()) return;
 	try {
 		const dir = join(homedir(), ".agenteval");
 		const checkFile = join(dir, "last-update-check");

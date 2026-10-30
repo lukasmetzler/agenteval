@@ -38,7 +38,7 @@ describe("loadConfig", () => {
 		const config = loadConfig("/tmp");
 		expect(config.version).toBe(1);
 		expect(config.instructionGlobs).toContain("**/CLAUDE.md");
-		expect(config.model).toBe("claude-sonnet-4-6");
+		expect(config.model).toBe("claude-opus-5-5");
 		expect(config.contextBudget).toBe(0.3);
 	});
 });

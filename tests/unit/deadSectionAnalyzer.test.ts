@@ -24,8 +24,8 @@ describe("headingToAnchor", () => {
 		expect(headingToAnchor("What's New?")).toBe("whats-new");
 	});
 
-	test("collapses multiple hyphens", () => {
-		expect(headingToAnchor("Foo  &  Bar")).toBe("foo-bar");
+	test("keeps one hyphen per space, like GitHub", () => {
+		expect(headingToAnchor("Foo  &  Bar")).toBe("foo----bar");
 	});
 
 	test("trims leading/trailing hyphens", () => {

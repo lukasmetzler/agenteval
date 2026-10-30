@@ -12,7 +12,7 @@ export function stripCodeBlocks(text: string): string {
  * Removes content between single backticks.
  */
 export function stripInlineCode(text: string): string {
-	return text.replace(/`[^`]+`/g, "");
+	return text.replace(/`[^`\n]+`/g, "");
 }
 
 /**

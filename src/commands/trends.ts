@@ -33,6 +33,11 @@ interface TrendsOptions {
  * Looks at the last 3 scores (or fewer if less data).
  * A tolerance of 0.01 avoids treating noise as movement.
  */
+/** Baseline-arm runs ran without instructions, so they don't belong in an instruction trend. */
+export function withoutBaselineArm(results: StoredResult[]): StoredResult[] {
+	return results.filter((r) => r.trial?.arm !== "baseline");
+}
+
 export function detectTrend(scores: number[]): TrendDirection {
 	if (scores.length < 2) return "stable";
 
@@ -121,7 +126,7 @@ function handleSingleTask(
 	limit: number,
 	format?: string,
 ): void {
-	const results = listResults(resultsDir, { task: taskName });
+	const results = withoutBaselineArm(listResults(resultsDir, { task: taskName }));
 
 	if (results.length === 0) {
 		const allResults = listResults(resultsDir);
@@ -165,7 +170,7 @@ function handleSingleTask(
 }
 
 function handleAllTasks(resultsDir: string, limit: number, format?: string): void {
-	const allResults = listResults(resultsDir);
+	const allResults = withoutBaselineArm(listResults(resultsDir));
 
 	if (allResults.length === 0) {
 		console.log(

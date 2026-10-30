@@ -91,6 +91,8 @@ export function registerHarvestCommand(program: Command): void {
 function buildOptions(
 	cli: HarvestCliOptions,
 	config: {
+		instructionGlobs: string[];
+		lint: { ignore: string[] };
 		harvest: {
 			outputDir: string;
 			minConfidence: number;
@@ -115,6 +117,8 @@ function buildOptions(
 		github: cli.github ?? false,
 		live: cli.live ?? false,
 		analyze: cli.analyze ?? false,
+		instructionGlobs: config.instructionGlobs,
+		instructionIgnore: config.lint.ignore,
 	};
 }
 

@@ -17,10 +17,9 @@ const FILE_PATH_PATTERN =
 export function headingToAnchor(heading: string): string {
 	return heading
 		.toLowerCase()
+		.trim()
 		.replace(/[^\w\s-]/g, "")
-		.replace(/\s+/g, "-")
-		.replace(/-+/g, "-")
-		.replace(/^-|-$/g, "");
+		.replace(/\s/g, "-");
 }
 
 /**
@@ -138,7 +137,8 @@ export function extractFileReferences(content: string): { path: string; line: nu
 	for (let i = 0; i < lines.length; i++) {
 		const regex = new RegExp(FILE_PATH_PATTERN.source, "gi");
 		for (const match of lines[i].matchAll(regex)) {
-			const filePath = match[1].replace(/[`"']/g, "");
+			// A path at the end of a sentence keeps its period or colon in the match.
+			const filePath = match[1].replace(/[`"']/g, "").replace(/[.:;!?]+$/, "");
 			// Globs and templates (`src/**/*.ts`, `src/<name>.test.ts`, `docs/$TOPIC.md`) are patterns, not files.
 			if (/[*{<>$[]/.test(filePath)) continue;
 			refs.push({ path: filePath, line: i + 1 });

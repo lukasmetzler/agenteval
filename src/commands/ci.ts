@@ -148,6 +148,10 @@ function evaluateTaskResult(
 	}
 
 	const failed = results.find((r) => r.status !== "success");
+	if (failed) {
+		status = "fail";
+		reason = `run ${failed.status}: ${failed.error ?? "no details"}`;
+	}
 	return {
 		task: first.task,
 		score: overall,

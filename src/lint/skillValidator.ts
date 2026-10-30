@@ -12,7 +12,8 @@ const DESCRIPTION_TRUNCATION_LENGTH = 250;
 const LISTING_MAX_LENGTH = 1536;
 const COMPATIBILITY_MAX_LENGTH = 500;
 const XML_TAG_PATTERN = /<\/?[a-zA-Z][^>]*>/;
-const FIRST_PERSON_PATTERN = /\b(I can|I will|I help|I am|I'll|I'm)\b/i;
+const FIRST_PERSON_PATTERN =
+	/\b(I'll|I'm)\b|\bI\s+(can|will|help|am|deploy|run|create|generate|analyze|check|build|test|fix)\b/i;
 const BODY_FIRST_PERSON_PATTERN =
 	/\bI\s+(will|can|should|would|deploy|run|create|generate|analyze|check|build|test|fix)\b/i;
 const TRIGGER_PREFIXES =

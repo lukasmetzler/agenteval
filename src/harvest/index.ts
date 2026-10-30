@@ -47,6 +47,18 @@ async function fetchPRInfoMap(repoPath: string, commits: AICommit[]): Promise<Ma
 /**
  * Mine git history for AI-involved commits and emit TaskDefinition YAML files.
  */
+/** Which files to snapshot: the command's config, else the repo's agenteval.yaml. */
+function snapshotSettings(options: HarvestOptions): {
+	instructionGlobs: string[];
+	ignore: string[];
+} {
+	if (options.instructionGlobs) {
+		return { instructionGlobs: options.instructionGlobs, ignore: options.instructionIgnore ?? [] };
+	}
+	const config = loadConfig(options.repoPath);
+	return { instructionGlobs: config.instructionGlobs, ignore: config.lint.ignore };
+}
+
 export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	await validateGitRepo(options.repoPath);
 
@@ -79,8 +91,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 		logger.debug(`Filtered ${belowThreshold} commits below confidence threshold ${minConfidence}`);
 	}
 
-	const config = loadConfig(options.repoPath);
-	const instructionGlobs = config.instructionGlobs;
+	const { instructionGlobs, ignore } = snapshotSettings(options);
 
 	// GitHub enrichment: fetch PR data for each commit if --github is set
 	const prInfoMap = options.github
@@ -108,6 +119,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 				options.repoPath,
 				commit.hash,
 				instructionGlobs,
+				ignore,
 			);
 			const task = emitTaskYaml(
 				commit,
@@ -121,7 +133,12 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 	}
 
 	for (const commit of filtered) {
-		const snapshot = await getInstructionSnapshot(options.repoPath, commit.hash, instructionGlobs);
+		const snapshot = await getInstructionSnapshot(
+			options.repoPath,
+			commit.hash,
+			instructionGlobs,
+			ignore,
+		);
 		const task = emitTaskYaml(
 			commit,
 			{ harness: options.harness, timeout: options.timeout },

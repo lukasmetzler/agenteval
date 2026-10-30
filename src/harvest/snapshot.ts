@@ -1,6 +1,36 @@
 import { minimatch } from "minimatch";
 import { DEFAULT_IGNORE } from "../utils/glob.js";
 
+/** Read several blobs with one `git cat-file --batch` process instead of one spawn per file. */
+async function readBlobs(repoPath: string, specs: string[]): Promise<(string | null)[]> {
+	if (specs.length === 0) return [];
+	const proc = Bun.spawn(["git", "cat-file", "--batch"], {
+		cwd: repoPath,
+		stdin: new Blob([`${specs.join("\n")}\n`]),
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const out = Buffer.from(await new Response(proc.stdout).arrayBuffer());
+	await proc.exited;
+
+	const blobs: (string | null)[] = [];
+	let pos = 0;
+	for (let i = 0; i < specs.length && pos < out.length; i++) {
+		const headerEnd = out.indexOf(10, pos);
+		const header = out.subarray(pos, headerEnd).toString("utf-8");
+		pos = headerEnd + 1;
+		const size = /^\S+ blob (\d+)$/.exec(header)?.[1];
+		if (size === undefined) {
+			blobs.push(null); // "<spec> missing" or a non-blob object
+			continue;
+		}
+		const length = Number(size);
+		blobs.push(out.subarray(pos, pos + length).toString("utf-8"));
+		pos += length + 1; // content is followed by a newline
+	}
+	return blobs;
+}
+
 /**
  * Retrieve instruction file contents at the parent of the given commit.
  * Returns a map of relative path -> file content for each glob match.
@@ -9,56 +39,38 @@ export async function getInstructionSnapshot(
 	repoPath: string,
 	commitHash: string,
 	globs: string[],
+	ignore: string[] = [],
 ): Promise<Record<string, string>> {
 	const result: Record<string, string> = {};
+	const parent = `${commitHash}^`;
 
-	// Check if the commit has a parent
-	const parentCheck = Bun.spawn(["git", "rev-parse", "--verify", `${commitHash}^`], {
+	const lsTree = Bun.spawn(["git", "ls-tree", "-r", "--name-only", parent], {
 		cwd: repoPath,
 		stdout: "pipe",
 		stderr: "pipe",
 	});
-	const parentExit = await parentCheck.exited;
-	if (parentExit !== 0) {
-		// Initial commit — no parent to snapshot
-		return result;
-	}
-
-	// Enumerate files at the parent commit
-	const lsTree = Bun.spawn(["git", "ls-tree", "-r", "--name-only", `${commitHash}^`], {
-		cwd: repoPath,
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	await lsTree.exited;
 	const lsOutput = await new Response(lsTree.stdout).text();
-	const allFiles = lsOutput
-		.trim()
+	// A non-zero exit means no parent (initial commit): nothing to snapshot.
+	if ((await lsTree.exited) !== 0) return result;
+
+	const skip = [...DEFAULT_IGNORE, ...ignore];
+	const matched = lsOutput
 		.split("\n")
-		.filter((f) => f.length > 0);
+		.filter(
+			(file) =>
+				file.length > 0 &&
+				globs.some((glob) => minimatch(file, glob)) &&
+				!skip.some((glob) => minimatch(file, glob)),
+		);
 
-	// Filter by globs
-	const matched = allFiles.filter(
-		(file) =>
-			globs.some((glob) => minimatch(file, glob)) &&
-			!DEFAULT_IGNORE.some((glob) => minimatch(file, glob)),
+	const contents = await readBlobs(
+		repoPath,
+		matched.map((file) => `${parent}:${file}`),
 	);
-
-	// Retrieve content for each matched file
-	for (const file of matched) {
-		const show = Bun.spawn(["git", "show", `${commitHash}^:${file}`], {
-			cwd: repoPath,
-			stdout: "pipe",
-			stderr: "pipe",
-		});
-		const exitCode = await show.exited;
-		if (exitCode !== 0) {
-			continue;
-		}
-		const content = await new Response(show.stdout).text();
-		result[file] = content;
+	for (const [i, file] of matched.entries()) {
+		const content = contents[i];
+		if (content !== null && content !== undefined) result[file] = content;
 	}
-
 	return result;
 }
 

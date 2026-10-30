@@ -73,6 +73,16 @@ Catch-up with six months of agent ecosystem changes. Research and sources: `docs
 - The update check announced an "update" when the local version was newer than the latest release. It now compares versions.
 - `harvest` suggested `--min-confidence 0.3` when it found nothing, which can't find more commits (the lowest signal is 0.6). It now says which signals it looks for.
 - `--explain` printed nothing for the 24 rules added in this release; every rule has an explanation now, enforced by a test.
+- Harvest snapshots read all files of a commit with one `git cat-file --batch` instead of one `git show` per file, and honour `lint.ignore`. With the wider default globs, a dry run on a repo with fixture CLAUDE.md files had grown to about 1,500 git processes.
+- `harvest --config` now applies to instruction snapshots too.
+- A `ci` task whose run errored or timed out reports that run's error instead of "below minimum".
+- `trends` leaves out baseline-arm runs.
+- Heading anchors keep repeated hyphens, as GitHub does, so `#llm-assisted-rubrics---analyze` is no longer flagged as broken.
+- Paths at the end of a sentence (`src/foo.ts.`) lose the trailing period before the existence check.
+- Anti-pattern findings point at the matching line instead of the section heading.
+- `skill/description-first-person` also catches "I deploy", "I run", and similar.
+- The `results` table's ID column fits the 26-character run ids.
+- The `bloat/filler-phrases` suggestion quotes phrases that are actually in its list.
 - `resultRetention` is validated when the config loads (`<N>d`), instead of failing later in `results --prune`.
 - Config and init-template descriptions for `tokensBudget`, `overlapThreshold`, `bloatThreshold`, and glob paths now say what the code does.
 - `skill/description-truncation` claimed descriptions over 250 characters get truncated. Claude Code truncates at 1536 (`skill/listing-truncated`); the note now explains the shared listing budget instead.

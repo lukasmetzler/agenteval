@@ -44,6 +44,10 @@ export interface HarvestOptions {
 	github?: boolean;
 	live?: boolean;
 	analyze?: boolean;
+	/** Globs for instruction snapshots; defaults to the repo's agenteval.yaml. */
+	instructionGlobs?: string[];
+	/** lint.ignore patterns, also skipped in snapshots. */
+	instructionIgnore?: string[];
 }
 
 export interface CommitSummary {

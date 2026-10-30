@@ -22,7 +22,8 @@ Catch-up with six months of agent ecosystem changes. Research and sources: `docs
 - `run --trials N` with pass rate, pass@k, pass^k, and mean ± sd; `run --baseline` runs each trial with all instruction files removed and reports the Δ. `run --format json`.
 - `ci --trials N` gates on the mean score; `ci --format json|junit`.
 - `lint --format sarif` (SARIF 2.1.0) and `lint --format github` (Actions annotations).
-- `run --model` and task fields `model`, `trials`, `setup`.
+- `run --model`, `ci --model`, and task fields `model`, `trials`, `setup`.
+- Results store `changedFiles` and `metrics.tokensCacheRead`.
 - Harvest signals for Codex, VS Code Copilot, the Copilot coding agent (bot email, `Agent-Logs-Url`), Amp (`Amp-Thread-ID`), Aider author names, Factory, OpenCode, and GitHub bot accounts. The attributed model is recorded as `detectedModel`.
 - `liveReview.judgeModel` (default `sonnet`).
 - `context-budget/unknown-model` note instead of a silent 200k fallback.
@@ -59,6 +60,10 @@ Catch-up with six months of agent ecosystem changes. Research and sources: `docs
 - GitHub Action: inputs no longer interpolated into the shell script, `latest` resolution works, binary installs to `RUNNER_TEMP`, linux-arm64 fails with a clear message.
 - The pre-commit hook regex matches current instruction file names.
 - Line numbers for findings below a fenced code block were off by the block's length.
+- Harvested tasks ran at `HEAD`, where the commit's change already exists. They now start from the source commit's parent.
+- A failed agent run that printed output was scored as a success. A non-zero exit or a failure in the agent's JSON output now makes the run an `error` with the agent's reason.
+- Efficiency ignores prompt-cache reads. Counting them put almost every multi-turn Claude Code run at 0.
+- Codex output tokens no longer double-count reasoning tokens.
 
 ## [0.8.14] - 2026-04-06
 

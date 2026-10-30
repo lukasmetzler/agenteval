@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { BUILTIN_SPECS } from "../../src/harness/builtin.js";
 import { CliAdapter } from "../../src/harness/cli.js";
 import {
+	extractAgentError,
 	parseAntigravityJson,
 	parseClaudeResult,
 	parseCodexEvents,
@@ -25,15 +26,39 @@ describe("agent output parsers", () => {
 			tokensOutput: 2210,
 			tokensTotal: 412 + 8120 + 61344 + 2210,
 			tokenSource: "api",
+			tokensCacheRead: 61344,
 			costUsd: 0.1834,
 			model: "claude-sonnet-5-5",
 			turns: 7,
 		});
 	});
 
-	test("Codex JSONL: sums usage across turns, counts reasoning as output", () => {
+	test("Claude Code result recorded from claude 2.1.314 (-p --output-format json)", () => {
+		const m = parseClaudeResult(fixture("claude-code.recorded.json"));
+		expect(m).toEqual({
+			tokensInput: 2 + 28862 + 11382,
+			tokensOutput: 4,
+			tokensTotal: 2 + 28862 + 11382 + 4,
+			tokenSource: "api",
+			tokensCacheRead: 11382,
+			costUsd: 0.00588842,
+			model: "claude-haiku-5-5",
+			turns: 1,
+		});
+	});
+
+	test("Codex JSONL recorded from codex 0.163 (exec --json)", () => {
+		const m = parseCodexEvents(fixture("codex.recorded.jsonl"));
+		expect([m.tokensInput, m.tokensOutput, m.tokensCacheRead, m.turns]).toEqual([
+			26626, 125, 6144, 1,
+		]);
+	});
+
+	test("Codex JSONL: sums usage across turns; reasoning is part of output", () => {
 		const m = parseCodexEvents(fixture("codex.jsonl"));
-		expect([m.tokensInput, m.tokensOutput, m.turns, m.tokenSource]).toEqual([27763, 586, 2, "api"]);
+		expect([m.tokensInput, m.tokensOutput, m.tokensCacheRead, m.turns]).toEqual([
+			27763, 522, 27348, 2,
+		]);
 	});
 
 	test("Gemini CLI JSON: per-model token stats", () => {
@@ -66,6 +91,33 @@ describe("agent output parsers", () => {
 	test("plain text output yields unavailable metrics, not zeros", () => {
 		expect(parseClaudeResult("Done, I changed two files.").tokenSource).toBe("unavailable");
 		expect(parseCodexEvents("").tokensTotal).toBeNull();
+	});
+
+	test("extractAgentError surfaces Codex turn.failed and Claude is_error results", () => {
+		const codex = [
+			'{"type":"turn.started"}',
+			JSON.stringify({
+				type: "turn.failed",
+				error: {
+					message: JSON.stringify({
+						type: "error",
+						status: 400,
+						error: { message: "The 'gpt-6-astra' model is not supported" },
+					}),
+				},
+			}),
+		].join("\n");
+		expect(extractAgentError(codex)).toBe("The 'gpt-6-astra' model is not supported");
+		expect(extractAgentError('{"type":"result","subtype":"error_max_turns","is_error":true}')).toBe(
+			"agent reported error_max_turns",
+		);
+		expect(extractAgentError(fixture("claude-code.recorded.json"))).toBeNull();
+		expect(extractAgentError(fixture("codex.recorded.jsonl"))).toBeNull();
+		expect(extractAgentError("plain text")).toBeNull();
+		// Recorded from opencode 2.2.3 with an expired provider key.
+		expect(extractAgentError(fixture("opencode.error.recorded.jsonl"))).toContain(
+			"API key has expired",
+		);
 	});
 
 	test("parseJsonEvents skips non-JSON progress lines", () => {

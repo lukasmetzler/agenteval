@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { scoreRun } from "../../src/run/scorer.js";
+import { efficiencyTokens, scoreRun } from "../../src/run/scorer.js";
 import type { RunMetrics, ScoringWeights } from "../../src/run/types.js";
 
 const defaultWeights: ScoringWeights = {
@@ -267,5 +267,27 @@ describe("scoreRun", () => {
 		});
 
 		expect(scores.conventions).toBe(0.5);
+	});
+});
+
+describe("efficiencyTokens", () => {
+	test("leaves cache reads out of the efficiency budget", () => {
+		expect(
+			efficiencyTokens({
+				tokensInput: 143_926,
+				tokensOutput: 974,
+				tokensTotal: 144_900,
+				tokenSource: "api",
+				tokensCacheRead: 130_000,
+			}),
+		).toBe(14_900);
+		expect(
+			efficiencyTokens({
+				tokensInput: null,
+				tokensOutput: null,
+				tokensTotal: null,
+				tokenSource: "unavailable",
+			}),
+		).toBeNull();
 	});
 });

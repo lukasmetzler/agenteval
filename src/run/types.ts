@@ -98,6 +98,12 @@ export interface RunMetrics {
 	tokensOutput: number | null;
 	tokensTotal: number | null;
 	tokenSource: "api" | "estimated" | "unavailable";
+	/**
+	 * Input tokens served from the prompt cache (included in tokensInput). Agents
+	 * re-read their system prompt and history every turn, so this dominates the
+	 * total while costing about a tenth of fresh input.
+	 */
+	tokensCacheRead?: number | null;
 	/** Cost the agent CLI reported (Claude Code reports a client-side estimate). */
 	costUsd?: number | null;
 	/** Model the agent reported using. */
@@ -117,6 +123,8 @@ export interface StoredResult {
 	scores: ResultScores;
 	assertions: AssertionResult[];
 	diffSummary: string;
+	/** Files the agent's diff touched, repo-relative. */
+	changedFiles?: string[];
 	model: string | null;
 	/** Wall-clock time of the agent process. */
 	durationMs?: number;

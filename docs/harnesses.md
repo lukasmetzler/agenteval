@@ -74,10 +74,24 @@ Every result stores what the CLI reported:
 | Field | Meaning |
 |---|---|
 | `metrics.tokensInput` / `tokensOutput` / `tokensTotal` | Token counts. For Claude Code, input includes cache reads and writes. For Codex, output includes reasoning tokens. |
+| `metrics.tokensCacheRead` | Input tokens served from the prompt cache (part of `tokensInput`). Left out of the efficiency score. |
 | `metrics.tokenSource` | `api` (reported by the CLI), `estimated` (scraped from text), or `unavailable` |
 | `metrics.costUsd` | Cost the CLI reported. Claude Code's figure is a client-side estimate. |
-| `metrics.turns` | Model round trips |
+| `metrics.turns` | What the CLI reports as turns. Claude Code and Amp count model round trips. Codex counts one turn per prompt, so it is always 1; OpenCode counts steps. Don't compare turns across harnesses. |
 | `model` | Model the CLI reported, or the requested one |
 | `durationMs` | Wall-clock time of the agent process |
 
 `null` always means "not reported", never zero. The efficiency score is left out when tokens are unavailable.
+
+A run fails with status `error` when the CLI exits non-zero or reports a failure in its JSON output (Claude `is_error`, Codex `turn.failed`, OpenCode `error` events). The `error` field carries the reason the agent gave, for example `The 'gpt-6-astra' model is not supported when using Codex with a ChatGPT account.`
+
+## Verification status
+
+Checked against real CLI output on 2026-10-30:
+
+| Harness | Version | What was run |
+|---|---|---|
+| claude-code | 2.1.314 | Eval tasks, trials with baseline, `ci`, the `--analyze` judge. Output recorded in `tests/fixtures/harness/claude-code.recorded.json`. |
+| codex | 0.163 | Eval task with `gpt-5.6-luna`, plus the model-not-supported error path. Output recorded in `tests/fixtures/harness/codex.recorded.jsonl`. |
+| opencode | 2.2.3 | Error path only (the providers available had no valid key). Token parsing follows the event shape and is unverified. |
+| gemini, antigravity, copilot, cursor, devin, amp | | Not installed. Built from vendor docs, unverified. |

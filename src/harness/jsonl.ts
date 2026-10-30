@@ -46,6 +46,7 @@ export function unavailableMetrics(): RunMetrics {
 		tokensOutput: null,
 		tokensTotal: null,
 		tokenSource: "unavailable",
+		tokensCacheRead: null,
 		costUsd: null,
 		model: null,
 		turns: null,
@@ -55,6 +56,7 @@ export function unavailableMetrics(): RunMetrics {
 function fromCounts(counts: {
 	input: number | null;
 	output: number | null;
+	cacheRead?: number | null;
 	total?: number | null;
 	costUsd?: number | null;
 	model?: string | null;
@@ -70,6 +72,7 @@ function fromCounts(counts: {
 		tokensOutput: counts.output,
 		tokensTotal: total,
 		tokenSource: total === null ? "unavailable" : "api",
+		tokensCacheRead: counts.cacheRead ?? null,
 		costUsd: counts.costUsd ?? null,
 		model: counts.model ?? null,
 		turns: counts.turns ?? null,
@@ -85,31 +88,39 @@ export function parseClaudeResult(stdout: string): RunMetrics {
 	const result = parseJsonEvents(stdout).findLast((e) => e.type === "result");
 	if (!result) return unavailableMetrics();
 	const usage = rec(result.usage);
-	const cached =
-		(num(usage.cache_read_input_tokens) ?? 0) + (num(usage.cache_creation_input_tokens) ?? 0);
+	const cacheRead = num(usage.cache_read_input_tokens) ?? 0;
+	const cached = cacheRead + (num(usage.cache_creation_input_tokens) ?? 0);
 	const input = num(usage.input_tokens);
 	const models = Object.keys(rec(result.modelUsage));
 	return fromCounts({
 		input: input === null ? null : input + cached,
 		output: num(usage.output_tokens),
+		cacheRead: input === null ? null : cacheRead,
 		costUsd: num(result.total_cost_usd),
 		model: models[0] ?? null,
 		turns: num(result.num_turns),
 	});
 }
 
-/** Codex `exec --json`: sum `turn.completed.usage` across turns. */
+/**
+ * Codex `exec --json`: sum `turn.completed.usage` across turns. As in the
+ * OpenAI API, input_tokens includes cached_input_tokens and output_tokens
+ * includes reasoning_output_tokens.
+ */
 export function parseCodexEvents(stdout: string): RunMetrics {
 	const turns = parseJsonEvents(stdout).filter((e) => e.type === "turn.completed");
 	if (turns.length === 0) return unavailableMetrics();
 	let input = 0;
 	let output = 0;
+	let cacheRead = 0;
 	for (const turn of turns) {
 		const usage = rec(turn.usage);
 		input += num(usage.input_tokens) ?? 0;
-		output += (num(usage.output_tokens) ?? 0) + (num(usage.reasoning_output_tokens) ?? 0);
+		cacheRead += num(usage.cached_input_tokens) ?? 0;
+		// reasoning_output_tokens is a breakdown of output_tokens, not an addition.
+		output += num(usage.output_tokens) ?? 0;
 	}
-	return fromCounts({ input, output, turns: turns.length });
+	return fromCounts({ input, output, cacheRead, turns: turns.length });
 }
 
 /** Gemini CLI `-o json`: `stats.models.<name>.tokens.{prompt,candidates,total}`. */
@@ -163,4 +174,36 @@ export function parseOpenCodeEvents(stdout: string): RunMetrics {
 	}
 	if (steps === 0) return unavailableMetrics();
 	return fromCounts({ input, output, costUsd: cost || null, turns: steps });
+}
+
+function errorText(value: unknown): string | null {
+	if (typeof value === "string") {
+		// Codex nests the API error as a JSON string; surface its message.
+		try {
+			const inner: unknown = JSON.parse(value);
+			const message = rec(rec(inner).error).message;
+			if (typeof message === "string") return message;
+		} catch {
+			// not JSON
+		}
+		return value;
+	}
+	const message = rec(value).message;
+	return typeof message === "string" ? errorText(message) : null;
+}
+
+/**
+ * The failure an agent CLI reported in its JSON output, if any: a Claude-style
+ * result with is_error, a Codex turn.failed, or a top-level error event.
+ */
+export function extractAgentError(stdout: string): string | null {
+	for (const event of parseJsonEvents(stdout).reverse()) {
+		if (event.type === "result" && event.is_error === true) {
+			return errorText(event.result) ?? `agent reported ${String(event.subtype ?? "an error")}`;
+		}
+		if (event.type === "turn.failed") return errorText(event.error) ?? "turn failed";
+		if (event.type === "error")
+			return errorText(event.message) ?? errorText(event.error) ?? "error";
+	}
+	return null;
 }

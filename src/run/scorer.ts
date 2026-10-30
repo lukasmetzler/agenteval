@@ -83,11 +83,20 @@ function computePrecision(changedFiles: string[], expectedPatterns: string[]): n
 	return Math.max(0, Math.min(1, 1 - unexpected.length / changedFiles.length));
 }
 
+/**
+ * Tokens the run spent apart from cache reads. Cache reads replay the same
+ * system prompt and history every turn; counting them would make every
+ * multi-turn agent session blow any reasonable budget.
+ */
+export function efficiencyTokens(metrics: RunMetrics): number | null {
+	if (metrics.tokensTotal === null || metrics.tokenSource === "unavailable") return null;
+	return Math.max(0, metrics.tokensTotal - (metrics.tokensCacheRead ?? 0));
+}
+
 function computeEfficiency(metrics: RunMetrics, budget: number): number | null {
-	if (metrics.tokensTotal === null || metrics.tokenSource === "unavailable") {
-		return null;
-	}
-	return Math.max(0, Math.min(1, 1 - metrics.tokensTotal / budget));
+	const tokens = efficiencyTokens(metrics);
+	if (tokens === null) return null;
+	return Math.max(0, Math.min(1, 1 - tokens / budget));
 }
 
 function computeConventions(results: AssertionResult[]): number | null {

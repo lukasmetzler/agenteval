@@ -1,6 +1,7 @@
 import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { type Config, DEFAULT_INSTRUCTION_GLOBS } from "../config/schema.js";
+import { extractAgentError } from "../harness/jsonl.js";
 import { detectHarness, getAdapter } from "../harness/registry.js";
 import { spawnAgent } from "../harness/spawn.js";
 import type { HarnessAdapter } from "../harness/types.js";
@@ -13,7 +14,13 @@ import { logger } from "../utils/logger.js";
 import { GIT_DIFF_FLAGS } from "../utils/path.js";
 import { isLintDeltaAssertion, lintDeltaKey } from "./assertions.js";
 import { scoreRun } from "./scorer.js";
-import type { InstructionSet, LintSummary, StoredResult, TaskDefinition } from "./types.js";
+import type {
+	InstructionSet,
+	LintSummary,
+	RawRunResult,
+	StoredResult,
+	TaskDefinition,
+} from "./types.js";
 import { cleanStaleWorktrees, createWorktree, generateRunId, removeWorktree } from "./worktree.js";
 
 /**
@@ -66,8 +73,8 @@ export async function executeRun(
 	// Step 3-5: Create worktree → run → cleanup
 	let worktreePath: string | null = null;
 	try {
-		worktreePath = await createWorktree(runId, cwd, config.run.worktreesDir);
-		logger.info(`Running task "${task.name}" with ${harnessName} in ${worktreePath}`);
+		worktreePath = await createWorktree(runId, cwd, config.run.worktreesDir, startRef(task));
+		logger.debug(`Running task "${task.name}" with ${harnessName} in ${worktreePath}`);
 
 		const setupError = await runSetup(task, worktreePath);
 		if (setupError) {
@@ -91,15 +98,9 @@ export async function executeRun(
 			);
 		}
 
-		if (rawResult.exitCode !== 0 && !rawResult.stdout) {
-			return makeErrorResult(
-				runId,
-				timestamp,
-				task,
-				harnessName,
-				instructions,
-				`Agent exited with code ${rawResult.exitCode}: ${rawResult.stderr.slice(0, 500)}`,
-			);
+		const failure = agentFailure(rawResult);
+		if (failure !== null) {
+			return makeErrorResult(runId, timestamp, task, harnessName, instructions, failure);
 		}
 
 		// Capture git diff
@@ -142,6 +143,7 @@ export async function executeRun(
 			scores,
 			assertions: assertionResults,
 			diffSummary: summarizeDiff(diff),
+			changedFiles,
 			model: metrics.model ?? task.model ?? null,
 			durationMs: Math.round(rawResult.durationMs),
 			lint: summarizeLint(lintDeltas),
@@ -232,6 +234,26 @@ async function runSetup(task: TaskDefinition, worktreePath: string): Promise<str
 		}
 	}
 	return null;
+}
+
+/**
+ * Why the agent run failed, or null if it succeeded. A failed run is an error
+ * even when it printed output: scoring whatever it left behind would report a
+ * broken run as a weak success.
+ */
+function agentFailure(raw: RawRunResult): string | null {
+	const reported = extractAgentError(raw.stdout);
+	if (raw.exitCode === 0 && reported === null) return null;
+	return `Agent exited with code ${raw.exitCode}: ${reported ?? raw.stderr.trim().slice(0, 500)}`;
+}
+
+/**
+ * Where the agent starts. A harvested task replays its source commit, so it
+ * starts from the commit's parent, the state the original agent saw. Starting
+ * at HEAD would hand the agent a repo where the work is already done.
+ */
+export function startRef(task: TaskDefinition): string {
+	return task.sourceCommit ? `${task.sourceCommit}^` : "HEAD";
 }
 
 /** How a result records which instructions it ran with. */

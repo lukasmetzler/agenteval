@@ -24,6 +24,7 @@ interface CIOptions {
 	parallel?: string;
 	trials?: string;
 	format?: string;
+	model?: string;
 }
 
 interface CITaskResult {
@@ -45,6 +46,7 @@ interface ResolvedCIConfig {
 	maxRegression: number;
 	instructions: InstructionSet;
 	harness?: string;
+	model?: string;
 	trials?: number;
 }
 
@@ -57,6 +59,7 @@ export function registerCICommand(program: Command): void {
 		.option("--max-regression <n>", "max allowed score drop vs previous run 0-1")
 		.option("--instructions <path>", "instruction file to use")
 		.option("--harness <name>", "override harness for all tasks")
+		.option("--model <model>", "override the agent model for all tasks")
 		.option("--parallel <n>", "run up to N tasks in parallel")
 		.option("--trials <n>", "attempts per task; the gate uses the mean score")
 		.option("--format <format>", "report format: console, json, junit", "console")
@@ -103,6 +106,7 @@ function resolveCIConfig(options: CIOptions): ResolvedCIConfig {
 		maxRegression,
 		instructions,
 		harness: options.harness,
+		model: options.model,
 		trials: options.trials !== undefined ? Number.parseInt(options.trials, 10) : undefined,
 	};
 }
@@ -179,7 +183,11 @@ export function findPreviousScore(
 
 function formatDelta(delta: number | null): string {
 	if (delta === null) return chalk.dim("new");
-	return delta >= 0 ? chalk.green(`+${delta.toFixed(2)}`) : chalk.red(delta.toFixed(2));
+	// Round first so float noise prints as +0.00, not -0.00.
+	const rounded = Number(delta.toFixed(2));
+	return rounded >= 0
+		? chalk.green(`+${Math.abs(rounded).toFixed(2)}`)
+		: chalk.red(rounded.toFixed(2));
 }
 
 async function runSingleTask(
@@ -191,6 +199,9 @@ async function runSingleTask(
 
 	if (rc.harness) {
 		task.harness = rc.harness;
+	}
+	if (rc.model) {
+		task.model = rc.model;
 	}
 
 	process.stderr.write(chalk.dim(`  ${label} Running ${task.name}...`));

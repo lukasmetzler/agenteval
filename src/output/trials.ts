@@ -16,9 +16,11 @@ function fmtDelta(
 	prefix = "",
 ): string {
 	if (value === null) return chalk.dim("n/a");
-	const text = `${value >= 0 ? "+" : "-"}${prefix}${Math.abs(value).toFixed(digits)}`;
-	if (value === 0) return chalk.dim(text);
-	const better = lowerIsBetter ? value < 0 : value > 0;
+	// Round first so float noise like -1e-17 prints as a neutral +0.00, not -0.00.
+	const rounded = Number(value.toFixed(digits));
+	const text = `${rounded < 0 ? "-" : "+"}${prefix}${Math.abs(rounded).toFixed(digits)}`;
+	if (rounded === 0) return chalk.dim(text);
+	const better = lowerIsBetter ? rounded < 0 : rounded > 0;
 	return better ? chalk.green(text) : chalk.red(text);
 }
 

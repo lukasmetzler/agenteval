@@ -107,3 +107,70 @@ describe("baseline arm", () => {
 		expect(withInstructions.instructions).toBe("CLAUDE.md");
 	});
 });
+
+describe("agent failures and replay start point", () => {
+	const failing = (stdout: string, exitCode: number): HarnessAdapter => ({
+		name: "failing",
+		instructionTarget: "CLAUDE.md",
+		isAvailable: async () => true,
+		injectInstructions: async () => {},
+		runTask: async () => ({ stdout, stderr: "boom", exitCode, durationMs: 1, timedOut: false }),
+		parseMetrics: () => ({
+			tokensInput: null,
+			tokensOutput: null,
+			tokensTotal: null,
+			tokenSource: "unavailable",
+		}),
+	});
+	const config = ConfigSchema.parse({ version: 1 });
+
+	test("a non-zero exit is an error even when the agent printed JSON", async () => {
+		const stdout = JSON.stringify({
+			type: "turn.failed",
+			error: { message: JSON.stringify({ error: { message: "model not supported" } }) },
+		});
+		const result = await executeRun(config, task, { sourcePath: "CLAUDE.md" }, repo, {
+			adapter: failing(stdout, 1),
+		});
+		expect(result.status).toBe("error");
+		expect(result.error).toContain("model not supported");
+	});
+
+	test("an is_error result is an error even with exit code 0", async () => {
+		const stdout = '{"type":"result","subtype":"error_max_turns","is_error":true}';
+		const result = await executeRun(config, task, { sourcePath: "CLAUDE.md" }, repo, {
+			adapter: failing(stdout, 0),
+		});
+		expect(result.status).toBe("error");
+	});
+
+	test("a harvested task starts from its source commit's parent", async () => {
+		writeFileSync(join(repo, "src/later.js"), "export const later = 1;\n");
+		await sh(repo, "git", "add", "-A");
+		await sh(
+			repo,
+			"git",
+			"-c",
+			"user.name=t",
+			"-c",
+			"user.email=t@t",
+			"commit",
+			"-qm",
+			"add later",
+		);
+		const head = (await Bun.$`git rev-parse HEAD`.cwd(repo).text()).trim();
+		const seen: boolean[] = [];
+		const probe: HarnessAdapter = {
+			...failing("", 0),
+			runTask: async (worktree) => {
+				seen.push(existsSync(join(worktree, "src/later.js")));
+				return { stdout: "", stderr: "", exitCode: 0, durationMs: 1, timedOut: false };
+			},
+		};
+		await executeRun(config, { ...task, sourceCommit: head }, { sourcePath: "CLAUDE.md" }, repo, {
+			adapter: probe,
+		});
+		await executeRun(config, task, { sourcePath: "CLAUDE.md" }, repo, { adapter: probe });
+		expect(seen).toEqual([false, true]);
+	});
+});

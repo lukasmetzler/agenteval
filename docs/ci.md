@@ -76,6 +76,7 @@ agenteval ci [options]
 | `--max-regression <n>` | float | `0.1` | Max allowed score drop vs previous run (0-1) |
 | `--instructions <path>` | string | `CLAUDE.md` | Instruction file to evaluate |
 | `--harness <name>` | string | `auto` | Override harness for all tasks |
+| `--model <model>` | string | task `model` | Override the agent model for all tasks |
 | `--parallel <n>` | number | `1` | Run up to N tasks concurrently |
 | `--trials <n>` | number | task `trials`, else `1` | Attempts per task. The gate uses the mean score, and the regression check compares it with the mean of the previous run's trial group. |
 | `--format <format>` | string | `console` | `console`, `json`, or `junit`. With `json` and `junit` the report goes to stdout and progress to stderr. |

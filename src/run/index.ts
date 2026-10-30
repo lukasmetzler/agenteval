@@ -1,10 +1,14 @@
-import type { Config } from "../config/schema.js";
+import { rmSync } from "node:fs";
+import { resolve } from "node:path";
+import { type Config, DEFAULT_INSTRUCTION_GLOBS } from "../config/schema.js";
 import { detectHarness, getAdapter } from "../harness/registry.js";
+import { spawnAgent } from "../harness/spawn.js";
 import type { HarnessAdapter } from "../harness/types.js";
 import { detectToolchain } from "../toolchain/detect.js";
 import { autoLintTools, computeLintDelta, type LintDeltaResult } from "../toolchain/lintDelta.js";
 import type { ToolId } from "../toolchain/tools.js";
 import { TOOLS } from "../toolchain/tools.js";
+import { resolveInstructionFiles } from "../utils/glob.js";
 import { logger } from "../utils/logger.js";
 import { GIT_DIFF_FLAGS } from "../utils/path.js";
 import { isLintDeltaAssertion, lintDeltaKey } from "./assertions.js";
@@ -44,7 +48,7 @@ export async function executeRun(
 	}
 
 	// Step 2: Resolve harness
-	const harnessName = task.harness === "auto" ? detectHarness(cwd) : task.harness;
+	const harnessName = task.harness === "auto" ? await detectHarness(cwd, config) : task.harness;
 	const adapter = options.adapter ?? getAdapter(harnessName, config);
 
 	const available = await adapter.isAvailable();
@@ -65,9 +69,7 @@ export async function executeRun(
 		worktreePath = await createWorktree(runId, cwd, config.run.worktreesDir);
 		logger.info(`Running task "${task.name}" with ${harnessName} in ${worktreePath}`);
 
-		// Inject instructions, then commit so the diff shows only the agent's changes
-		await adapter.injectInstructions(worktreePath, instructions);
-		await commitBaseline(worktreePath);
+		await prepareWorktree(adapter, worktreePath, instructions, cwd);
 
 		// Run agent
 		const timeout = task.timeout ?? config.run.timeout;
@@ -130,13 +132,13 @@ export async function executeRun(
 			timestamp,
 			task: task.name,
 			harness: harnessName,
-			instructions: `${instructions.sourcePath}`,
+			instructions: instructionsLabel(instructions),
 			status: "success",
 			metrics,
 			scores,
 			assertions: assertionResults,
 			diffSummary: summarizeDiff(diff),
-			model: null,
+			model: metrics.model ?? task.model ?? null,
 			lint: summarizeLint(lintDeltas),
 			sourceCommit: task.sourceCommit,
 			instructionSnapshot: task.instructionSnapshot,
@@ -167,7 +169,7 @@ function makeErrorResult(
 		timestamp,
 		task: task.name,
 		harness,
-		instructions: instructions.sourcePath,
+		instructions: instructionsLabel(instructions),
 		status,
 		metrics: {
 			tokensInput: null,
@@ -191,6 +193,38 @@ function makeErrorResult(
 		prUrl: task.prUrl,
 		detectionConfidence: task.detectionConfidence,
 	};
+}
+
+/**
+ * Inject instructions (or strip them all for the baseline arm), then commit so
+ * the diff shows only the agent's changes.
+ */
+async function prepareWorktree(
+	adapter: HarnessAdapter,
+	worktreePath: string,
+	instructions: InstructionSet,
+	cwd: string,
+): Promise<void> {
+	if (instructions.sourcePath === null) {
+		await stripInstructionFiles(worktreePath);
+	} else {
+		await adapter.injectInstructions(worktreePath, resolve(cwd, instructions.sourcePath));
+	}
+	await commitBaseline(worktreePath);
+}
+
+/** How a result records which instructions it ran with. */
+export function instructionsLabel(instructions: InstructionSet): string {
+	return instructions.sourcePath ?? BASELINE_LABEL;
+}
+
+export const BASELINE_LABEL = "(baseline: no instructions)";
+
+/** Baseline arm: remove every instruction, rule, skill, and agent file agenteval knows. */
+async function stripInstructionFiles(worktreePath: string): Promise<void> {
+	const files = await resolveInstructionFiles([...DEFAULT_INSTRUCTION_GLOBS], worktreePath);
+	for (const file of files) rmSync(file, { force: true });
+	logger.debug(`Baseline arm: removed ${files.length} instruction file(s)`);
 }
 
 async function git(args: string[], cwd: string): Promise<number> {
@@ -260,21 +294,17 @@ async function runAssertionCommands(
 
 	for (const assertion of task.assertions) {
 		if (assertion.type !== "test-pass" && assertion.type !== "no-new-warnings") continue;
-		if (!assertion.command) continue;
+		if (!assertion.command || results.has(assertion.command)) continue;
 
-		const proc = Bun.spawn(["sh", "-c", assertion.command], {
+		const raw = await spawnAgent({
+			command: ["sh", "-c", assertion.command],
 			cwd: worktreePath,
-			stdout: "pipe",
-			stderr: "pipe",
+			timeoutSeconds: task.timeout,
 		});
-
-		const exitCode = await proc.exited;
-		const stdout = await new Response(proc.stdout).text();
-		const stderr = await new Response(proc.stderr).text();
-
+		const output = `${raw.stdout}\n${raw.stderr}`.trim();
 		results.set(assertion.command, {
-			passed: exitCode === 0,
-			output: `${stdout}\n${stderr}`.trim(),
+			passed: raw.exitCode === 0 && !raw.timedOut,
+			output: raw.timedOut ? `timed out after ${task.timeout}s\n${output}` : output,
 		});
 	}
 

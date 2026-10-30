@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import type { Command } from "commander";
 import { findConfigFile, loadConfig } from "../config/loader.js";
+import { BUILTIN_SPECS } from "../harness/builtin.js";
+import { commandExists } from "../harness/spawn.js";
 import { header, rule } from "../output/terminal.js";
 import { detectToolchain } from "../toolchain/detect.js";
 import { resolveInstructionFiles } from "../utils/glob.js";
@@ -109,19 +111,19 @@ function checkToolchain(): CheckResult {
 	return { label: "toolchain", status: "pass", message: parts.join(" · ") };
 }
 
-async function checkClaudeCli(): Promise<CheckResult> {
-	const { ok } = await spawnCheck("claude", ["--version"]);
-	if (ok) {
+function checkAgentClis(): CheckResult {
+	const installed = BUILTIN_SPECS.filter((spec) => commandExists(spec.binary)).map((s) => s.name);
+	if (installed.length > 0) {
 		return {
-			label: "claude CLI",
+			label: "agent CLIs",
 			status: "pass",
-			message: "claude CLI found (for eval runs and --analyze)",
+			message: `${installed.join(", ")} (for agenteval run; claude also powers --analyze)`,
 		};
 	}
 	return {
-		label: "claude CLI",
+		label: "agent CLIs",
 		status: "warn",
-		message: "not found — needed for agenteval run and harvest --live --analyze",
+		message: `none found (${BUILTIN_SPECS.map((s) => s.binary).join(", ")}) — needed for agenteval run`,
 	};
 }
 
@@ -166,7 +168,7 @@ export function registerDoctorCommand(program: Command): void {
 			results.push(checkConfig());
 			results.push(await checkInstructions());
 			results.push(checkToolchain());
-			results.push(await checkClaudeCli());
+			results.push(checkAgentClis());
 			results.push(await checkGhCli());
 
 			for (const result of results) {

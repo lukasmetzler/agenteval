@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","cwd":"/repo","session_id":"T-1","tools":["Bash","Read"]}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done"}]}}
+{"type":"result","subtype":"success","duration_ms":30000,"is_error":false,"num_turns":4,"result":"Done","session_id":"T-1","usage":{"input_tokens":12000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":800}}

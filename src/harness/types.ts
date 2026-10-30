@@ -1,13 +1,16 @@
-import type { InstructionSet, RawRunResult, RunMetrics, TaskDefinition } from "../run/types.js";
+import type { RawRunResult, RunMetrics, TaskDefinition } from "../run/types.js";
 
 export interface HarnessAdapter {
 	name: string;
 
+	/** Where this agent reads project instructions, relative to the repo root. */
+	instructionTarget: string;
+
 	/** Check if this harness CLI is available on the system */
 	isAvailable(): Promise<boolean>;
 
-	/** Inject instructions into the harness's expected location in the worktree */
-	injectInstructions(worktreePath: string, instructions: InstructionSet): Promise<void>;
+	/** Copy an instruction file to this harness's instructionTarget in the worktree */
+	injectInstructions(worktreePath: string, sourcePath: string): Promise<void>;
 
 	/** Spawn the agent with a task, return when complete or timed out */
 	runTask(

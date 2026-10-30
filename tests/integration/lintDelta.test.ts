@@ -50,7 +50,7 @@ function mock(filesToChange: Record<string, string>) {
 
 async function run(filesToChange: Record<string, string>) {
 	const config = ConfigSchema.parse({ version: 1 });
-	return executeRun(config, task, { sourcePath: "CLAUDE.md", targetFilename: "CLAUDE.md" }, repo, {
+	return executeRun(config, task, { sourcePath: "CLAUDE.md" }, repo, {
 		adapter: mock(filesToChange),
 	});
 }

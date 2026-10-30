@@ -42,16 +42,23 @@ export const DEFAULT_INSTRUCTION_GLOBS = [
 	".junie/**/*.md",
 ] as const;
 
+/** Built-in agent harnesses (src/harness/builtin.ts) plus the windsurf alias for devin. */
 export const BUILTIN_HARNESSES = [
 	"claude-code",
+	"codex",
+	"gemini",
+	"antigravity",
+	"copilot",
 	"cursor",
 	"opencode",
+	"devin",
+	"amp",
 	"windsurf",
-	"copilot",
-	"generic",
 ] as const;
 
-const HarnessNameSchema = z.enum(BUILTIN_HARNESSES);
+const HarnessNameSchema = z
+	.string()
+	.describe(`One of ${BUILTIN_HARNESSES.join(", ")}, or a key of harnesses`);
 
 const InstructionSourceSchema = z.object({
 	path: z.string().describe("Path to instruction file"),
@@ -98,10 +105,7 @@ const HarvestConfigSchema = z.object({
 		.max(1)
 		.default(0.5)
 		.describe("Minimum confidence to include an AI commit (0.0-1.0)"),
-	defaultHarness: z
-		.enum([...BUILTIN_HARNESSES, "auto"])
-		.default("auto")
-		.describe("Default harness for harvested tasks"),
+	defaultHarness: HarnessNameSchema.default("auto").describe("Default harness for harvested tasks"),
 	defaultTimeout: z
 		.number()
 		.min(1)

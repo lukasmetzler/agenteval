@@ -42,15 +42,7 @@
 					},
 					"harness": {
 						"description": "Harness to use for this instruction file",
-						"type": "string",
-						"enum": [
-							"claude-code",
-							"cursor",
-							"opencode",
-							"windsurf",
-							"copilot",
-							"generic"
-						]
+						"type": "string"
 					}
 				},
 				"required": [
@@ -189,16 +181,7 @@
 				"defaultHarness": {
 					"default": "auto",
 					"description": "Default harness for harvested tasks",
-					"type": "string",
-					"enum": [
-						"claude-code",
-						"cursor",
-						"opencode",
-						"windsurf",
-						"copilot",
-						"generic",
-						"auto"
-					]
+					"type": "string"
 				},
 				"defaultTimeout": {
 					"default": 300,

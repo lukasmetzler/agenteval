@@ -4,10 +4,11 @@ import type { Command } from "commander";
 import { glob } from "glob";
 import { loadConfig } from "../config/loader.js";
 import type { Config } from "../config/schema.js";
+import { isKnownHarness, knownHarnesses } from "../harness/registry.js";
 import { header, kvLine, rule, scoreColor } from "../output/terminal.js";
 import { executeRun } from "../run/index.js";
 import { loadTask } from "../run/task-loader.js";
-import type { InstructionSet, StoredResult, TaskDefinition } from "../run/types.js";
+import type { InstructionSet, StoredResult } from "../run/types.js";
 import { listResults, writeResult } from "../store/index.js";
 import { logger } from "../utils/logger.js";
 
@@ -41,17 +42,6 @@ interface ResolvedCIConfig {
 	instructions: InstructionSet;
 	harness?: string;
 }
-
-const VALID_HARNESSES = [
-	"claude-code",
-	"cursor",
-	"opencode",
-	"windsurf",
-	"copilot",
-	"generic",
-	"auto",
-	"mock",
-];
 
 export function registerCICommand(program: Command): void {
 	program
@@ -88,15 +78,14 @@ function resolveCIConfig(options: CIOptions): ResolvedCIConfig {
 
 	validateThresholds(minScore, maxRegression);
 
-	if (options.harness && !VALID_HARNESSES.includes(options.harness)) {
-		throw new Error(`Unknown harness "${options.harness}". Valid: ${VALID_HARNESSES.join(", ")}`);
+	if (options.harness && !isKnownHarness(options.harness, config)) {
+		throw new Error(
+			`Unknown harness "${options.harness}". Valid: ${knownHarnesses(config).join(", ")}, auto`,
+		);
 	}
 
 	const instructionFile = options.instructions ?? config.ci.instructions;
-	const instructions: InstructionSet = {
-		sourcePath: resolve(cwd, instructionFile),
-		targetFilename: instructionFile.split("/").pop() ?? "CLAUDE.md",
-	};
+	const instructions: InstructionSet = { sourcePath: resolve(cwd, instructionFile) };
 
 	return {
 		config,
@@ -165,7 +154,7 @@ async function runSingleTask(
 	const task = loadTask(taskPath, rc.cwd);
 
 	if (rc.harness) {
-		task.harness = rc.harness as TaskDefinition["harness"];
+		task.harness = rc.harness;
 	}
 
 	process.stderr.write(chalk.dim(`  ${label} Running ${task.name}...`));

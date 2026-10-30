@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
+import type { Config } from "../config/schema.js";
+import { isKnownHarness, knownHarnesses } from "../harness/registry.js";
 import { harvest } from "../harvest/index.js";
 import type { HarvestOptions, HarvestResult, LiveReviewResult } from "../harvest/types.js";
 import { header, kvLine, padEnd, scoreColor } from "../output/terminal.js";
@@ -36,16 +38,6 @@ interface HarvestCliOptions {
 	analyze?: boolean;
 }
 
-const VALID_HARNESSES = [
-	"claude-code",
-	"cursor",
-	"opencode",
-	"windsurf",
-	"copilot",
-	"generic",
-	"auto",
-];
-
 export function registerHarvestCommand(program: Command): void {
 	program
 		.command("harvest")
@@ -69,7 +61,7 @@ export function registerHarvestCommand(program: Command): void {
 				const config = loadConfig(cliOptions.config);
 				const options = buildOptions(cliOptions, config);
 
-				validateOptions(options, cliOptions);
+				validateOptions(options, cliOptions, config);
 
 				if (cliOptions.format !== "json" && !options.dryRun && !options.live) {
 					process.stderr.write(chalk.dim("  Scanning git history...\n"));
@@ -115,9 +107,7 @@ function buildOptions(
 		outputDir: cli.output ?? config.harvest.outputDir,
 		dryRun: cli.dryRun ?? false,
 		force: cli.force ?? false,
-		harness:
-			(cli.harness as HarvestOptions["harness"]) ??
-			(config.harvest.defaultHarness as HarvestOptions["harness"]),
+		harness: cli.harness ?? config.harvest.defaultHarness,
 		timeout: cli.timeout ? Number.parseInt(cli.timeout, 10) : config.harvest.defaultTimeout,
 		minConfidence: cli.minConfidence
 			? Number.parseFloat(cli.minConfidence)
@@ -128,14 +118,14 @@ function buildOptions(
 	};
 }
 
-function validateOptions(options: HarvestOptions, cli: HarvestCliOptions): void {
+function validateOptions(options: HarvestOptions, cli: HarvestCliOptions, config: Config): void {
 	if (cli.analyze && !cli.live) {
 		throw new Error("--analyze requires --live");
 	}
 
-	if (cli.harness && !VALID_HARNESSES.includes(cli.harness)) {
+	if (cli.harness && !isKnownHarness(cli.harness, config)) {
 		throw new Error(
-			`Invalid harness "${cli.harness}". Valid options: ${VALID_HARNESSES.join(", ")}`,
+			`Invalid harness "${cli.harness}". Valid options: ${knownHarnesses(config).join(", ")}, auto`,
 		);
 	}
 

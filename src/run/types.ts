@@ -1,15 +1,20 @@
 export interface InstructionSet {
-	/** Path to the instruction file to use (e.g., "./instructions-v2/CLAUDE.md") */
-	sourcePath: string;
-	/** Target filename in worktree (e.g., "CLAUDE.md", "AGENTS.md") */
-	targetFilename: string;
+	/**
+	 * Instruction file to inject (e.g. "./instructions-v2/CLAUDE.md"). The harness
+	 * decides where it lands (CLAUDE.md, AGENTS.md, GEMINI.md, ...). null is the
+	 * baseline arm: every instruction file is removed from the worktree.
+	 */
+	sourcePath: string | null;
 }
 
 export interface TaskDefinition {
 	name: string;
 	description: string;
 	prompt: string;
-	harness: "claude-code" | "cursor" | "opencode" | "windsurf" | "copilot" | "generic" | "auto";
+	/** Built-in harness name, a key of config.harnesses, or "auto". */
+	harness: string;
+	/** Model passed to the agent CLI (its --model flag); the CLI default when unset. */
+	model?: string;
 	timeout: number;
 	assertions: TaskAssertion[];
 	scoring: ScoringWeights;
@@ -77,6 +82,12 @@ export interface RunMetrics {
 	tokensOutput: number | null;
 	tokensTotal: number | null;
 	tokenSource: "api" | "estimated" | "unavailable";
+	/** Cost the agent CLI reported (Claude Code reports a client-side estimate). */
+	costUsd?: number | null;
+	/** Model the agent reported using. */
+	model?: string | null;
+	/** Agent turns (model round trips) the CLI reported. */
+	turns?: number | null;
 }
 
 export interface StoredResult {

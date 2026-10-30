@@ -107,13 +107,12 @@ describe("ToolchainCheckerRule", () => {
 		expect(diags[3]?.message).toContain("TypeScript");
 	});
 
-	test("pnpm: implicit script run documents eslint; prettier and tests are undocumented", async () => {
+	test("pnpm: implicit script run documents eslint; tests are undocumented", async () => {
+		// prettier is only a bare dependency (no config, no script), so it is not reported.
 		const diags = await lintFixture("pnpm-eslint-prettier", "AGENTS.md");
-		expect(diags.map((d) => d.ruleId)).toEqual([
-			"toolchain/undocumented",
-			"toolchain/undocumented",
+		expect(diags.map((d) => [d.ruleId, d.meta])).toEqual([
+			["toolchain/undocumented", { script: "test" }],
 		]);
-		expect(diags.map((d) => d.meta)).toEqual([{ tool: "prettier" }, { script: "test" }]);
 	});
 
 	test("python: black is flagged when the repo formats with ruff", async () => {

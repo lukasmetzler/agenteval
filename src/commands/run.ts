@@ -2,6 +2,8 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { loadConfig } from "../config/loader.js";
+import type { Config } from "../config/schema.js";
+import { isKnownHarness, knownHarnesses } from "../harness/registry.js";
 import { header, kvLine, scoreColor } from "../output/terminal.js";
 import { executeRun } from "../run/index.js";
 import { loadTask } from "../run/task-loader.js";
@@ -12,27 +14,21 @@ import { logger } from "../utils/logger.js";
 interface RunOptions {
 	task: string;
 	harness?: string;
+	model?: string;
 	instructions?: string;
 	config?: string;
 }
-
-const VALID_HARNESSES = [
-	"claude-code",
-	"cursor",
-	"opencode",
-	"windsurf",
-	"copilot",
-	"generic",
-	"auto",
-	"mock",
-];
 
 export function registerRunCommand(program: Command): void {
 	program
 		.command("run")
 		.description("Run a task against current instructions and measure the outcome")
 		.requiredOption("--task <task>", "task description, YAML file path, or task name from tasks/")
-		.option("--harness <name>", "harness to use: claude-code, opencode, generic, mock")
+		.option(
+			"--harness <name>",
+			"agent to run: claude-code, codex, gemini, antigravity, copilot, cursor, opencode, devin, amp, a harnesses: key, or mock",
+		)
+		.option("--model <model>", "model passed to the agent CLI (overrides the task's model)")
 		.option("--instructions <path>", "alternative instruction file to inject")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (options: RunOptions) => {
@@ -41,7 +37,8 @@ export function registerRunCommand(program: Command): void {
 				const config = loadConfig(options.config);
 				const task = loadTask(options.task, cwd);
 
-				validateHarness(options, task);
+				validateHarness(options, task, config);
+				if (options.model) task.model = options.model;
 				const instructions = resolveInstructions(options, cwd);
 
 				logger.info(`Starting eval run: task="${task.name}" harness="${task.harness}"`);
@@ -57,13 +54,15 @@ export function registerRunCommand(program: Command): void {
 		});
 }
 
-function validateHarness(options: RunOptions, task: TaskDefinition): void {
+function validateHarness(options: RunOptions, task: TaskDefinition, config: Config): void {
 	if (!options.harness) return;
-	if (!VALID_HARNESSES.includes(options.harness)) {
-		logger.error(`Unknown harness "${options.harness}". Valid: ${VALID_HARNESSES.join(", ")}`);
+	if (!isKnownHarness(options.harness, config)) {
+		logger.error(
+			`Unknown harness "${options.harness}". Valid: ${knownHarnesses(config).join(", ")}, auto`,
+		);
 		process.exit(2);
 	}
-	task.harness = options.harness as typeof task.harness;
+	task.harness = options.harness;
 }
 
 function resolveInstructions(options: RunOptions, cwd: string): InstructionSet {
@@ -75,10 +74,7 @@ function resolveInstructions(options: RunOptions, cwd: string): InstructionSet {
 		process.exit(2);
 	}
 
-	return {
-		sourcePath: resolvedPath,
-		targetFilename: instructionFile.split("/").pop() ?? "CLAUDE.md",
-	};
+	return { sourcePath: resolvedPath };
 }
 
 function printResult(result: StoredResult, resultsDir: string): void {
@@ -92,6 +88,10 @@ function printResult(result: StoredResult, resultsDir: string): void {
 		if (result.metrics.tokensTotal !== null) {
 			console.log(kvLine("Tokens", `~${result.metrics.tokensTotal}`));
 		}
+		if (result.metrics.costUsd != null) {
+			console.log(kvLine("Cost", `$${result.metrics.costUsd.toFixed(4)}`));
+		}
+		if (result.model) console.log(kvLine("Model", result.model));
 		console.log(kvLine("Result", chalk.green.bold("success")));
 		console.log(kvLine("Saved to", chalk.dim(`${resultsDir}/${result.id}.json`)));
 		console.log();

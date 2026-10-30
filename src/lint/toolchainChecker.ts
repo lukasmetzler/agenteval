@@ -136,6 +136,9 @@ function undocumented(
 		const wrapper = Object.entries(toolchain.scripts).find(([, body]) =>
 			tool.spec.binaries.some((b) => body.includes(b)),
 		);
+		// A bare dependency with no config and no script is weak evidence the
+		// repo's workflow uses the tool (it may be a test fixture or transitive tool).
+		if (tool.source.kind === "dependency" && !wrapper) continue;
 		diagnostics.push({
 			ruleId: "toolchain/undocumented",
 			severity: "info",

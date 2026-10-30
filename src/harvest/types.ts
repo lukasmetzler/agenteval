@@ -31,7 +31,8 @@ export interface HarvestOptions {
 	outputDir?: string;
 	dryRun?: boolean;
 	force?: boolean;
-	harness?: "claude-code" | "cursor" | "opencode" | "windsurf" | "copilot" | "generic" | "auto";
+	/** Built-in harness name, a key of config.harnesses, or "auto". */
+	harness?: string;
 	timeout?: number;
 	minConfidence?: number;
 	github?: boolean;

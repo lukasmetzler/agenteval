@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { stringify as yamlStringify } from "yaml";
 import type { TaskDefinition } from "../run/types.js";
 import { detectToolchain, scriptCommand } from "../toolchain/detect.js";
+import { autoLintTools } from "../toolchain/lintDelta.js";
 import type { PRInfo } from "./github.js";
 import type { AICommit, HarvestOptions } from "./types.js";
 
@@ -110,6 +111,12 @@ export function emitTaskYaml(
 			type: "test-pass" as const,
 			command: detectTestCommand(repoPath),
 		});
+	}
+
+	// When the repo has a linter or type checker agenteval can run, check that
+	// the agent's diff introduces no new findings.
+	if (repoPath && existsSync(repoPath) && autoLintTools(detectToolchain(repoPath)).length > 0) {
+		assertions.push({ type: "lint-delta" as const, tools: "auto" });
 	}
 
 	let prompt = inferPrompt(commit);

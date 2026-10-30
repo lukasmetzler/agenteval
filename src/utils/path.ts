@@ -31,3 +31,14 @@ export function resolveMentionedPath(
 	const fromRoot = resolve(cwd, ref);
 	return exists(fromRoot) ? fromRoot : fromFile;
 }
+
+/**
+ * `git diff` flags that pin the output format regardless of user config
+ * (diff.mnemonicPrefix, diff.noprefix, color.ui, external diff drivers).
+ */
+export const GIT_DIFF_FLAGS = [
+	"--no-color",
+	"--no-ext-diff",
+	"--src-prefix=a/",
+	"--dst-prefix=b/",
+] as const;

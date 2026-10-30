@@ -120,6 +120,9 @@ const RubricsSchema = z.object({
 	scopeDiscipline: RubricConfigSchema.default(defaultRubric),
 	testCoverage: RubricConfigSchema.default(defaultRubric),
 	diffHygiene: RubricConfigSchema.default(defaultRubric),
+	lintDelta: RubricConfigSchema.default(defaultRubric).describe(
+		"Run the repo's detected linters and type checker on changed lines",
+	),
 	conventionCompliance: RubricConfigSchema.default(defaultRubric),
 	progressiveDisclosure: RubricConfigSchema.default(defaultRubric),
 });

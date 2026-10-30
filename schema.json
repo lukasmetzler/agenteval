@@ -255,6 +255,10 @@
 						"enabled": true,
 						"weight": 1
 					},
+					"lintDelta": {
+						"enabled": true,
+						"weight": 1
+					},
 					"conventionCompliance": {
 						"enabled": true,
 						"weight": 1
@@ -278,6 +282,10 @@
 							"weight": 1
 						},
 						"diffHygiene": {
+							"enabled": true,
+							"weight": 1
+						},
+						"lintDelta": {
 							"enabled": true,
 							"weight": 1
 						},
@@ -338,6 +346,27 @@
 								"enabled": true,
 								"weight": 1
 							},
+							"type": "object",
+							"properties": {
+								"enabled": {
+									"default": true,
+									"description": "Enable or disable this rubric",
+									"type": "boolean"
+								},
+								"weight": {
+									"default": 1,
+									"description": "Weight multiplier for this rubric's score",
+									"type": "number",
+									"minimum": 0
+								}
+							}
+						},
+						"lintDelta": {
+							"default": {
+								"enabled": true,
+								"weight": 1
+							},
+							"description": "Run the repo's detected linters and type checker on changed lines",
 							"type": "object",
 							"properties": {
 								"enabled": {

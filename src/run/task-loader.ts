@@ -5,10 +5,19 @@ import { z } from "zod";
 import type { TaskDefinition } from "./types.js";
 
 const TaskAssertionSchema = z.object({
-	type: z.enum(["files-changed", "files-unchanged", "test-pass", "no-new-warnings", "convention"]),
+	type: z.enum([
+		"files-changed",
+		"files-unchanged",
+		"test-pass",
+		"no-new-warnings",
+		"convention",
+		"lint-delta",
+	]),
 	pattern: z.string().optional(),
 	command: z.string().optional(),
 	expect: z.string().optional(),
+	tools: z.union([z.literal("auto"), z.array(z.string())]).optional(),
+	maxNew: z.number().int().min(0).optional(),
 });
 
 const ScoringWeightsSchema = z.object({

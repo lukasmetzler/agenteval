@@ -1,0 +1,15 @@
+[
+	{
+		"filePath": "/repo/src/app.js",
+		"messages": [
+			{ "ruleId": "no-unused-vars", "severity": 2, "message": "'x' is assigned a value but never used.", "line": 3, "column": 7 },
+			{ "ruleId": "eqeqeq", "severity": 1, "message": "Expected '===' and instead saw '=='.", "line": 4, "column": 12 },
+			{ "ruleId": null, "severity": 2, "message": "Parsing error: Unexpected token", "line": 9, "column": 1, "fatal": true }
+		],
+		"suppressedMessages": [],
+		"errorCount": 2,
+		"fatalErrorCount": 1,
+		"warningCount": 1
+	},
+	{ "filePath": "/repo/src/clean.js", "messages": [], "suppressedMessages": [], "errorCount": 0, "warningCount": 0 }
+]

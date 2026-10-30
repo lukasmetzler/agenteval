@@ -407,6 +407,20 @@ describe("emitTaskYaml", () => {
 		expect(task.scoring.correctness).toBe(0.5);
 	});
 
+	test("adds a lint-delta assertion when the repo has a runnable linter", () => {
+		const withLinter = emitTaskYaml(sampleCommit, {}, undefined, repoRoot);
+		expect(withLinter.assertions.at(-1)).toEqual({ type: "lint-delta", tools: "auto" });
+		const python = emitTaskYaml(
+			sampleCommit,
+			{},
+			undefined,
+			join(repoRoot, "tests/fixtures/toolchain/python-ruff"),
+		);
+		expect(python.assertions.some((a) => a.type === "lint-delta")).toBe(true);
+		const none = emitTaskYaml(sampleCommit, {}, undefined, join(repoRoot, "tests/fixtures/simple"));
+		expect(none.assertions.some((a) => a.type === "lint-delta")).toBe(false);
+	});
+
 	test("generates files-changed assertions for each file in diff", () => {
 		const task = emitTaskYaml(sampleCommit, {});
 		// 2 files-changed + 1 test-pass (sampleCommit includes tests/auth.test.ts)

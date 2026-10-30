@@ -1,9 +1,17 @@
 import { readFileSync } from "node:fs";
 import { loadConfig } from "../config/loader.js";
 import type { LiveReviewConfig } from "../config/schema.js";
+import { detectToolchain } from "../toolchain/detect.js";
+import { autoLintTools, computeLintDelta } from "../toolchain/lintDelta.js";
 import { resolveInstructionFiles } from "../utils/glob.js";
+import { GIT_DIFF_FLAGS } from "../utils/path.js";
 import { scoreConventionCompliance, scoreProgressiveDisclosure } from "./llm-rubrics.js";
-import { scoreDiffHygiene, scoreScopeDiscipline, scoreTestCoverage } from "./rubrics.js";
+import {
+	scoreDiffHygiene,
+	scoreLintDelta,
+	scoreScopeDiscipline,
+	scoreTestCoverage,
+} from "./rubrics.js";
 import type { LiveReviewResult, RubricResult } from "./types.js";
 
 /**
@@ -47,7 +55,7 @@ export async function getWorkingDiff(repoPath: string): Promise<{ files: string[
 	}
 
 	// Get the full combined diff
-	const diffProc = Bun.spawn(["git", "diff", "HEAD"], {
+	const diffProc = Bun.spawn(["git", "diff", ...GIT_DIFF_FLAGS, "HEAD"], {
 		cwd: repoPath,
 		stdout: "pipe",
 		stderr: "pipe",
@@ -76,6 +84,30 @@ export async function readInstructionFiles(repoPath: string, globs: string[]): P
 	return contents.join("\n\n---\n\n");
 }
 
+type RubricEntry = { result: RubricResult; weight: number };
+
+function heuristicEntries(files: string[], diff: string, config: LiveReviewConfig): RubricEntry[] {
+	const { scopeDiscipline, testCoverage, diffHygiene } = config.rubrics;
+	const entries: RubricEntry[] = [];
+	if (scopeDiscipline.enabled) {
+		entries.push({ result: scoreScopeDiscipline(files), weight: scopeDiscipline.weight });
+	}
+	if (testCoverage.enabled) {
+		entries.push({ result: scoreTestCoverage(files), weight: testCoverage.weight });
+	}
+	if (diffHygiene.enabled) {
+		entries.push({ result: scoreDiffHygiene(diff), weight: diffHygiene.weight });
+	}
+	return entries;
+}
+
+async function lintDeltaRubric(repoPath: string, diff: string): Promise<RubricResult | null> {
+	const toolchain = detectToolchain(repoPath);
+	const tools = autoLintTools(toolchain);
+	if (tools.length === 0) return null;
+	return scoreLintDelta(await computeLintDelta({ root: repoPath, diff, tools, toolchain }));
+}
+
 /**
  * Pure function: select enabled rubrics, run them, and compute a weighted average.
  * When analyze is true and LLM rubrics are enabled, includes them in results.
@@ -84,7 +116,7 @@ export async function selectAndScoreRubrics(
 	files: string[],
 	diff: string,
 	config: LiveReviewConfig,
-	options?: { analyze?: boolean; instructions?: string },
+	options?: { analyze?: boolean; instructions?: string; repoPath?: string },
 ): Promise<LiveReviewResult> {
 	if (files.length === 0) {
 		return {
@@ -95,27 +127,11 @@ export async function selectAndScoreRubrics(
 		};
 	}
 
-	const rubricEntries: Array<{ result: RubricResult; weight: number }> = [];
+	const rubricEntries = heuristicEntries(files, diff, config);
 
-	if (config.rubrics.scopeDiscipline.enabled) {
-		rubricEntries.push({
-			result: scoreScopeDiscipline(files),
-			weight: config.rubrics.scopeDiscipline.weight,
-		});
-	}
-
-	if (config.rubrics.testCoverage.enabled) {
-		rubricEntries.push({
-			result: scoreTestCoverage(files),
-			weight: config.rubrics.testCoverage.weight,
-		});
-	}
-
-	if (config.rubrics.diffHygiene.enabled) {
-		rubricEntries.push({
-			result: scoreDiffHygiene(diff),
-			weight: config.rubrics.diffHygiene.weight,
-		});
+	if (options?.repoPath && config.rubrics.lintDelta.enabled) {
+		const result = await lintDeltaRubric(options.repoPath, diff);
+		if (result) rubricEntries.push({ result, weight: config.rubrics.lintDelta.weight });
 	}
 
 	// LLM-assisted rubrics: only run when analyze is true
@@ -188,5 +204,9 @@ export async function runLiveReview(
 		instructions = await readInstructionFiles(repoPath, config.instructionGlobs);
 	}
 
-	return selectAndScoreRubrics(files, diff, config.liveReview, { analyze, instructions });
+	return selectAndScoreRubrics(files, diff, config.liveReview, {
+		analyze,
+		instructions,
+		repoPath,
+	});
 }

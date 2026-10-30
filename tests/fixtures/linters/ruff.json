@@ -1,0 +1,17 @@
+[
+	{
+		"code": "F401",
+		"message": "`os` imported but unused",
+		"filename": "/repo/app/main.py",
+		"location": { "row": 1, "column": 8 },
+		"end_location": { "row": 1, "column": 10 },
+		"url": "https://docs.astral.sh/ruff/rules/unused-import"
+	},
+	{
+		"code": "E711",
+		"message": "Comparison to `None` should be `cond is None`",
+		"filename": "/repo/app/main.py",
+		"location": { "row": 5, "column": 9 },
+		"end_location": { "row": 5, "column": 13 }
+	}
+]

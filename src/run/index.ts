@@ -1,8 +1,15 @@
 import type { Config } from "../config/schema.js";
 import { detectHarness, getAdapter } from "../harness/registry.js";
+import type { HarnessAdapter } from "../harness/types.js";
+import { detectToolchain } from "../toolchain/detect.js";
+import { autoLintTools, computeLintDelta, type LintDeltaResult } from "../toolchain/lintDelta.js";
+import type { ToolId } from "../toolchain/tools.js";
+import { TOOLS } from "../toolchain/tools.js";
 import { logger } from "../utils/logger.js";
+import { GIT_DIFF_FLAGS } from "../utils/path.js";
+import { isLintDeltaAssertion, lintDeltaKey } from "./assertions.js";
 import { scoreRun } from "./scorer.js";
-import type { InstructionSet, StoredResult, TaskDefinition } from "./types.js";
+import type { InstructionSet, LintSummary, StoredResult, TaskDefinition } from "./types.js";
 import { cleanStaleWorktrees, createWorktree, generateRunId, removeWorktree } from "./worktree.js";
 
 /**
@@ -21,6 +28,7 @@ export async function executeRun(
 	task: TaskDefinition,
 	instructions: InstructionSet,
 	cwd: string,
+	options: { adapter?: HarnessAdapter } = {},
 ): Promise<StoredResult> {
 	const runId = generateRunId(config.run.resultsDir);
 	const timestamp = new Date().toISOString();
@@ -37,7 +45,7 @@ export async function executeRun(
 
 	// Step 2: Resolve harness
 	const harnessName = task.harness === "auto" ? detectHarness(cwd) : task.harness;
-	const adapter = getAdapter(harnessName, config);
+	const adapter = options.adapter ?? getAdapter(harnessName, config);
 
 	const available = await adapter.isAvailable();
 	if (!available) {
@@ -57,8 +65,9 @@ export async function executeRun(
 		worktreePath = await createWorktree(runId, cwd, config.run.worktreesDir);
 		logger.info(`Running task "${task.name}" with ${harnessName} in ${worktreePath}`);
 
-		// Inject instructions
+		// Inject instructions, then commit so the diff shows only the agent's changes
 		await adapter.injectInstructions(worktreePath, instructions);
+		await commitBaseline(worktreePath);
 
 		// Run agent
 		const timeout = task.timeout ?? config.run.timeout;
@@ -93,6 +102,7 @@ export async function executeRun(
 
 		// Run test/lint assertion commands
 		const testResults = await runAssertionCommands(task, worktreePath);
+		const lintDeltas = await runLintDeltas(task, worktreePath, diff, cwd);
 
 		// Parse metrics
 		const metrics = adapter.parseMetrics(rawResult);
@@ -108,6 +118,7 @@ export async function executeRun(
 			changedFiles,
 			diff,
 			testResults,
+			lintDeltas,
 			metrics,
 			tokensBudget: config.run.tokensBudget,
 			expectedFilePatterns: expectedPatterns,
@@ -126,6 +137,7 @@ export async function executeRun(
 			assertions: assertionResults,
 			diffSummary: summarizeDiff(diff),
 			model: null,
+			lint: summarizeLint(lintDeltas),
 			sourceCommit: task.sourceCommit,
 			instructionSnapshot: task.instructionSnapshot,
 			prUrl: task.prUrl,
@@ -181,8 +193,35 @@ function makeErrorResult(
 	};
 }
 
+async function git(args: string[], cwd: string): Promise<number> {
+	const proc = Bun.spawn(["git", ...args], { cwd, stdout: "pipe", stderr: "pipe" });
+	return proc.exited;
+}
+
+/** Commit the injected instructions so they never show up as agent changes. */
+async function commitBaseline(worktreePath: string): Promise<void> {
+	await git(["add", "-A"], worktreePath);
+	await git(
+		[
+			"-c",
+			"user.name=agenteval",
+			"-c",
+			"user.email=agenteval@localhost",
+			"commit",
+			"--allow-empty",
+			"--no-verify",
+			"-q",
+			"-m",
+			"agenteval: baseline",
+		],
+		worktreePath,
+	);
+}
+
 async function captureGitDiff(worktreePath: string): Promise<string> {
-	const proc = Bun.spawn(["git", "diff", "HEAD"], {
+	// Intent-to-add makes files the agent created show up in `git diff`.
+	await git(["add", "-A", "-N"], worktreePath);
+	const proc = Bun.spawn(["git", "diff", ...GIT_DIFF_FLAGS, "HEAD"], {
 		cwd: worktreePath,
 		stdout: "pipe",
 		stderr: "pipe",
@@ -240,4 +279,55 @@ async function runAssertionCommands(
 	}
 
 	return results;
+}
+
+function resolveLintTools(tools: string[] | "auto" | undefined, auto: ToolId[]): ToolId[] {
+	if (tools === undefined || tools === "auto") return auto;
+	const known = new Set<string>(TOOLS.map((t) => t.id));
+	return tools.filter((t): t is ToolId => known.has(t));
+}
+
+async function runLintDeltas(
+	task: TaskDefinition,
+	worktreePath: string,
+	diff: string,
+	sourceRepo: string,
+): Promise<Map<string, LintDeltaResult>> {
+	const results = new Map<string, LintDeltaResult>();
+	const assertions = task.assertions.filter(isLintDeltaAssertion);
+	if (assertions.length === 0) return results;
+
+	const toolchain = detectToolchain(worktreePath);
+	const auto = autoLintTools(toolchain);
+	for (const assertion of assertions) {
+		const key = lintDeltaKey(assertion);
+		if (results.has(key)) continue;
+		const tools = resolveLintTools(assertion.tools, auto);
+		results.set(
+			key,
+			await computeLintDelta({
+				root: worktreePath,
+				diff,
+				tools,
+				toolchain,
+				binRoots: [sourceRepo],
+			}),
+		);
+	}
+	return results;
+}
+
+function summarizeLint(deltas: Map<string, LintDeltaResult>): LintSummary | undefined {
+	if (deltas.size === 0) return undefined;
+	const all = [...deltas.values()];
+	return {
+		tools: all.flatMap((d) =>
+			d.runs.map((r) =>
+				r.status === "ok"
+					? { tool: r.tool, status: r.status }
+					: { tool: r.tool, status: r.status, detail: r.reason },
+			),
+		),
+		newDiagnostics: all.flatMap((d) => d.newDiagnostics),
+	};
 }

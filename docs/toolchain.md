@@ -51,7 +51,7 @@ A `package.json` without a lockfile counts as npm, but `toolchain/wrong-package-
 
 ## Lint rules
 
-The checker reads commands from fenced code blocks tagged `bash`, `sh`, `shell`, `zsh`, `console`, or untagged, and from inline code spans. It splits on `&&`, `||`, `;`, and `|`, drops `$ ` prompts, comments, and `VAR=value` prefixes, and skips global installs (`npm install -g ...`), since those are instructions for humans.
+The checker reads commands from fenced code blocks tagged `bash`, `sh`, `shell`, `zsh`, `fish`, `console`, `terminal`, or untagged, and from inline code spans. It splits on `&&`, `||`, `;`, and `|`, drops `$ ` prompts, comments, and `VAR=value` prefixes, and skips global installs (`npm install -g ...`), since those are instructions for humans.
 
 ````markdown
 ## Commands

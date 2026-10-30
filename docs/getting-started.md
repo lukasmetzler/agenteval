@@ -4,7 +4,7 @@ New to agenteval? Read [Core Concepts](concepts.md) first to understand the term
 
 ## The Problem
 
-Every team using AI coding tools has instruction files -- CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions.md -- but nobody tests them. You write a rule like "always use structured logging" and hope the agent follows it. You add a section about your testing conventions and have no idea if it changes the agent's behavior. Instructions accumulate, bloat, contradict each other, and rot.
+Every team using AI coding tools has instruction files -- CLAUDE.md, AGENTS.md, GEMINI.md, Cursor rules, copilot-instructions.md -- but nobody tests them. You write a rule like "always use structured logging" and hope the agent follows it. You add a section about your testing conventions and have no idea if it changes the agent's behavior. Instructions accumulate, bloat, contradict each other, and rot.
 
 agenteval gives you a feedback loop. It statically analyzes your instruction files for quality issues (bloat, overlap, dead references), then lets you run controlled evals: give an AI agent a task, measure what it produces, and score the result. Change your instructions, run the eval again, and see whether the agent actually improved.
 
@@ -26,7 +26,7 @@ You also need a git repository containing at least one AI instruction file. If y
 
 ## Installation
 
-agenteval ships as a standalone binary. No Bun or Node required to run it.
+agenteval ships as a standalone binary. The Homebrew, shell-script, and prebuilt-binary installs need neither Bun nor Node. The npm package is a small Node wrapper (Node 18+) that runs the same binary.
 
 ### npm (recommended)
 
@@ -34,7 +34,7 @@ agenteval ships as a standalone binary. No Bun or Node required to run it.
 npm install -g agenteval-cli
 ```
 
-Downloads the prebuilt binary for your platform during install. Also works with `npx agenteval-cli lint` for one-off use. Updates with `npm update -g agenteval-cli`.
+The package has no install script. On first run, its Node wrapper downloads the prebuilt binary for your platform (Linux x64, macOS ARM64/x64) to `~/.agenteval/bin/` and runs it from there; it downloads again when the package version changes. Also works with `npx -y agenteval-cli lint` for one-off use. Updates with `npm update -g agenteval-cli`.
 
 ### Homebrew
 
@@ -76,7 +76,7 @@ Already have agenteval installed? Update to the latest version:
 agenteval update
 ```
 
-agenteval also checks for updates in the background (once per day) and shows a one-time notification when a new version is available.
+Before running a command, agenteval checks GitHub for a newer release, at most once a day and with a 2-second timeout. When the latest release is newer than the installed version, the next command prints a one-line notice on stderr. The check is skipped when the `CI` environment variable is set or when `AGENTEVAL_NO_UPDATE_CHECK=1`.
 
 ### Running
 
@@ -100,15 +100,13 @@ Check that agenteval is installed and shows the current version:
 agenteval --version
 ```
 
-Then confirm all commands are available:
-
-Run the help command to confirm everything works:
+Then run the help command to confirm all commands are available:
 
 ```bash
 agenteval --help
 ```
 
-You should see the list of available commands: `lint`, `run`, `harvest`, `results`, `compare`, `trends`, `ci`, and `update`.
+You should see the list of available commands: `init`, `doctor`, `lint`, `run`, `results`, `compare`, `harvest`, `ci`, `trends`, `update`, and `watch`. Run `agenteval doctor` to check git, the config file, and which agent CLIs are installed.
 
 ## 5-Minute Quickstart
 
@@ -133,7 +131,7 @@ agenteval auto-discovers instruction files matching these default globs:
 | `.claude/**/*.md` | Claude Code rules, skills, subagents, and commands |
 | `.agents/skills/**/*.md` | Agent Skills shared across tools |
 | `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md` | GitHub Copilot |
-| `.cursor/rules/**/*.mdc` | Cursor rules |
+| `.cursor/rules/**/*.{md,mdc}` | Cursor rules (Cursor reads only `.mdc`; lint warns about `.md` files there) |
 | `.devin/rules/*.md`, `.windsurf/rules/*.md` | Devin / Windsurf rules |
 | `.kiro/steering/*.md`, `.junie/**/*.md` | Kiro and JetBrains Junie |
 
@@ -143,37 +141,52 @@ The full table, including which agent reads which file, is in [Auto-Discovery](l
 agenteval lint "docs/agents/*.md" ".cursorrules"
 ```
 
-Example output:
+Example output (shortened):
 
 ```
-  3 files analyzed, ~2,340 tokens, 12 diagnostics (47ms)
+  agenteval lint  ·  2 files  ·  ~118 tokens  ·  30ms
+  ──────────────────────────────────────────────────────────────────────
 
   CLAUDE.md
-    error    dead-ref/missing-file          References "src/utils/auth.ts" which doesn't exist
-    warning  token-count/file-too-large     File uses ~9,200 tokens (limit: 8,000)
-    warning  bloat/high-bloat-score         Bloat score 0.54 exceeds threshold 0.50
-    info     bloat/filler-phrases           "Please ensure" at line 42 (filler)
+     WARN   Role-playing preambles like "You are an expert...": "You are"  (anti-pattern/role-play)
+           line 1
+           → Remove the preamble — models already know how to code
+     ERROR  Contradictory rules: both "always semicolons" and "never semicolons" found  (anti-pattern/contradictory-rules)
+           → Remove one of the contradicting rules
+     ERROR  Referenced file "src/auth/refresh.ts" does not exist  (dead-ref/missing-file)
+           line 13
+           → Remove the reference or create the missing file
+     ERROR  `bun run lint` runs script "lint", which package.json does not define  (toolchain/missing-script)
+           line 8
+           → Available scripts: test
 
-  AGENTS.md
-    warning  overlap/high-similarity        72% overlap with CLAUDE.md sections 3-5
-    info     dead-section/unused-heading    Section "## Legacy Migration" has no actionable content
+  .claude/skills/Deploy/SKILL.md
+     ERROR  Skill name "Deploy" must contain only lowercase letters, numbers, and hyphens  (skill/name-invalid-chars)
+           → Use only lowercase letters, numbers, and hyphens
 
-  .github/copilot-instructions.md
-    info     context-budget/budget-ok       1,240 tokens (within budget)
+  ──────────────────────────────────────────────────────────────────────
+  4 errors  ·  3 warnings  ·  4 info
+  Fix the errors above — they indicate broken references or contradictions that will confuse your AI agent.
 ```
 
-The linter runs seven rules:
+The linter runs 65 rules in 12 categories:
 
-| Rule | What it checks |
+| Category | What it checks |
 |---|---|
-| `token-count` | File and total token counts against configured limits |
-| `bloat` | Filler phrases, redundant wording, low signal-to-noise ratio |
-| `overlap` | Duplicated content across multiple instruction files |
-| `dead-ref` | References to files, paths, or commands that do not exist |
-| `dead-section` | Headings with no actionable content beneath them |
-| `context-budget` | Whether total instruction tokens exceed your model's context budget |
-| `anti-pattern` | Custom patterns you define in config (e.g., banned phrases) |
-| `skill-validator` | Validates frontmatter fields in skill/instruction files |
+| `token-count` | File and section sizes against configured limits |
+| `overlap` | Duplicated content across instruction files |
+| `bloat` | Low-density prose and filler phrases |
+| `anti-pattern` | Role-play preambles, vague or contradictory rules, TODOs, plus custom patterns from config |
+| `dead-ref` | File references, links, and anchors that point nowhere |
+| `context-budget` | Tokens loaded at session start against your model's context budget |
+| `skill` | `SKILL.md` files that break the Agent Skills spec |
+| `frontmatter` | Wrong or unknown frontmatter on rules, subagents, commands, and per-agent rule files |
+| `import` | `@path` imports that are missing, circular, or too deep |
+| `agent-limits` | Content an agent truncates or ignores because of its documented limits |
+| `toolchain` | Commands that don't match the repo's package manager, scripts, or linters |
+| `drift` | Referenced files that changed long after the instructions describing them |
+
+See the [Quick Overview](lint.md#quick-overview) and the rule reference in the [Linting Guide](lint.md) for details. Add `--explain` to print why each rule that fired matters and how to fix it.
 
 If any diagnostic has severity `error`, the command exits with code 1. This makes it suitable for CI pipelines:
 
@@ -184,7 +197,7 @@ agenteval lint --severity error --format json
 
 ### Step 2: Harvest tasks from git history
 
-If your team has been using AI coding tools, your git history already contains eval data. The `harvest` command scans commits for AI involvement (Co-authored-by trailers, known bot email patterns, commit message markers) and generates task YAML files from them.
+If your team has been using AI coding tools, your git history already contains eval data. The `harvest` command scans commits for AI involvement (Co-authored-by and agent session trailers, commits authored by an agent's own account, commit message markers like "Generated with Claude Code") and generates task YAML files from them.
 
 Start with a dry run to see what it finds:
 
@@ -195,16 +208,19 @@ agenteval harvest --dry-run
 Example output:
 
 ```
-  Harvest Dry Run
-  ===============
+  agenteval harvest · dry run
+  ───────────────────────────
 
-  Commits scanned:   142
-  AI commits found:  23
+  Commits scanned      4
+  AI-assisted          2 (50%)
 
-  Detected tasks:
-    * fix-auth-token-refresh (a1b2c3d)
-    * add-structured-logging (d4e5f6a)
-    * refactor-db-connection-pool (7b8c9d0)
+  ┌─────────┬──────────┬──────┬────────────────────────────────────────────┐
+  │ Hash    │ Tool     │ Conf │ Message                                    │
+  ├─────────┼──────────┼──────┼────────────────────────────────────────────┤
+  │ 56b44e4 │ claude   │ 0.6  │ feat: add auth helper                      │
+  │ e220da2 │ claude   │ 0.9  │ fix: handle null input in parser           │
+  └─────────┴──────────┴──────┴────────────────────────────────────────────┘
+  Completed in 0.0s
 ```
 
 If it finds commits, generate the task files:
@@ -213,24 +229,17 @@ If it finds commits, generate the task files:
 agenteval harvest
 ```
 
-This writes YAML files to `tasks/harvested/` by default:
+This writes one YAML file per commit to `tasks/harvested/` by default, named after the commit's short hash:
 
 ```
 tasks/harvested/
-  fix-auth-token-refresh.yaml
-  add-structured-logging.yaml
-  refactor-db-connection-pool.yaml
+  harvest-56b44e4.yaml
+  harvest-e220da2.yaml
 ```
 
-Each task file contains a prompt, expected file changes, and scoring weights derived from the original commit. You can edit these files to refine the expected outcomes (called assertions).
+Each task file contains a prompt derived from the commit message, a `files-changed` assertion for every file the commit touched, a `test-pass` assertion when the commit touched test files, and a `lint-delta` assertion when the repo has a linter or type checker agenteval can run. Harvested tasks use fixed scoring weights (correctness 0.5, precision 0.3, efficiency 0.1, conventions 0.1). You can edit these files to refine the expected outcomes (called assertions).
 
-If no AI commits are detected, the tool suggests lowering the confidence threshold:
-
-```bash
-agenteval harvest --min-confidence 0.3
-```
-
-The confidence threshold (0 to 1) controls how certain harvest needs to be that a commit involved an AI tool before generating a task from it.
+The confidence threshold (`--min-confidence` or `harvest.minConfidence`, 0 to 1, default 0.5) controls how certain harvest needs to be that a commit involved an AI tool. Each signal has a fixed confidence: 0.9 for a co-author or session trailer, 0.8 for a commit authored by the agent's own account, 0.6 for a message pattern. Any threshold from 0 to 0.6 selects the same commits; 0.7 or 0.8 drops message-pattern matches. If no AI commits are detected, lowering the threshold won't help: the commits carry no signal agenteval recognizes.
 
 You can also review your current working tree changes against quality rubrics:
 
@@ -253,22 +262,25 @@ agenteval run --task tasks/harvested/fix-auth-token-refresh.yaml
 
 What happens behind the scenes:
 
-1. agenteval creates an isolated copy of your repo (a git worktree) so your working tree is untouched
-2. It copies your instruction file (default: `CLAUDE.md`) into the worktree
-3. It spawns the configured AI agent with the task prompt
-4. When the agent finishes (or times out), agenteval captures the diff
-5. It scores the result against the task's assertions
-6. The result is saved to `.agenteval/results/`
+1. agenteval creates an isolated copy of your repo (a git worktree) so your working tree is untouched. A harvested task starts from the parent of its source commit.
+2. It runs the task's `setup` commands, if any
+3. It copies your instruction file (default: `CLAUDE.md`) to the path the harness reads (`CLAUDE.md` for Claude Code, `AGENTS.md` for Codex, and so on)
+4. It spawns the configured AI agent with the task prompt
+5. When the agent finishes, agenteval captures the diff. If the agent times out, the run is saved with status `timeout` and no diff or scores.
+6. It scores the result against the task's assertions
+7. The result is saved to `.agenteval/results/`
 
-Example output on success:
+Example output on success (from the `mock` harness, which reports no tokens; real harnesses add `Tokens`, `Cost`, and `Model` lines when the CLI reports them):
 
 ```
-  Run complete: run-20260401-143022-a1b2c3d
+  agenteval run
+  ─────────────
 
-  Score: 0.85
-  Files changed: 3 files (+42, -18)
-  Tokens: ~12,400
-  Saved to: .agenteval/results/run-20260401-143022-a1b2c3d.json
+  Task                 refactor-auth
+  Score                0.62/1.0
+  Files changed        0 file(s) changed, 0 insertion(s), 0 deletion(s)
+  Result               success
+  Saved to             /path/to/project/.agenteval/results/run-20261030-203518-c0f006.json
 ```
 
 You can also describe a task inline without a YAML file:
@@ -289,13 +301,13 @@ agenteval run --task tasks/harvested/fix-auth-token-refresh.yaml \
 After running the same task with different instructions (or different versions of the same instructions), compare the results:
 
 ```bash
-agenteval compare run-20260401-143022-a1b2c3d run-20260401-151200-e4f5g6h
+agenteval compare run-20261030-203518-c0f006 run-20261030-203527-cbe245
 ```
 
-This shows a side-by-side breakdown of scores, token usage, and assertion outcomes. You can also generate a markdown report:
+This shows both runs side by side on the five scores (correctness, precision, efficiency, conventions, overall) with the delta for each. When both runs come from harvested tasks with instruction snapshots, it also lists which instruction files were added, removed, or changed. You can also generate a markdown report:
 
 ```bash
-agenteval compare run-20260401-143022-a1b2c3d run-20260401-151200-e4f5g6h --report
+agenteval compare run-20261030-203518-c0f006 run-20261030-203527-cbe245 --report
 ```
 
 ### Step 5: View all results
@@ -309,20 +321,24 @@ agenteval results
 Example output:
 
 ```
-  4 result(s):
+  Results (5)
+  ───────────
 
-  ID                        Task                 Harness        Score    Status
-  ---------------------------------------------------------------------------
-  run-20260401-143022-a1b   fix-auth-token       claude-code    0.85     success
-  run-20260401-151200-e4f   fix-auth-token       claude-code    0.72     success
-  run-20260401-160000-x7y   add-logging          claude-code    0.91     success
-  run-20260330-120000-m2n   refactor-db-pool     mock           0.60     success
+  ┌──────────────────────────┬──────────────────┬─────────────┬───────┬─────────┐
+  │ ID                       │ Task             │ Harness     │ Score │ Status  │
+  ├──────────────────────────┼──────────────────┼─────────────┼───────┼─────────┤
+  │ run-20261030-203528-2ff4ea │ fix-login        │ mock        │ 0.71  │ success │
+  │ run-20261030-203528-dcd4dc │ refactor-auth    │ mock        │ 1.00  │ success │
+  │ run-20261030-203527-cbe245 │ refactor-auth    │ mock        │ 0.81  │ success │
+  │ run-20261030-203526-172b38 │ fix-login        │ mock        │ 1.00  │ success │
+  │ run-20261030-203518-c0f006 │ refactor-auth    │ mock        │ 0.62  │ success │
+  └──────────────────────────┴──────────────────┴─────────────┴───────┴─────────┘
 ```
 
 Filter by task or harness:
 
 ```bash
-agenteval results --task fix-auth-token --harness claude-code
+agenteval results --task refactor-auth --harness claude-code
 ```
 
 Export as JSON for further analysis:
@@ -339,7 +355,7 @@ Once you have harvested tasks, you can run all of them in one go and fail if any
 agenteval ci
 ```
 
-This is designed for CI pipelines. It discovers all YAML files in `tasks/harvested/`, runs each one, compares against the most recent previous result for the same task, and exits with code 1 if any task fails.
+This is designed for CI pipelines. It picks up every `*.yaml` file directly in `tasks/harvested/` (subdirectories and `.yml` files are not read), runs each one, compares its score against the most recent previous result for the same task, and after all tasks have run exits with code 1 if any task failed.
 
 Configure thresholds:
 
@@ -371,23 +387,23 @@ After using agenteval, your project will contain these generated files and direc
 
 ```
 your-project/
-  agenteval.yaml              # Optional config file (you create this)
+  agenteval.yaml              # Optional config file (`agenteval init` or you)
   CLAUDE.md                   # Your instruction file (already exists)
   tasks/                      # Task definitions
     harvested/                # Auto-generated by `harvest`
-      fix-auth-token.yaml
-      add-logging.yaml
+      harvest-56b44e4.yaml
+      harvest-e220da2.yaml
     custom/                   # Your hand-written tasks (optional)
       my-eval-task.yaml
   .agenteval/                 # Auto-generated working directory
     results/                  # Eval run results (JSON files)
-      run-20260401-143022-a1b2c3d.json
+      run-20261030-203518-c0f006.json
     worktrees/                # Temporary git worktrees (cleaned up automatically)
 ```
 
 | Path | Created by | Committed to git? |
 |---|---|---|
-| `agenteval.yaml` | You (manually) | Yes |
+| `agenteval.yaml` | `agenteval init`, or you | Yes |
 | `tasks/` | `harvest` or you | Yes -- these are your eval benchmarks |
 | `.agenteval/results/` | `run` | Your choice -- useful to track over time |
 | `.agenteval/worktrees/` | `run` | No -- add to `.gitignore` |
@@ -400,7 +416,7 @@ Add this to your `.gitignore`:
 
 ## Configuration
 
-agenteval works with zero configuration. Every setting has a sensible default. When you need to customize behavior, create an `agenteval.yaml` file in your project root:
+agenteval works with zero configuration. Every setting has a sensible default. When you need to customize behavior, run `agenteval init` to create a starter `agenteval.yaml` in your project root, or write one yourself:
 
 ```yaml
 version: 1
@@ -421,17 +437,17 @@ contextBudget: 0.3
 lint:
   maxTokensPerFile: 8000        # Warn if a single file exceeds this
   overlapThreshold: 0.3         # Flag file pairs with similarity above this
-  bloatThreshold: 0.5           # Flag files with bloat score above this
+  bloatThreshold: 0.5           # Flag sections with a density score below this
 
 run:
-  timeout: 300                  # Seconds before killing the agent
-  tokensBudget: 50000           # Token budget passed to the agent
+  timeout: 300                  # Seconds before killing the agent (when the task sets no timeout)
+  tokensBudget: 50000           # Token count that scores 0 on efficiency (not passed to the agent)
   resultsDir: ".agenteval/results"
 
 harvest:
   outputDir: "tasks/harvested"
   minConfidence: 0.5            # 0-1, how certain a commit is AI-involved
-  defaultHarness: "auto"        # auto-detect which tool made the commit
+  defaultHarness: "auto"        # harness written into harvested tasks; auto is resolved at run time
   defaultTimeout: 300
 ```
 
@@ -457,8 +473,9 @@ assertions:
     pattern: "src/auth/refresh.ts"
   - type: test-pass
     command: "bun test src/auth/"
-  - type: no-new-warnings
+  - type: no-new-warnings        # with a command: the command must exit 0
     command: "bun run typecheck"
+  - type: lint-delta             # no new linter or type-checker findings on changed lines
 scoring:
   correctness: 0.4
   precision: 0.3
@@ -471,8 +488,9 @@ scoring:
 | `files-changed` | The agent modified files matching the glob pattern |
 | `files-unchanged` | The agent did not touch files matching the pattern |
 | `test-pass` | A command exits with code 0 |
-| `no-new-warnings` | A command produces no more warnings than before the run |
-| `convention` | A custom pattern or rule that the diff must satisfy |
+| `no-new-warnings` | With `command`: the command exits with code 0. Without `command`: same as `lint-delta` |
+| `convention` | A regex `pattern` that must be absent from (default) or, with `expect: present-in-changes`, present in the lines the diff adds |
+| `lint-delta` | The repo's detected linters and type checker report no new findings on the lines the agent changed (`tools`, `maxNew` optional) |
 
 ## Supported Harnesses
 
@@ -486,11 +504,11 @@ A harness is the adapter between agenteval and your AI tool. Each one knows wher
 | `antigravity` | Antigravity CLI (`agy`) | tokens, turns |
 | `copilot` | GitHub Copilot CLI | none |
 | `cursor` | Cursor CLI (`agent`) | none |
-| `opencode` | OpenCode | tokens, cost |
+| `opencode` | OpenCode | tokens, cost, steps |
 | `devin` | Devin CLI (`windsurf` is an alias) | none |
-| `amp` | Amp | tokens, turns |
+| `amp` | Amp | tokens, cost, turns, model |
 | `mock` | Built-in mock | For testing agenteval itself |
-| `auto` | Auto-detect | First installed CLI whose instruction file exists |
+| `auto` | Auto-detect | First installed CLI whose instruction file exists, else the first installed CLI |
 
 Any other CLI works through `harnesses:` in the config:
 
@@ -523,7 +541,7 @@ Lint discovers `.github/copilot-instructions.md` and `.github/instructions/**/*.
 
 ### Does it work with Cursor / .cursorrules?
 
-Lint discovers `.cursor/rules/**/*.mdc` by default, checks `description`, `globs`, and `alwaysApply`, and warns about `.md` files in that folder, which Cursor ignores. The legacy `.cursorrules` file isn't in current Cursor docs; lint it explicitly with `agenteval lint ".cursorrules"` if you still have one.
+Lint discovers `.cursor/rules/**/*.{md,mdc}` by default, checks `description`, `globs`, and `alwaysApply`, and warns about `.md` files in that folder, which Cursor ignores. The legacy `.cursorrules` file isn't in current Cursor docs; lint it explicitly with `agenteval lint ".cursorrules"` if you still have one.
 
 For evals, use `--harness cursor`. It runs the Cursor CLI (`agent -p --force`) with instructions in `AGENTS.md`.
 
@@ -551,24 +569,24 @@ Each task defines scoring weights across four dimensions:
 
 | Dimension | What it measures |
 |---|---|
-| `correctness` | Did the agent produce the right change? (assertion pass rate) |
-| `precision` | Did it change only what was needed? (no unrelated modifications) |
-| `efficiency` | How many tokens and how long did it take? |
-| `conventions` | Did it follow the project's coding conventions? |
+| `correctness` | Pass rate of the `files-changed`, `files-unchanged`, `test-pass`, and command-based `no-new-warnings` assertions |
+| `precision` | Share of changed files that match a `files-changed` pattern |
+| `efficiency` | `1 - (tokensTotal - tokensCacheRead) / run.tokensBudget`, clamped to 0..1. Left out when the harness reports no tokens |
+| `conventions` | Pass rate of `convention` and `lint-delta` assertions. Left out when the task has none |
 
-The overall score is a weighted average. Default weights are equal (0.25 each) unless the task YAML specifies otherwise.
+The overall score is a weighted average of the dimensions that have data. Default weights are 0.4 / 0.3 / 0.2 / 0.1 (correctness / precision / efficiency / conventions) unless the task YAML specifies otherwise; harvested tasks use 0.5 / 0.3 / 0.1 / 0.1.
 
 ### How does harvest detect AI commits?
 
 The harvest command looks for three signals:
 
-| Detection method | Example |
-|---|---|
-| Co-author trailer | `Co-authored-by: Claude <noreply@anthropic.com>` |
-| Author email pattern | Known bot/AI email addresses |
-| Commit message pattern | Phrases associated with AI-generated commits |
+| Detection method | Example | Confidence |
+|---|---|---|
+| Co-author or agent session trailer | `Co-authored-by: Claude <noreply@anthropic.com>` | 0.9 |
+| Commit authored by the agent's own account | A coding agent's bot account as the commit author | 0.8 |
+| Commit message pattern | `Generated with Claude Code` in the message | 0.6 |
 
-Each detected commit receives a confidence score (0 to 1). Only commits above the configured `minConfidence` threshold produce task files.
+Only commits at or above the configured `minConfidence` threshold (default 0.5) produce task files.
 
 ### Can I prune old results?
 

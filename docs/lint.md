@@ -57,7 +57,7 @@ When called without arguments, `agenteval lint` scans for every instruction, rul
 | `.claude/agents/**/*.md` | subagent | Claude Code |
 | `.claude/commands/**/*.md` | slash command | Claude Code |
 | `.claude/skills/*/SKILL.md`, `.agents/skills/*/SKILL.md` | skill | Claude Code, Codex, Cursor, Gemini CLI, and other Agent Skills clients |
-| `.cursor/rules/**/*.mdc` | Cursor rule (`globs`, `alwaysApply`) | Cursor |
+| `.cursor/rules/**/*.{md,mdc}` | Cursor rule (`globs`, `alwaysApply`) | Cursor (reads `.mdc` only; `.md` files are picked up so lint can warn about them) |
 | `.devin/rules/*.md`, `.windsurf/rules/*.md` | Devin rule (`trigger`) | Devin Desktop / Windsurf |
 | `.kiro/steering/*.md` | Kiro steering (`inclusion`) | Kiro |
 | `.junie/**/*.md` | instruction | JetBrains Junie |
@@ -68,22 +68,48 @@ Override these defaults in `agenteval.yaml` with the `instructionGlobs` field, o
 
 ### Example Output
 
-Running `agenteval lint` on a project with several issues produces output like this:
+Running `agenteval lint` on a project with a CLAUDE.md and one skill that both have problems produces output like this. Diagnostics are grouped by file, each with its severity, message, rule ID, line, and a suggested fix:
 
 ```
-  ⚠ warn   token-count/file-too-large          CLAUDE.md        ~12340 tokens exceeds limit of 8000
-  ℹ info   token-count/section-heavy            CLAUDE.md:15     Section "Conventions" uses ~5765 tokens (47% of file)
-  ⚠ warn   overlap/high-similarity              CLAUDE.md        CLAUDE.md and AGENTS.md share 42% similarity
-  ⚠ warn   bloat/low-density                    AGENTS.md:8      Section "Overview" has low information density (score: 0.38, threshold: 0.5)
-  ℹ info   bloat/filler-phrases                 AGENTS.md:8      Section "Overview" contains 3 filler phrase(s)
-  ⚠ warn   anti-pattern/role-play               CLAUDE.md:1      Role-playing preambles like "You are an expert...": "You are an expert"
-  ✗ error  anti-pattern/contradictory-rules     CLAUDE.md        Contradictory rules: both "always semicolons" and "never semicolons" found
-  ✗ error  dead-ref/missing-file                AGENTS.md:22     Referenced file "src/utils/deprecated.ts" does not exist
-  ⚠ warn   dead-ref/broken-link                 CLAUDE.md:45     Broken link [style guide](./docs/style.md) — target does not exist
-  ✗ error  context-budget/exceeded              (all files)      Total instruction tokens (~72000) exceed budget of 60000 (30% of 200000 context window)
+  agenteval lint  ·  2 files  ·  ~118 tokens  ·  30ms
+  ──────────────────────────────────────────────────────────────────────
+
+  CLAUDE.md
+     info   Section "Notes" contains 3 filler phrase(s)  (bloat/filler-phrases)
+           line 15
+           → Rewrite without phrases like 'make sure to', 'it is important that'
+     WARN   Role-playing preambles like "You are an expert...": "You are"  (anti-pattern/role-play)
+           line 1
+           → Remove the preamble — models already know how to code
+     info   Vague instructions without specifics: "make sure to"  (anti-pattern/vague-instruction)
+           line 15
+           → Replace with a specific example or threshold
+     WARN   Draft artifacts left in instructions: "TODO"  (anti-pattern/todo-in-instructions)
+           line 15
+           → Either complete the TODO or remove it
+     ERROR  Contradictory rules: both "always semicolons" and "never semicolons" found  (anti-pattern/contradictory-rules)
+           → Remove one of the contradicting rules
+     WARN   Broken link [the style guide](./docs/style.md) — target does not exist  (dead-ref/broken-link)
+           line 13
+           → Fix the link target or remove the link
+     ERROR  Referenced file "src/auth/refresh.ts" does not exist  (dead-ref/missing-file)
+           line 13
+           → Remove the reference or create the missing file
+     ERROR  `bun run lint` runs script "lint", which package.json does not define  (toolchain/missing-script)
+           line 8
+           → Available scripts: test
+
+  .claude/skills/Deploy/SKILL.md
+     ERROR  Skill name "Deploy" must contain only lowercase letters, numbers, and hyphens  (skill/name-invalid-chars)
+           → Use only lowercase letters, numbers, and hyphens
+     info   Skill description should start with trigger conditions (e.g., 'Use when...'). Descriptions that summarize the workflow cause Claude to skip reading the body.  (skill/description-not-trigger)
+           → Rewrite as 'Use when [specific triggering condition]'
+     info   SKILL.md is missing an '## Overview' section. Good skills start with a concise overview of their purpose.  (skill/missing-overview-section)
+           → Add a '## Overview' section after the frontmatter with 1-2 sentences explaining what this skill does
 
   ──────────────────────────────────────────────────────────────────────
-  2 files analyzed · ~72000 tokens · 3 errors · 4 warnings · 2 info · 48ms
+  4 errors  ·  3 warnings  ·  4 info
+  Fix the errors above — they indicate broken references or contradictions that will confuse your AI agent.
 ```
 
 ## Quick Overview
@@ -115,12 +141,13 @@ Run `agenteval lint` and read the output -- it explains each issue it finds. The
 | `--config <path>` | `-c` | auto-discover | Path to `agenteval.yaml` configuration file. |
 | `--format <type>` | `-f` | `console` | Output format. Accepts `console`, `json`, `markdown`, `sarif` (SARIF 2.1.0), or `github` (Actions annotations). |
 | `--severity <level>` | | `info` | Minimum severity level to include in output. Accepts `info`, `warning`, or `error`. |
-| `--quiet` | | `false` | Suppress all output except errors. Sets the logger to error level. |
-| `--fix` | | | Remove filler phrases in place. Edits prose lines only; code blocks, tables, and indentation stay as they are. |
+| `--quiet` | | `false` | Show only error-level diagnostics and suppress log output. Overrides `--severity`. |
+| `--fix` | | | Remove filler phrases (`bloat/filler-phrases`) in place, then lint again. Other rules are not auto-fixed. Edits prose lines only; code blocks, tables, and indentation stay as they are. |
+| `--explain` | | | Console format only: print a longer explanation under each rule that fired (why it matters and how to fix it). |
 
 The `--severity` flag filters the output after all rules have run. Setting `--severity warning` hides info-level diagnostics. Setting `--severity error` shows only errors.
 
-The `--quiet` flag is more aggressive: it suppresses all logger output (debug messages, file counts) in addition to filtering to errors only.
+The `--quiet` flag does the same as `--severity error` and also suppresses logger output (warnings such as "No instruction files found", debug messages).
 
 ## Rules Reference
 
@@ -457,7 +484,7 @@ Checks whether the total token count across all instruction files fits within th
 budget = modelContextWindow * contextBudget
 ```
 
-For example, with the default model (`claude-sonnet-4-6`, 200,000 token window) and default `contextBudget` (0.3), the budget is 60,000 tokens. If `lint.maxTotalTokens` is set, it overrides this calculation.
+For example, with the default model (`claude-opus-5-5`, 1,000,000 token window) and default `contextBudget` (0.3), the budget is 300,000 tokens. If `lint.maxTotalTokens` is set, it overrides this calculation. Only files loaded at session start count (see [Other rules](#other-rules)).
 
 **Why it matters.** If instruction files consume too much of the context window, there is not enough room left for the codebase, conversation, and tool output. The agent's performance degrades because it cannot see the full picture.
 
@@ -480,7 +507,7 @@ For example, with the default model (`claude-sonnet-4-6`, 200,000 token window) 
 
 ### SkillValidator
 
-Validates skill file metadata according to the Anthropic skill specification. These rules only apply to files with YAML frontmatter containing a `name` field.
+Validates skill file metadata according to the Agent Skills specification. These rules run only on files classified as skills, which means files named `SKILL.md`. Other files with a `name` field in their frontmatter are not checked here.
 
 #### `skill/name-too-long`
 
@@ -743,7 +770,7 @@ instructionGlobs:
   - ".claude/**/*.md"
 
 # Model determines context window size for budget calculation
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # What fraction of the context window instructions may consume (0-1)
 contextBudget: 0.3
@@ -849,20 +876,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install agenteval
-        run: bun install
-
       - name: Lint instruction files
-        run: bunx agenteval lint --severity warning --format json
+        uses: lukasmetzler/agenteval@v0
+        with:
+          command: lint
+          args: "--format github"
 
       - name: Lint instruction files (PR comment)
         if: failure()
         run: |
-          bunx agenteval lint --format markdown > lint-report.md
+          npx -y agenteval-cli lint --format markdown > lint-report.md
           gh pr comment "${{ github.event.pull_request.number }}" --body-file lint-report.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -871,8 +894,8 @@ jobs:
 This workflow:
 
 1. Triggers only when instruction files or the agenteval config change.
-2. Runs lint at `warning` severity -- warnings and errors both cause a failure.
-3. On failure, posts the markdown report as a PR comment so the author sees what to fix.
+2. Runs lint through the agenteval GitHub Action, which installs the release binary. `--format github` turns each diagnostic into an inline annotation on the pull request. The step fails only when there is at least one error-level diagnostic; warnings and info are reported but don't fail the build.
+3. On failure, posts the markdown report as a PR comment so the author sees what to fix. Outside the Action, `npx -y agenteval-cli` runs the npm package without a global install.
 
 ### Exit Codes
 
@@ -888,14 +911,26 @@ Only error-level diagnostics affect the exit code. Warnings and info diagnostics
 
 ### Console (default)
 
-Human-readable, colorized output for terminal use.
+Human-readable, colorized output for terminal use, grouped by file. This is the same project as in [Example Output](#example-output), run with `--severity warning`:
 
 ```
-  ⚠ warn   token-count/file-too-large          CLAUDE.md        ~12340 tokens exceeds limit of 8000
-  ✗ error  dead-ref/missing-file                AGENTS.md:22     Referenced file "src/utils/deprecated.ts" does not exist
+  agenteval lint  ·  2 files  ·  ~118 tokens  ·  35ms
+  ──────────────────────────────────────────────────────────────────────
+
+  CLAUDE.md
+     WARN   Role-playing preambles like "You are an expert...": "You are"  (anti-pattern/role-play)
+           line 1
+           → Remove the preamble — models already know how to code
+     WARN   Draft artifacts left in instructions: "TODO"  (anti-pattern/todo-in-instructions)
+           line 15
+           → Either complete the TODO or remove it
+     ERROR  Contradictory rules: both "always semicolons" and "never semicolons" found  (anti-pattern/contradictory-rules)
+           → Remove one of the contradicting rules
+     ...
 
   ──────────────────────────────────────────────────────────────────────
-  2 files analyzed · ~15230 tokens · 1 error · 1 warning · 34ms
+  4 errors  ·  3 warnings
+  Fix the errors above — they indicate broken references or contradictions that will confuse your AI agent.
 ```
 
 ### JSON
@@ -906,34 +941,40 @@ Machine-readable output for CI pipelines, custom tooling, and programmatic analy
 {
   "diagnostics": [
     {
-      "ruleId": "token-count/file-too-large",
+      "ruleId": "anti-pattern/role-play",
       "severity": "warning",
-      "message": "~12340 tokens exceeds limit of 8000",
-      "filePath": "/path/to/CLAUDE.md",
+      "message": "Role-playing preambles like \"You are an expert...\": \"You are\"",
+      "filePath": "/path/to/project/CLAUDE.md",
+      "line": 1,
+      "section": "Project",
       "meta": {
-        "tokens": 12340,
-        "limit": 8000
-      }
+        "match": "You are",
+        "patternId": "role-play"
+      },
+      "suggestion": "Remove the preamble — models already know how to code"
     },
     {
       "ruleId": "dead-ref/missing-file",
       "severity": "error",
-      "message": "Referenced file \"src/utils/deprecated.ts\" does not exist",
-      "filePath": "/path/to/AGENTS.md",
-      "line": 22,
+      "message": "Referenced file \"src/auth/refresh.ts\" does not exist",
+      "filePath": "/path/to/project/CLAUDE.md",
+      "line": 13,
       "meta": {
-        "referencedPath": "src/utils/deprecated.ts",
-        "resolved": "/path/to/src/utils/deprecated.ts"
-      }
+        "referencedPath": "src/auth/refresh.ts",
+        "resolved": "/path/to/project/src/auth/refresh.ts"
+      },
+      "suggestion": "Remove the reference or create the missing file"
     }
   ],
   "stats": {
     "filesAnalyzed": 2,
-    "totalTokens": 15230,
-    "duration": 34.5
+    "totalTokens": 118,
+    "duration": 35.30098099999998
   }
 }
 ```
+
+The example is shortened to two diagnostics. `line`, `section`, `meta`, and `suggestion` are present only when the rule sets them.
 
 ### Markdown
 
@@ -942,15 +983,20 @@ Structured report suitable for pull request comments, documentation, or sharing.
 ```markdown
 # agenteval Lint Report
 
-**2** files analyzed · **~15230** tokens · **34ms**
+**2** files analyzed · **~118** tokens · **36ms**
 
-## Errors (1)
+## Errors (4)
 
-- **dead-ref/missing-file** in `AGENTS.md`:22 — Referenced file "src/utils/deprecated.ts" does not exist
+- **anti-pattern/contradictory-rules** in `CLAUDE.md` — Contradictory rules: both "always semicolons" and "never semicolons" found
+- **dead-ref/missing-file** in `CLAUDE.md`:13 — Referenced file "src/auth/refresh.ts" does not exist
+- **skill/name-invalid-chars** in `.claude/skills/Deploy/SKILL.md` — Skill name "Deploy" must contain only lowercase letters, numbers, and hyphens
+- **toolchain/missing-script** in `CLAUDE.md`:8 — `bun run lint` runs script "lint", which package.json does not define
 
-## Warnings (1)
+## Warnings (3)
 
-- **token-count/file-too-large** in `CLAUDE.md` — ~12340 tokens exceeds limit of 8000
+- **anti-pattern/role-play** in `CLAUDE.md`:1 — Role-playing preambles like "You are an expert...": "You are"
+- **anti-pattern/todo-in-instructions** in `CLAUDE.md`:15 — Draft artifacts left in instructions: "TODO"
+- **dead-ref/broken-link** in `CLAUDE.md`:13 — Broken link [the style guide](./docs/style.md) — target does not exist
 ```
 
 ## Token Counting
@@ -964,7 +1010,8 @@ The token counts are deliberately conservative: they may overcount slightly, whi
 ### "No instruction files found"
 
 ```
-⚠ warn   lint/no-files  (none)  No instruction files found matching: CLAUDE.md, AGENTS.md, ...
+  (none)
+     WARN   No instruction files found matching: **/CLAUDE.md, CLAUDE.local.md, **/AGENTS.md, ...  (lint/no-files)
 ```
 
 **Cause.** None of the default globs matched any files in the current working directory.
@@ -1007,13 +1054,13 @@ lint:
 
 ### Context budget exceeded but files seem small
 
-**Cause.** The context budget is a fraction of the model's context window, not the full window. With the default settings (30% of 200,000 = 60,000 tokens), even modest instruction files can add up.
+**Cause.** The context budget is a fraction of the model's context window, not the full window. The default model (`claude-opus-5-5`) has a 1,000,000-token window, so the default budget is 300,000 tokens. A model with a smaller window, or a model name agenteval doesn't know (it then assumes 200,000 tokens and reports `context-budget/unknown-model`), gives a much smaller budget.
 
 **Fix.** Check which model and budget fraction you have configured:
 
 ```yaml
-model: claude-sonnet-4-6   # 200,000 token window
-contextBudget: 0.3                 # 30% = 60,000 token budget
+model: claude-haiku-4-5   # 200,000 token window
+contextBudget: 0.3        # 30% = 60,000 token budget
 ```
 
 To increase the budget, either raise `contextBudget` or set `lint.maxTotalTokens` explicitly:

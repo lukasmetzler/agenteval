@@ -2,7 +2,7 @@
 
 ## Overview
 
-agenteval works with zero configuration out of the box. All commands use sensible defaults. When you need to customize behavior, create an `agenteval.yaml` file in your project root.
+agenteval works with zero configuration out of the box. All commands use sensible defaults. When you need to customize behavior, create an `agenteval.yaml` file in your project root (`agenteval init` writes a starter file).
 
 A [JSON Schema](https://raw.githubusercontent.com/lukasmetzler/agenteval/main/schema.json) is available for editor autocomplete. Add this comment to the top of your config file:
 
@@ -61,14 +61,6 @@ instructionGlobs:
   - ".kiro/steering/*.md"
   - ".junie/**/*.md"
 
-# Explicit instruction file sources. Use this when different files
-# should be associated with different harnesses.
-instructions:
-  - path: "CLAUDE.md"
-    harness: claude-code          # optional: bind this file to a specific harness
-  - path: "AGENTS.md"
-    harness: generic
-
 # ─── Model & Context Budget ───────────────────────────────
 
 # Model name for context window calculations.
@@ -103,8 +95,9 @@ lint:
   # Set this to override the automatic calculation.
   # maxTotalTokens: 50000
 
-  # Custom anti-pattern regex strings.
-  # Each match triggers a warning with rule ID anti-pattern/custom.
+  # Custom anti-pattern regex strings (case-insensitive).
+  # Each match triggers a warning with rule ID anti-pattern/custom-0,
+  # anti-pattern/custom-1, ... in list order.
   antiPatterns:
     - "DO NOT"                    # Aggressive phrasing often wastes tokens
     - "IMPORTANT:"                # Meta-instructions that models ignore
@@ -118,11 +111,11 @@ lint:
 
 run:
   # Default timeout for eval runs (seconds).
-  # Can be overridden per-task in the task YAML file.
+  # Used by every task that sets no `timeout` of its own.
   timeout: 300
 
-  # Token budget for efficiency scoring.
-  # The efficiency score measures: 1 - (tokensUsed / tokensBudget).
+  # Token count that scores 0 on efficiency. Not passed to the agent.
+  # efficiency = 1 - (tokensTotal - tokensCacheRead) / tokensBudget, clamped to 0..1.
   tokensBudget: 50000
 
   # Directory for storing run result JSON files.
@@ -147,13 +140,15 @@ harvest:
   outputDir: "tasks/harvested"
 
   # Minimum detection confidence for including a commit (0.0 to 1.0).
-  # co-author-tag = 0.9, author-email = 0.8, message-pattern = 0.6.
-  # Default 0.5 includes all co-author and email matches, filters most message-only.
+  # co-author or session trailer = 0.9, agent's own account = 0.8,
+  # message pattern = 0.6. The default 0.5 includes all three; any value
+  # from 0 to 0.6 selects the same commits.
   minConfidence: 0.5
 
   # Harness field set in generated task YAML files.
   # A built-in harness (claude-code, codex, gemini, antigravity, copilot,
-  # cursor, opencode, devin, amp), a harnesses: key, or auto
+  # cursor, opencode, devin, amp), a harnesses: key, or auto.
+  # auto is resolved when the task runs, not when it is harvested.
   defaultHarness: auto
 
   # Timeout field set in generated task YAML files (seconds).
@@ -193,8 +188,8 @@ ci:
   # Minimum acceptable score (0-1). Tasks scoring below this fail.
   minScore: 0.5
 
-  # Maximum allowed score regression vs the previous run (0-1).
-  # If a task's score drops more than this compared to its last run, it fails.
+  # Maximum allowed score regression vs the previous run (0-1), in score
+  # points: 0.1 means 0.80 -> 0.69 fails. Not a percentage.
   maxRegression: 0.1
 
   # Instruction file to inject for all tasks.
@@ -204,18 +199,15 @@ ci:
 
 # Custom harness configurations.
 # Each key is a harness name you can reference with --harness or in task YAML.
+# The prompt is appended as the last argument.
 harnesses:
-  # Override the built-in Claude Code adapter settings
-  claude-code:
-    command: "claude"
-    args: ["--print", "--dangerously-skip-permissions"]
-
-  # Define a custom harness for any CLI tool
   my-custom-agent:
     command: "my-agent"
-    args: ["--run", "--non-interactive", "--timeout", "120"]
-    instructionPath: "AGENTS.md"    # Override which instruction file is injected
+    args: ["--run", "--non-interactive"]
+    instructionPath: "AGENTS.md"    # where the instruction file is copied (default AGENTS.md)
 ```
+
+A `harnesses:` key with a built-in name (for example `claude-code`) replaces the built-in adapter with this generic one: the prompt goes in as the last argument, the instruction file is copied to `instructionPath` (default `AGENTS.md`, not `CLAUDE.md`), and tokens are read only from a Claude-Code-style result event or text like `total tokens: 1234`. You lose the built-in flags and metric parsing, so only do this on purpose.
 
 ## Field Reference
 
@@ -225,7 +217,7 @@ harnesses:
 |-------|------|---------|------------|-------------|
 | `version` | integer | **required** | Must be `1` | Config schema version. |
 | `instructionGlobs` | string[] | every known format (see [Auto-Discovery](lint.md#auto-discovery)) | | Glob patterns for instruction file discovery. |
-| `instructions` | object[] | `[]` | Each must have `path` | Explicit instruction sources with optional harness binding. |
+| `instructions` | object[] | `[]` | Each must have `path` | Unused. Still accepted so older config files parse; it has no effect. Use `--instructions` on `run`/`ci` or `ci.instructions`. |
 | `model` | string | `claude-opus-5-5` | | Model name for context window lookup. |
 | `contextBudget` | number | `0.3` | 0.0-1.0 | Fraction of context window budgeted for instructions. |
 
@@ -237,36 +229,36 @@ harnesses:
 | `bloatThreshold` | number | `0.5` | 0.0-1.0 | Information density below which sections are flagged as bloated. |
 | `maxTokensPerFile` | number | `8000` | | Token limit per file before a warning is emitted. |
 | `maxTotalTokens` | number | none | | Token limit for everything loaded at session start (root files, rules without `paths`, and their `@imports`). Overrides `contextBudget * window`. |
-| `antiPatterns` | string[] | `[]` | Valid regex | Custom regex patterns. Each match in any instruction file produces a warning. |
+| `antiPatterns` | string[] | `[]` | Valid regex | Custom regex patterns, matched case-insensitively. Each match produces a warning with rule ID `anti-pattern/custom-<index>` (`custom-0` for the first pattern). Invalid patterns are dropped silently. |
 | `ignore` | string[] | `[]` | Valid glob | Glob patterns for files to exclude from linting. `node_modules`, `.git`, `dist`, and `.agenteval` are always excluded. |
 
 ### `run` Section
 
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
-| `timeout` | number | `300` | >= 1 | Default task timeout in seconds. |
-| `tokensBudget` | number | `50000` | | Token budget used for efficiency score calculation. |
+| `timeout` | number | `300` | >= 1 | Agent timeout in seconds for tasks that set no `timeout` of their own (ad-hoc tasks included). |
+| `tokensBudget` | number | `50000` | | Denominator of the efficiency score: `1 - (tokensTotal - tokensCacheRead) / tokensBudget`, clamped to 0..1. Not passed to the agent. |
 | `resultsDir` | string | `.agenteval/results` | | Directory for result JSON files. |
 | `worktreesDir` | string | `.agenteval/worktrees` | | Directory for temporary git worktrees. |
 | `staleWorktreeMaxAge` | number | `3600000` | | Worktree age threshold for cleanup (milliseconds). |
-| `resultRetention` | string | `90d` | Format: `<N>d` | How long to keep results before pruning. |
+| `resultRetention` | string | `90d` | Format: `<N>d` (days only) | How long to keep results before `results --prune` deletes them. |
 
 ### `harvest` Section
 
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
 | `outputDir` | string | `tasks/harvested` | | Directory for generated task YAML files. |
-| `minConfidence` | number | `0.5` | 0.0-1.0 | Detection confidence threshold. |
-| `defaultHarness` | string | `auto` | Valid harness name | Harness field in generated tasks. |
+| `minConfidence` | number | `0.5` | 0.0-1.0 | Detection confidence threshold. Signals score 0.9, 0.8, or 0.6, so values from 0 to 0.6 behave the same. |
+| `defaultHarness` | string | `auto` | Valid harness name | Harness field in generated tasks. `auto` is resolved at run time. |
 | `defaultTimeout` | number | `300` | >= 1 | Timeout field in generated tasks (seconds). |
 
 ### `ci` Section
 
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
-| `tasksDir` | string | `tasks/harvested` | | Directory containing task YAML files to run. |
+| `tasksDir` | string | `tasks/harvested` | | Directory containing task files to run. Only `*.yaml` files directly in it are read. |
 | `minScore` | number | `0.5` | 0.0-1.0 | Minimum acceptable score. Tasks below this fail. |
-| `maxRegression` | number | `0.1` | 0.0-1.0 | Maximum allowed score drop vs previous run. |
+| `maxRegression` | number | `0.1` | 0.0-1.0 | Maximum allowed score drop vs previous run, in score points. |
 | `instructions` | string | `CLAUDE.md` | | Instruction file to inject for all tasks. |
 
 ### `liveReview` Section
@@ -293,7 +285,7 @@ Disabled rubrics are excluded from results and the weighted average. The `conven
 
 ### `harnesses` Section
 
-Each key under `harnesses` defines a custom harness adapter. A key with a built-in name (for example `codex`) replaces the built-in. See [Harnesses](harnesses.md).
+Each key under `harnesses` defines a custom harness adapter that passes the prompt as its last argument. A key with a built-in name (for example `codex`) replaces the built-in with this generic adapter, including its `AGENTS.md` default for `instructionPath`. See [Harnesses](harnesses.md#custom-harnesses).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -342,9 +334,9 @@ CLI flags  >  agenteval.yaml  >  built-in defaults
 ```
 
 For example:
-- `--min-confidence 0.3` overrides `harvest.minConfidence: 0.5` in the config
-- `--timeout 600` overrides `run.timeout: 300` in the config
-- Task YAML `timeout: 120` overrides the default but the CLI `--timeout` is not used for run
+- `--min-confidence 0.8` overrides `harvest.minConfidence: 0.5` in the config
+- `harvest --timeout 600` overrides `harvest.defaultTimeout` for the emitted task files
+- The agent timeout for a run is the task's `timeout` if set, else `run.timeout` (default 300). `run` and `ci` have no `--timeout` flag.
 
 ## Recommended .gitignore
 

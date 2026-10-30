@@ -232,7 +232,8 @@ async function runSetup(task: TimedTask, worktreePath: string): Promise<string |
 		});
 		if (raw.exitCode !== 0 || raw.timedOut) {
 			const why = raw.timedOut ? "timed out" : `exited ${raw.exitCode}`;
-			return `Setup command "${command}" ${why}: ${raw.stderr.trim().slice(0, 300)}`;
+			const stderr = raw.stderr.trim().slice(0, 300);
+			return `Setup command "${command}" ${why}${stderr ? `: ${stderr}` : ""}`;
 		}
 	}
 	return null;

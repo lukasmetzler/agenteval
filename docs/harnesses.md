@@ -18,8 +18,8 @@ agenteval run --task tasks/add-endpoint.yaml --harness codex --model gpt-5.4
 | `cursor` | `agent` | `AGENTS.md` | `agent --output-format json --force -p <prompt>` | none |
 | `opencode` | `opencode` | `AGENTS.md` | `opencode run --format json --auto <prompt>` | tokens, cost, steps (best effort, schema undocumented) |
 | `devin` | `devin` | `AGENTS.md` | `devin --permission-mode dangerous -p <prompt>` | none |
-| `amp` | `amp` | `AGENTS.md` | `amp --stream-json -x <prompt>` | tokens, turns |
-| `mock` | | | writes nothing, for testing pipelines | |
+| `amp` | `amp` | `AGENTS.md` | `amp --stream-json -x <prompt>` | tokens incl. cache, cost, turns, model (same result event as Claude Code) |
+| `mock` | | | changes no files and reports no metrics, for testing pipelines | |
 
 `windsurf` still works as an alias for `devin` and prints a deprecation warning.
 
@@ -65,7 +65,7 @@ harnesses:
 agenteval run --task tasks/fix-bug.yaml --harness my-agent
 ```
 
-A `harnesses:` entry with a built-in name (for example `codex`) replaces the built-in. Custom harnesses get exact token counts if the CLI prints a Claude-Code-style `{"type":"result","usage":{...}}` event. Otherwise agenteval looks for text like `total tokens: 1234` and marks the count as estimated.
+A `harnesses:` entry with a built-in name (for example `codex`) replaces the built-in with a custom harness: the prompt goes in as the last argument, the instruction file is copied to `instructionPath` (default `AGENTS.md`), and the built-in's flags and metric parsing are gone. Custom harnesses get exact token counts if the CLI prints a Claude-Code-style `{"type":"result","usage":{...}}` event. Otherwise agenteval looks for text like `total tokens: 1234` and marks the count as estimated.
 
 ## Metrics
 

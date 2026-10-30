@@ -1001,7 +1001,7 @@ Structured report suitable for pull request comments, documentation, or sharing.
 
 ## Token Counting
 
-agenteval uses the `cl100k_base` tokenizer from js-tiktoken. This is the same tokenizer used by GPT-4 and GPT-4o. Claude uses a different tokenizer internally, so counts are approximate -- expect 10-15% variance from Claude's actual token counts.
+agenteval counts tokens with OpenAI's `cl100k_base` encoding from js-tiktoken. The models agenteval targets use their own tokenizers, so the counts are approximate. Expect 10-15% variance from Claude's actual token counts.
 
 The token counts are deliberately conservative: they may overcount slightly, which is safer than undercounting and missing a budget violation.
 
@@ -1059,7 +1059,7 @@ lint:
 **Fix.** Check which model and budget fraction you have configured:
 
 ```yaml
-model: claude-haiku-4-5   # 200,000 token window
+model: my-local-model     # not in the table: assumes 200,000 tokens
 contextBudget: 0.3        # 30% = 60,000 token budget
 ```
 

@@ -20,7 +20,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainer at lukasxmetzler@gmail.com. All complaints will be reviewed.
+Report unacceptable behavior privately to the maintainers through the [private reporting form](https://github.com/lukasmetzler/agenteval/security/advisories/new) (**Security** tab → **Report a vulnerability**). The maintainers review every report.
 
 ## Attribution
 

@@ -92,7 +92,9 @@ export class ConsoleFormatter implements OutputFormatter {
 		lines.push("");
 		const titleParts = [
 			chalk.bold("agenteval lint"),
-			chalk.dim(`${result.stats.filesAnalyzed} files`),
+			chalk.dim(
+				`${result.stats.filesAnalyzed} ${result.stats.filesAnalyzed === 1 ? "file" : "files"}`,
+			),
 			chalk.dim(`~${result.stats.totalTokens} tokens`),
 			chalk.dim(`${Math.round(result.stats.duration)}ms`),
 		];

@@ -1,8 +1,6 @@
 # agenteval
 
-Your CLAUDE.md is untested. So is your AGENTS.md, your GEMINI.md, your Cursor rules, and your skills.
-
-agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does. Then it scores agent performance so you can measure whether your instruction changes actually help.
+Lint, test, and benchmark the instruction files your coding agents read: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, Cursor and Copilot rules, and Agent Skills.
 
 [![CI](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml/badge.svg)](https://github.com/lukasmetzler/agenteval/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/agenteval-cli?label=npm)](https://www.npmjs.com/package/agenteval-cli)
@@ -10,7 +8,7 @@ agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It f
 [![Version](https://img.shields.io/github/v/release/lukasmetzler/agenteval?label=release)](https://github.com/lukasmetzler/agenteval/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![agenteval demo](demo/demo.gif)
+Instruction files go stale without anything failing. The repo moves from npm to bun or from ESLint to oxlint, a script gets renamed, a file grows past what the agent reads, and `CLAUDE.md` keeps describing the old state. agenteval checks each file against the repo it describes. When you want numbers, it runs your agent on real tasks with and without the files and reports the difference.
 
 ## Install
 
@@ -18,98 +16,131 @@ agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It f
 npm install -g agenteval-cli
 ```
 
-Or pick your preferred method:
+| Method | Command | Update with |
+|---|---|---|
+| npm | `npm install -g agenteval-cli` | `npm update -g agenteval-cli` |
+| Homebrew | `brew tap lukasmetzler/agenteval && brew install agenteval` | `brew upgrade agenteval` |
+| Shell | `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh \| bash` | `agenteval update` |
+| Binary | [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) for Linux x64 and macOS (arm64, x64) | `agenteval update` |
+| Source | `git clone https://github.com/lukasmetzler/agenteval && bun install && bun run build` | `git pull && bun run build` |
 
-```bash
-brew tap lukasmetzler/agenteval && brew install agenteval   # Homebrew
-curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh | bash  # Shell
+Homebrew, the shell script, and the release binaries need neither Bun nor Node. The npm package is a small Node wrapper that downloads the same binary on first run and checks its SHA-256.
+
+## Quick start
+
+Run these from the root of a repo that has instruction files:
+
+1. `agenteval doctor` lists the agent CLIs and the toolchain agenteval detected.
+2. `agenteval lint` checks every instruction file.
+3. `agenteval init` writes an `agenteval.yaml` if you want to change the defaults. Lint works without one.
+
+Here is `agenteval lint` on a bun repo that uses oxlint, where `CLAUDE.md` still has commands from an older setup:
+
+```
+  agenteval lint  ·  1 file  ·  ~50 tokens  ·  23ms
+  ──────────────────────────────────────────────────────────────────────
+
+  CLAUDE.md
+     info   Section "Commands" uses ~46 tokens (92% of file)  (token-count/section-heavy)
+           line 3
+           → Break this section into subsections or move detail to a linked doc
+     WARN   `npm install` uses npm, but this repo uses bun (lockfile)  (toolchain/wrong-package-manager)
+           line 6
+           → Use `bun install`
+     ERROR  `bun run format` runs script "format", which package.json does not define  (toolchain/missing-script)
+           line 8
+           → Available scripts: lint, test, typecheck
+     WARN   `npx eslint .` runs ESLint, but this repo uses oxlint (.oxlintrc.json)  (toolchain/absent-tool)
+           line 9
+           → Replace with the oxlint command
+     info   Repo uses TypeScript (tsconfig.json), but no instruction file says how to run it  (toolchain/undocumented)
+           → Add `bun run typecheck` to the commands section
+
+  ──────────────────────────────────────────────────────────────────────
+  1 error  ·  2 warnings  ·  2 info
 ```
 
-The Homebrew and curl installs are a self-contained binary with no Bun or Node needed. The npm package is a small Node wrapper that downloads that binary on first run.
+## What lint checks
 
-## Quick Start
+- **References.** Paths, links, heading anchors, and `@imports` that point at nothing, plus import cycles and chains deeper than 4 hops.
+- **Commands.** Package manager, `package.json` scripts, and linters compared with the lockfile and config files. agenteval detects bun, pnpm, yarn, npm, uv, poetry, cargo, go, oxlint, oxfmt, Biome, ESLint, Prettier, TypeScript 6 and 7, Ruff, ty, Black, and mypy.
+- **Frontmatter.** Fields each agent rejects or ignores in rules, subagents, commands, and skills. Skills are checked against the open Agent Skills spec.
+- **Agent limits.** Files an agent truncates or skips: the 32 KiB cap on Codex's AGENTS.md chain, long Claude files, `.md` files in `.cursor/rules`, and an AGENTS.md that Claude Code ignores because a CLAUDE.md exists.
+- **Content.** Context-budget overruns, contradictions, duplicated sections, filler phrases, vague instructions, and instructions that drifted from the code they describe.
+
+Every rule, its severity, and how to fix it are in [Linting](docs/lint.md). Output formats are console, JSON, Markdown, SARIF, and GitHub annotations.
+
+## Measure whether instructions help
+
+`agenteval run` gives a task to an agent CLI in an isolated git worktree and scores the result against the task's assertions. With `--baseline`, it runs the same task again with every instruction file removed, so you can compare the two.
 
 ```bash
-agenteval lint                    # Find problems in your instruction files
-agenteval lint --explain          # Same, with explanations for each rule
-agenteval doctor                  # Show detected agent CLIs and toolchain
-agenteval run --task t.yaml --trials 3 --baseline   # Do your instructions help?
-agenteval harvest --dry-run       # Preview what AI commits are in your history
-agenteval ci                      # Run all tasks, fail on regressions
+agenteval run --task tasks/add-multiply.yaml --harness claude-code --model haiku --trials 3 --baseline
 ```
 
-## What It Catches
+This report comes from a two-trial run with Claude Haiku 5.5 on a small task:
 
-- Dead references to files, paths, and headings that don't exist
-- Filler phrases that waste context tokens ("it is important to note that", "in order to")
-- Contradictions between instruction files ("always use X" and "never use X")
-- Content overlap and duplication across files
-- Token budget overruns that crowd out code context
-- Vague instructions without actionable specifics
-- Stale instructions referencing code that was refactored weeks ago
-- Invalid skill metadata (per the open Agent Skills spec) and broken rule, subagent, and command frontmatter
-- Missing or circular `@imports`
-- Files an agent silently truncates or ignores (Codex's 32 KiB AGENTS.md cap, `.md` files in `.cursor/rules`, AGENTS.md shadowed by CLAUDE.md)
-- Commands that don't match the repo: `npm install` in a bun repo, `bun run format` with no such script, `npx eslint` in an oxlint repo
-- Broken markdown links and heading anchors
+```
+                    with instructions     baseline (none)       Δ
+  pass rate         2/2 (100%)            2/2 (100%)            +0pp
+  pass@k / pass^k   yes / yes             yes / yes
+  score             0.85 ± 0.00           0.85 ± 0.00           +0.00
+  tokens            140945 ± 598          186127 ± 5107         -45182
+  cost              $0.0089 ± 0.0001      $0.0094 ± 0.0001      -$0.0005
+  turns             5.0 ± 0.0             6.5 ± 0.7             -1.5
+  duration (s)      24.8 ± 5.7            22.8 ± 5.6            +1.9
+```
 
-## Supported Formats
+The agent solved the task either way, and with `CLAUDE.md` it needed 45k fewer tokens and 1.5 fewer turns. Two trials can be noise, so use three or more before you trust a difference.
 
-| Format | Pattern |
-|--------|---------|
+Published results point both ways. One study of 124 pull requests found that AGENTS.md cut median runtime by 29% and output tokens by 17% at comparable completion ([Lulla et al.](https://arxiv.org/abs/2601.20404)). Another found no general gain in success and more than 20% higher cost ([Gloaguen et al.](https://arxiv.org/abs/2602.11988)). Whether your files help depends on your repo and your files, so measure them.
+
+Assertions include `files-changed`, `test-pass`, and `lint-delta`. `lint-delta` runs the repo's own linters on the agent's diff and counts only findings on lines the agent added. `agenteval harvest` turns past AI-assisted commits from your git history into task files.
+
+agenteval drives Claude Code, Codex, Gemini CLI, Antigravity, Copilot CLI, Cursor CLI, OpenCode, Devin, Amp, and any CLI you configure. Tokens, cost, model, and turns come from each CLI's JSON output where it reports them. See [Harnesses](docs/harnesses.md) and [Running Evals](docs/run.md).
+
+## Supported formats
+
+| Agent | Files |
+|---|---|
 | Claude Code | `CLAUDE.md` (nested too), `CLAUDE.local.md`, `.claude/rules/`, `.claude/agents/`, `.claude/commands/` |
-| AGENTS.md (Codex, Copilot, Cursor, OpenCode, Amp, Devin, ...) | `AGENTS.md` (nested too) |
-| Gemini CLI / Antigravity | `GEMINI.md` |
+| AGENTS.md readers (Codex, Copilot, Cursor, OpenCode, Amp, Devin, and others) | `AGENTS.md` (nested too) |
+| Gemini CLI, Antigravity | `GEMINI.md` |
 | GitHub Copilot | `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md` |
 | Agent Skills | `.claude/skills/*/SKILL.md`, `.agents/skills/*/SKILL.md` |
 | Cursor | `.cursor/rules/**/*.mdc` |
-| Devin / Windsurf | `.devin/rules/*.md`, `.windsurf/rules/*.md` |
+| Devin, Windsurf | `.devin/rules/*.md`, `.windsurf/rules/*.md` |
 | Kiro | `.kiro/steering/*.md` |
 | JetBrains Junie | `.junie/**/*.md` |
-
-Evals run on Claude Code, Codex, Gemini CLI, Antigravity, Copilot CLI, Cursor CLI, OpenCode, Devin, and Amp, or any CLI you configure. See [Harnesses](docs/harnesses.md).
 
 ## Commands
 
 | Command | What it does | Guide |
-|---------|-------------|-------|
-| `agenteval lint` | Static analysis of instruction files | [Linting](docs/lint.md) |
-| `agenteval lint --fix` | Remove filler phrases in place | [Linting](docs/lint.md) |
-| `agenteval watch` | Watch files, re-lint on save | |
-| `agenteval harvest` | Build eval tasks from AI commit history | [Harvesting](docs/harvest.md) |
-| `agenteval harvest --live` | Score working tree changes before committing | [Harvesting](docs/harvest.md) |
-| `agenteval run --task <file>` | Run an AI agent, score the result | [Running Evals](docs/run.md) |
-| `agenteval run --trials 3 --baseline` | Repeat, and compare against no instructions | [Running Evals](docs/run.md#trials-and-the-baseline-arm) |
-| `agenteval results` | List stored runs, prune old ones | [Results](docs/results.md) |
-| `agenteval compare <A> <B>` | Diff two runs side by side | [Results](docs/results.md) |
-| `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
-| `agenteval ci --parallel <n>` | Run tasks concurrently | [CI Guide](docs/ci.md) |
-| `agenteval lint --format sarif` | SARIF for code scanning (also `github` annotations) | [Linting](docs/lint.md) |
-| `agenteval doctor` | Check agent CLIs, toolchain, and config | [Toolchain](docs/toolchain.md) |
-| `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
-| `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
-| `agenteval init --hook` | Add pre-commit lint hook | [Configuration](docs/configuration.md) |
-| `agenteval update` | Self-update to the latest version | |
+|---|---|---|
+| `agenteval lint` | Check instruction files. `--fix` removes filler phrases, `--format sarif` writes SARIF. | [Linting](docs/lint.md) |
+| `agenteval watch` | Re-lint when an instruction file changes | |
+| `agenteval doctor` | Show detected agent CLIs, toolchain, and config | [Toolchain checks](docs/toolchain.md) |
+| `agenteval run --task <file>` | Run an agent on a task and score it. `--trials N --baseline` compares against no instructions. | [Running Evals](docs/run.md) |
+| `agenteval harvest` | Build tasks from AI-assisted commits. `--live` scores uncommitted changes. | [Harvesting](docs/harvest.md) |
+| `agenteval results` | List stored runs and prune old ones | [Results](docs/results.md) |
+| `agenteval compare <A> <B>` | Compare two runs side by side | [Results](docs/results.md) |
+| `agenteval trends` | Show score history per task | [Trends](docs/trends.md) |
+| `agenteval ci` | Run every task and fail on regressions | [CI Guide](docs/ci.md) |
+| `agenteval init` | Write a starter config. `--hook` adds a pre-commit lint hook. | [Configuration](docs/configuration.md) |
+| `agenteval update` | Update the binary to the latest release | |
 
-## The Pipeline
+## Run in CI
 
-```mermaid
-flowchart LR
-    A["Your CLAUDE.md"] --> B["agenteval lint"]
-    B --> C["Fix quality issues"]
-    D["Git history"] --> E["agenteval harvest"]
-    E --> F["Task YAML files"]
-    F --> G["agenteval run"]
-    G --> H["Scored results"]
-    H --> I["agenteval compare"]
-    I --> J{{"Did my instructions improve?"}}
+The GitHub Action installs agenteval and runs one command:
 
-    style A fill:#2d333b,stroke:#444,color:#e6edf3
-    style D fill:#2d333b,stroke:#444,color:#e6edf3
-    style J fill:#1a7f37,stroke:#2ea043,color:#fff
+```yaml
+- uses: lukasmetzler/agenteval@v0
+  with:
+    command: lint
+    args: --format github
 ```
 
-Lint catches problems statically. Harvest builds benchmarks from your git history. Run scores agent performance. Compare tells you what changed. CI gates regressions before they merge.
+`--format github` turns findings into annotations on the pull request. To gate on agent performance instead, run `agenteval ci --min-score 0.7 --max-regression 0.05` in any CI system. `--format junit` writes a report that CI test views can read. See the [CI Guide](docs/ci.md).
 
 ## Agent Skill
 
@@ -132,56 +163,26 @@ After editing CLAUDE.md, AGENTS.md, rules, or skills, use the agenteval skill to
 
 In a test with Claude Haiku 5.5, the agent ignored the installed skill and wrote a command that doesn't exist. With that line, it loaded the skill, ran `agenteval lint`, switched `npm` to `bun`, and flagged the missing script instead of guessing.
 
-## CI Integration
-
-
-
-Add agenteval to your GitHub Actions workflow with one line:
-
-```yaml
-- uses: lukasmetzler/agenteval@v0
-  with:
-    command: ci                   # or: lint, harvest --dry-run
-```
-
-Or use the CLI directly in any CI system:
-
-```bash
-agenteval ci --min-score 0.7 --max-regression 0.05
-```
-
-See the [CI Guide](docs/ci.md) for thresholds, configuration, and examples.
-
-## Installation Options
-
-| Method | Command | Updates via |
-|--------|---------|-------------|
-| **npm** | `npm install -g agenteval-cli` | `npm update -g agenteval-cli` |
-| **Homebrew** | `brew tap lukasmetzler/agenteval && brew install agenteval` | `brew upgrade agenteval` |
-| **Shell** | `curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install.sh \| bash` | `agenteval update` |
-| **GitHub Action** | `uses: lukasmetzler/agenteval@v0` | Always latest |
-| **Binary** | [GitHub Releases](https://github.com/lukasmetzler/agenteval/releases) | `agenteval update` |
-| **Source** | `git clone ... && bun install && bun run build` | `git pull && bun run build` |
-
 ## Documentation
 
-| Guide | What it covers |
-|-------|---------------|
+| Guide | Covers |
+|---|---|
+| [Getting Started](docs/getting-started.md) | Installation, first lint, first eval |
 | [Core Concepts](docs/concepts.md) | Instructions, tasks, assertions, harnesses, scoring |
-| [Getting Started](docs/getting-started.md) | Installation, first run, full walkthrough |
-| [Linting](docs/lint.md) | All lint rules, output formats, CI integration |
-| [Running Evals](docs/run.md) | Task definitions, trials, baseline arm, assertions, scoring |
-| [Harnesses](docs/harnesses.md) | Every supported agent CLI, invocation, and metrics |
+| [Linting](docs/lint.md) | Every lint rule, output formats, suppression |
 | [Toolchain checks](docs/toolchain.md) | Toolchain detection, `toolchain/*` rules, `lint-delta` |
+| [Running Evals](docs/run.md) | Task files, trials, the baseline arm, assertions, scoring |
+| [Harnesses](docs/harnesses.md) | Each agent CLI: invocation, permissions, metrics |
 | [Harvesting](docs/harvest.md) | AI commit detection, task generation, live review |
-| [CI Guide](docs/ci.md) | Regression detection, thresholds, GitHub Actions example |
+| [Results](docs/results.md) | Stored runs, comparison, retention |
+| [CI Guide](docs/ci.md) | Thresholds, regression gates, GitHub Actions |
 | [Trends](docs/trends.md) | Score history and trend analysis |
-| [Configuration](docs/configuration.md) | Every config option with types and defaults |
+| [Configuration](docs/configuration.md) | Every config option, supported models |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues through the process in [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)

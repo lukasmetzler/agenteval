@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Model table: added OpenAI's GPT-6 flagships (`gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-luna`, 922k input) and current Gemini models (`gemini-4-argon`, `gemini-3.8-flash`, `gemini-3.1-pro-preview`, 1,048,576). Removed models OpenAI marks deprecated (`gpt-4o`, `gpt-4.1`, `o3`, `gpt-5.3-codex`) and entries that no vendor page confirms (`gpt-5.4`, `gpt-5.3`, `gemini-3.1`). Those now get `context-budget/unknown-model`.
+- README rewritten: real lint and trial output, the research on whether instruction files help, one install table.
+- License, package manifests, and `action.yml` no longer name a person. Security and conduct reports go through GitHub's private reporting form.
+
+### Fixed
+- The lint header says "1 file" instead of "1 files".
+
 ## [0.9.0] - 2026-10-30
 
 Catch-up with six months of agent ecosystem changes. Research and sources: `docs/research/2026-10-30-agent-ecosystem.md`.

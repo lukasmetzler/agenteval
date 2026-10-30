@@ -1,6 +1,5 @@
 name: "agenteval"
 description: "Lint, benchmark, and CI gate for AI coding instructions"
-author: "Lukas Metzler"
 
 branding:
   icon: "check-circle"

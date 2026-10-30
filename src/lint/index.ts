@@ -1,18 +1,19 @@
 import { readFileSync } from "node:fs";
-import { parse as parseYaml } from "yaml";
 import type { Config } from "../config/schema.js";
-import { parseMarkdown } from "../markdown/parser.js";
-import { extractFrontmatter, extractSections, extractSuppressions } from "../markdown/sections.js";
 import { resolveInstructionFiles } from "../utils/glob.js";
 import { logger } from "../utils/logger.js";
+import { AgentLimitsRule } from "./agentLimits.js";
 import { AntiPatternCheckerRule } from "./antiPatternChecker.js";
 import { BloatScorerRule } from "./bloatScorer.js";
 import { ContextBudgetCheckerRule } from "./contextBudgetChecker.js";
 import { DeadSectionAnalyzerRule } from "./deadSectionAnalyzer.js";
 import { DriftDetectorRule } from "./driftDetector.js";
+import { FrontmatterValidatorRule } from "./frontmatterValidator.js";
+import { ImportResolverRule } from "./importResolver.js";
 import { OverlapDetectorRule } from "./overlapDetector.js";
+import { parseInstructionFile } from "./parse.js";
 import { SkillValidatorRule } from "./skillValidator.js";
-import { countTokens, TokenCounterRule } from "./tokenCounter.js";
+import { TokenCounterRule } from "./tokenCounter.js";
 import type { Diagnostic, LintContext, LintResult, LintRule, ParsedFile } from "./types.js";
 
 export const ALL_RULES: LintRule[] = [
@@ -23,17 +24,11 @@ export const ALL_RULES: LintRule[] = [
 	new DeadSectionAnalyzerRule(),
 	new ContextBudgetCheckerRule(),
 	new SkillValidatorRule(),
+	new FrontmatterValidatorRule(),
+	new ImportResolverRule(),
+	new AgentLimitsRule(),
 	new DriftDetectorRule(),
 ];
-
-function parseFrontmatterYaml(raw: string | null): Record<string, unknown> | null {
-	if (!raw) return null;
-	try {
-		return parseYaml(raw) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
-}
 
 function isSuppressed(diagnostic: Diagnostic, file: ParsedFile): boolean {
 	for (const suppression of file.suppressions) {
@@ -77,21 +72,11 @@ export async function runLint(config: Config, cwd: string): Promise<LintResult> 
 	}
 
 	const files: ParsedFile[] = filePaths.map((filePath) => {
-		const content = readFileSync(filePath, "utf-8");
-		const tree = parseMarkdown(content);
-		const sections = extractSections(tree, content);
-		const suppressions = extractSuppressions(tree);
-		const tokens = countTokens(content);
-		const fmRaw = extractFrontmatter(tree);
-		const frontmatter = parseFrontmatterYaml(fmRaw);
-
-		for (const section of sections) {
-			section.tokens = countTokens(section.content);
-		}
-
-		logger.debug(`Parsed ${filePath}: ~${tokens} tokens, ${sections.length} sections`);
-
-		return { path: filePath, content, tree, sections, suppressions, tokens, frontmatter };
+		const file = parseInstructionFile(filePath, readFileSync(filePath, "utf-8"), cwd);
+		logger.debug(
+			`Parsed ${filePath} (${file.kind}): ~${file.tokens} tokens, ${file.sections.length} sections`,
+		);
+		return file;
 	});
 
 	const ctx: LintContext = { config, files, cwd };

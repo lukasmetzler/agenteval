@@ -1,4 +1,5 @@
 import { minimatch } from "minimatch";
+import { DEFAULT_IGNORE } from "../utils/glob.js";
 
 /**
  * Retrieve instruction file contents at the parent of the given commit.
@@ -37,7 +38,11 @@ export async function getInstructionSnapshot(
 		.filter((f) => f.length > 0);
 
 	// Filter by globs
-	const matched = allFiles.filter((file) => globs.some((glob) => minimatch(file, glob)));
+	const matched = allFiles.filter(
+		(file) =>
+			globs.some((glob) => minimatch(file, glob)) &&
+			!DEFAULT_IGNORE.some((glob) => minimatch(file, glob)),
+	);
 
 	// Retrieve content for each matched file
 	for (const file of matched) {

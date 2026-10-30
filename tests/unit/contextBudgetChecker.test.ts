@@ -1,14 +1,23 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Config } from "../../src/config/schema.js";
 import { ContextBudgetCheckerRule } from "../../src/lint/contextBudgetChecker.js";
 import type { LintContext, ParsedFile } from "../../src/lint/types.js";
 import { parseMarkdown } from "../../src/markdown/parser.js";
 import { extractSections } from "../../src/markdown/sections.js";
 
-function makeFile(tokens: number): ParsedFile {
+function makeFile(
+	tokens: number,
+	path = "test.md",
+	kind: ParsedFile["kind"] = "instruction",
+): ParsedFile {
 	return {
-		path: "test.md",
+		path,
+		kind,
 		content: "",
+		body: "",
 		tree: parseMarkdown(""),
 		sections: extractSections(parseMarkdown(""), ""),
 		suppressions: [],
@@ -88,6 +97,31 @@ describe("ContextBudgetCheckerRule", () => {
 		const config = makeConfig({ contextBudget: 0.3 });
 		const ctx: LintContext = { config, files, cwd: "/tmp" };
 		const diags = await rule.run(ctx);
+		expect(diags.some((d) => d.ruleId === "context-budget/exceeded")).toBe(true);
+	});
+
+	test("excludes nested instruction files and path-scoped rules from the startup budget", async () => {
+		const config = makeConfig({ lint: { ...makeConfig().lint, maxTotalTokens: 100 } });
+		const scoped = makeFile(500, ".claude/rules/api.md", "claude-rule");
+		scoped.frontmatter = { paths: ["src/api/**"] };
+		const files = [
+			makeFile(50, "CLAUDE.md"),
+			makeFile(500, "packages/web/CLAUDE.md"),
+			scoped,
+			makeFile(500, ".claude/skills/x/SKILL.md", "skill"),
+		];
+		const diags = await rule.run({ config, files, cwd: "/tmp" });
+		expect(diags).toHaveLength(0);
+	});
+
+	test("counts @imported files toward the budget", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "budget-"));
+		writeFileSync(join(dir, "big.md"), "word ".repeat(400));
+		const root = makeFile(10, join(dir, "CLAUDE.md"));
+		root.content = "See @big.md for details.";
+		const config = makeConfig({ lint: { ...makeConfig().lint, maxTotalTokens: 100 } });
+		const diags = await rule.run({ config, files: [root], cwd: dir });
+		rmSync(dir, { recursive: true });
 		expect(diags.some((d) => d.ruleId === "context-budget/exceeded")).toBe(true);
 	});
 });

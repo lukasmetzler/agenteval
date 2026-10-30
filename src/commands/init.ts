@@ -12,10 +12,12 @@ const TEMPLATE = `# yaml-language-server: $schema=https://raw.githubusercontent.
 version: 1
 
 # Which files to analyze. Patterns are relative to this file.
-instructionGlobs:
-  - "CLAUDE.md"
-  - "AGENTS.md"
-  - ".github/copilot-instructions.md"
+# The default covers CLAUDE.md, AGENTS.md, GEMINI.md (root and nested), .claude/,
+# .agents/skills/, Copilot, Cursor, Devin/Windsurf, Kiro, and Junie files.
+# Uncomment to restrict:
+# instructionGlobs:
+#   - "CLAUDE.md"
+#   - "AGENTS.md"
 
 # Model for context budget calculations
 model: claude-sonnet-4-6
@@ -71,7 +73,7 @@ const PRE_COMMIT_HOOK = `#!/bin/sh
 # Installed by: agenteval init --hook
 
 # Only run if instruction files are staged
-STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(CLAUDE|AGENTS|copilot-instructions|SKILL|cursorrules)\\.m?d?c?$' || true)
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)(CLAUDE|AGENTS|GEMINI|SKILL|copilot-instructions)\\.md$|\\.instructions\\.md$|\\.mdc$|^\\.(claude|cursor|devin|windsurf|kiro|junie|agents)/' || true)
 
 if [ -n "$STAGED" ]; then
   echo "agenteval: linting instruction files..."

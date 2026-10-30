@@ -1,9 +1,9 @@
 import type { Diagnostic, LintResult, Severity } from "../lint/types.js";
-import { basename } from "../utils/path.js";
+import { displayPath } from "../utils/path.js";
 import type { OutputFormatter } from "./formatter.js";
 
 function formatDiagnosticLine(d: Diagnostic): string {
-	return `- **${d.ruleId}** in \`${basename(d.filePath)}\`${d.line ? `:${d.line}` : ""} — ${d.message}`;
+	return `- **${d.ruleId}** in \`${displayPath(d.filePath)}\`${d.line ? `:${d.line}` : ""} — ${d.message}`;
 }
 
 function renderSection(title: string, diagnostics: Diagnostic[]): string[] {

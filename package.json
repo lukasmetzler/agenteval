@@ -40,7 +40,8 @@
 		"lint": "biome check --write .",
 		"lint:ci": "biome ci .",
 		"typecheck": "tsc --noEmit",
-		"check": "bun run lint:ci && bun run typecheck && bun run test"
+		"check": "bun run lint:ci && bun run typecheck && bun run test",
+		"schema": "bun run scripts/gen-schema.ts"
 	},
 	"dependencies": {
 		"chalk": "5.6.2",

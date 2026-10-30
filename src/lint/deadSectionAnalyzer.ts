@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { resolveMentionedPath } from "../utils/path.js";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
 import { stripCodeBlocks } from "./utils.js";
 
@@ -314,7 +315,7 @@ function checkBareFileRefs(file: { path: string; content: string }, cwd: string)
 	const fileRefs = extractFileReferences(proseOnly);
 
 	for (const ref of fileRefs) {
-		const resolved = resolve(cwd, ref.path);
+		const resolved = resolveMentionedPath(ref.path, file.path, cwd, existsSync);
 		if (!existsSync(resolved)) {
 			diagnostics.push({
 				ruleId: "dead-ref/missing-file",

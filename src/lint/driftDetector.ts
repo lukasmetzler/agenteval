@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { resolveMentionedPath } from "../utils/path.js";
 import { extractFileReferences, extractMarkdownLinks } from "./deadSectionAnalyzer.js";
 import type { Diagnostic, LintContext, LintRule } from "./types.js";
 import { stripCodeBlocks } from "./utils.js";
@@ -40,6 +41,7 @@ async function getGitLastModified(filePath: string, cwd: string): Promise<Date |
  */
 function collectExistingFileRefs(
 	content: string,
+	filePath: string,
 	cwd: string,
 ): { path: string; line: number; resolved: string }[] {
 	const stripped = stripCodeBlocks(content);
@@ -48,7 +50,7 @@ function collectExistingFileRefs(
 
 	// Bare file path references (src/foo.ts, ./bar.ts, etc.)
 	for (const ref of extractFileReferences(stripped)) {
-		const resolved = resolve(cwd, ref.path);
+		const resolved = resolveMentionedPath(ref.path, filePath, cwd, existsSync);
 		if (!seen.has(resolved) && existsSync(resolved)) {
 			seen.add(resolved);
 			results.push({ path: ref.path, line: ref.line, resolved });
@@ -59,7 +61,7 @@ function collectExistingFileRefs(
 	for (const link of extractMarkdownLinks(stripped)) {
 		const href = link.href.split("#")[0];
 		if (!href) continue;
-		const resolved = resolve(cwd, href);
+		const resolved = resolve(dirname(resolve(cwd, filePath)), href);
 		if (!seen.has(resolved) && existsSync(resolved)) {
 			seen.add(resolved);
 			results.push({ path: href, line: link.line, resolved });
@@ -79,7 +81,7 @@ export class DriftDetectorRule implements LintRule {
 			const instructionDate = await getGitLastModified(file.path, ctx.cwd);
 			if (!instructionDate) continue; // not tracked or git unavailable
 
-			const refs = collectExistingFileRefs(file.content, ctx.cwd);
+			const refs = collectExistingFileRefs(file.content, file.path, ctx.cwd);
 
 			for (const ref of refs) {
 				const refDate = await getGitLastModified(ref.resolved, ctx.cwd);

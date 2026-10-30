@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ConfigSchema } from "../../src/config/schema.js";
+import { ConfigSchema, configJsonSchema } from "../../src/config/schema.js";
 
 describe("ConfigSchema Phase 2 extensions", () => {
 	test("run config has sensible defaults", () => {
@@ -61,5 +61,12 @@ describe("ConfigSchema Phase 2 extensions", () => {
 		expect(config.model).toBe("claude-opus-4-6");
 		expect(config.run.timeout).toBe(180);
 		expect(config.harnesses["claude-code"].args).toContain("--print");
+	});
+});
+
+describe("schema.json", () => {
+	test("is up to date with ConfigSchema (run `bun run schema` to regenerate)", async () => {
+		const onDisk = await Bun.file(new URL("../../schema.json", import.meta.url)).json();
+		expect(onDisk).toEqual(configJsonSchema());
 	});
 });

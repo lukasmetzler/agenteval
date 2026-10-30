@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { RULE_EXPLANATIONS } from "../lint/explanations.js";
 import type { Diagnostic, LintResult } from "../lint/types.js";
-import { basename } from "../utils/path.js";
+import { displayPath } from "../utils/path.js";
 import { rule } from "./terminal.js";
 
 export interface OutputFormatter {
@@ -32,7 +32,7 @@ function formatFileGroup(filePath: string, diagnostics: Diagnostic[], explain: b
 	const lines: string[] = [];
 
 	lines.push("");
-	lines.push(`  ${chalk.cyan.underline(basename(filePath))}`);
+	lines.push(`  ${chalk.cyan.underline(displayPath(filePath))}`);
 
 	for (const d of diagnostics) {
 		const icon = SEVERITY_ICONS[d.severity];

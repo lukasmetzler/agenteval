@@ -9,9 +9,17 @@ export interface LintDeltaResult {
 	newDiagnostics: ToolDiagnostic[];
 }
 
-/** Linters and type checkers the repo uses that agenteval knows how to run. */
-export function autoLintTools(toolchain: Toolchain): ToolId[] {
-	const ids = [...toolsWithRole(toolchain, "linter"), ...toolsWithRole(toolchain, "typechecker")]
+/**
+ * Linters (and, unless disabled, type checkers) the repo uses that agenteval
+ * knows how to run. Type checkers check the whole project, so interactive
+ * callers may skip them for speed.
+ */
+export function autoLintTools(
+	toolchain: Toolchain,
+	options: { typecheck?: boolean } = {},
+): ToolId[] {
+	const typecheckers = options.typecheck === false ? [] : toolsWithRole(toolchain, "typechecker");
+	const ids = [...toolsWithRole(toolchain, "linter"), ...typecheckers]
 		.map((t) => t.id)
 		.filter((id) => runnerFor(id) !== undefined);
 	return [...new Set(ids)];

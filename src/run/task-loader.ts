@@ -43,6 +43,7 @@ const TaskDefinitionSchema = z.object({
 	prUrl: z.string().optional(),
 	prBody: z.string().optional(),
 	detectionConfidence: z.number().min(0).max(1).optional(),
+	detectedModel: z.string().optional(),
 	harvestDate: z.string().optional(),
 });
 

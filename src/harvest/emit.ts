@@ -142,6 +142,8 @@ export function emitTaskYaml(
 		},
 	};
 
+	if (commit.detectedModel) task.detectedModel = commit.detectedModel;
+
 	if (metadata?.prInfo) {
 		task.prUrl = metadata.prInfo.url;
 		task.prBody = metadata.prInfo.body;

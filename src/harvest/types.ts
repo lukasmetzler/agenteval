@@ -7,6 +7,10 @@ export interface RawCommit {
 	authorEmail: string;
 	date: string;
 	coAuthorRaw: string;
+	/** Author name (catches "(aider)" suffixes and bot names). */
+	authorName?: string;
+	/** Commit body after the subject, including trailers. */
+	body?: string;
 }
 
 export interface AICommit {
@@ -17,6 +21,8 @@ export interface AICommit {
 	coAuthors: string[];
 	detectionMethod: DetectionMethod;
 	detectedTool?: string;
+	/** Model named in the attribution, e.g. "Claude Opus 5.5" from the co-author trailer. */
+	detectedModel?: string;
 	confidence: number;
 	timestamp: Date;
 	filesChanged: string[];
@@ -43,6 +49,7 @@ export interface HarvestOptions {
 export interface CommitSummary {
 	shortHash: string;
 	tool: string;
+	model?: string;
 	confidence: number;
 	message: string;
 }

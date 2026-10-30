@@ -225,6 +225,7 @@
 		},
 		"liveReview": {
 			"default": {
+				"judgeModel": "sonnet",
 				"rubrics": {
 					"scopeDiscipline": {
 						"enabled": true,
@@ -254,6 +255,11 @@
 			},
 			"type": "object",
 			"properties": {
+				"judgeModel": {
+					"default": "sonnet",
+					"description": "Model for the LLM-judged rubrics (--analyze); a Claude Code alias or full model id",
+					"type": "string"
+				},
 				"rubrics": {
 					"default": {
 						"scopeDiscipline": {

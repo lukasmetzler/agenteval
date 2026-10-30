@@ -99,6 +99,7 @@ export async function harvest(options: HarvestOptions): Promise<HarvestResult> {
 		result.commitSummaries = filtered.map((c) => ({
 			shortHash: c.shortHash,
 			tool: c.detectedTool ?? "unknown",
+			model: c.detectedModel,
 			confidence: c.confidence,
 			message: c.message.length > 42 ? `${c.message.slice(0, 39)}...` : c.message,
 		}));

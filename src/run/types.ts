@@ -27,6 +27,8 @@ export interface TaskDefinition {
 	prUrl?: string;
 	prBody?: string;
 	detectionConfidence?: number;
+	/** Model named in the source commit's AI attribution. */
+	detectedModel?: string;
 	harvestDate?: string;
 }
 

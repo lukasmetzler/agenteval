@@ -101,9 +101,29 @@ function heuristicEntries(files: string[], diff: string, config: LiveReviewConfi
 	return entries;
 }
 
+async function llmEntries(
+	diff: string,
+	instructions: string,
+	config: LiveReviewConfig,
+): Promise<RubricEntry[]> {
+	const { conventionCompliance, progressiveDisclosure } = config.rubrics;
+	const judge = { model: config.judgeModel };
+	const entries: RubricEntry[] = [];
+	if (conventionCompliance.enabled) {
+		const result = await scoreConventionCompliance(diff, instructions, judge);
+		if (result) entries.push({ result, weight: conventionCompliance.weight });
+	}
+	if (progressiveDisclosure.enabled) {
+		const result = await scoreProgressiveDisclosure(diff, instructions, judge);
+		if (result) entries.push({ result, weight: progressiveDisclosure.weight });
+	}
+	return entries;
+}
+
 async function lintDeltaRubric(repoPath: string, diff: string): Promise<RubricResult | null> {
 	const toolchain = detectToolchain(repoPath);
-	const tools = autoLintTools(toolchain);
+	// Linters only: a full-project type check is too slow for an interactive review.
+	const tools = autoLintTools(toolchain, { typecheck: false });
 	if (tools.length === 0) return null;
 	return scoreLintDelta(await computeLintDelta({ root: repoPath, diff, tools, toolchain }));
 }
@@ -136,21 +156,7 @@ export async function selectAndScoreRubrics(
 
 	// LLM-assisted rubrics: only run when analyze is true
 	if (options?.analyze && options.instructions) {
-		if (config.rubrics.conventionCompliance.enabled) {
-			const result = await scoreConventionCompliance(diff, options.instructions);
-			rubricEntries.push({
-				result,
-				weight: config.rubrics.conventionCompliance.weight,
-			});
-		}
-
-		if (config.rubrics.progressiveDisclosure.enabled) {
-			const result = await scoreProgressiveDisclosure(diff, options.instructions);
-			rubricEntries.push({
-				result,
-				weight: config.rubrics.progressiveDisclosure.weight,
-			});
-		}
+		rubricEntries.push(...(await llmEntries(diff, options.instructions, config)));
 	}
 
 	if (rubricEntries.length === 0) {

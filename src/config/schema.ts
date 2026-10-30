@@ -132,6 +132,10 @@ const RubricsSchema = z.object({
 });
 
 const LiveReviewConfigSchema = z.object({
+	judgeModel: z
+		.string()
+		.default("sonnet")
+		.describe("Model for the LLM-judged rubrics (--analyze); a Claude Code alias or full model id"),
 	rubrics: RubricsSchema.default(RubricsSchema.parse({})).describe(
 		"Configure which rubrics are enabled and their weights",
 	),

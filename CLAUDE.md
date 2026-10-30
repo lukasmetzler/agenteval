@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/install
 
 # Development
 bun install             # install dependencies
-bun test                # run all tests (545 tests)
+bun test                # run all tests (547 tests)
 bun run dev -- init     # create starter agenteval.yaml
 bun run dev -- doctor   # environment health check
 bun run dev -- lint     # lint instruction files

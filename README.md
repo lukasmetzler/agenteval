@@ -111,7 +111,25 @@ flowchart LR
 
 Lint catches problems statically. Harvest builds benchmarks from your git history. Run scores agent performance. Compare tells you what changed. CI gates regressions before they merge.
 
-## CI Integration
+## Agent Skill
+
+`skills/agenteval/SKILL.md` teaches a coding agent to lint instruction files after editing them and to fix what agenteval reports. It follows the open [Agent Skills](https://agentskills.io/specification) spec, so Claude Code, Codex, Cursor, Gemini CLI, and other clients can load it.
+
+```bash
+mkdir -p .agents/skills/agenteval   # or .claude/skills/agenteval for Claude Code only
+curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/skills/agenteval/SKILL.md \
+  -o .agents/skills/agenteval/SKILL.md
+```
+
+Agents often skip a skill unless something points them at it. Add one line to your CLAUDE.md or AGENTS.md:
+
+```markdown
+After editing CLAUDE.md, AGENTS.md, rules, or skills, use the agenteval skill to lint them.
+```
+
+In a test with Claude Haiku 5.5, the agent ignored the installed skill and wrote a command that doesn't exist. With that line, it loaded the skill, ran `agenteval lint`, switched `npm` to `bun`, and flagged the missing script instead of guessing.
+
+
 
 Add agenteval to your GitHub Actions workflow with one line:
 

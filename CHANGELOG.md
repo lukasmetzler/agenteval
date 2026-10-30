@@ -30,6 +30,7 @@ Catch-up with six months of agent ecosystem changes. Research and sources: `docs
 - `AGENTEVAL_NO_UPDATE_CHECK=1`; the update check is also skipped when `CI` is set.
 - `schema.json` is generated from the Zod schema (`bun run schema`) and checked by a test.
 - Docs: `docs/harnesses.md`, `docs/toolchain.md`, all 65 lint rule IDs in `docs/lint.md`.
+- Agent Skill `skills/agenteval/SKILL.md` (Agent Skills spec): lint instruction files after editing them and fix the findings. A test checks it passes agenteval's own lint.
 
 ### Changed
 
@@ -64,6 +65,10 @@ Catch-up with six months of agent ecosystem changes. Research and sources: `docs
 - A failed agent run that printed output was scored as a success. A non-zero exit or a failure in the agent's JSON output now makes the run an `error` with the agent's reason.
 - Efficiency ignores prompt-cache reads. Counting them put almost every multi-turn Claude Code run at 0.
 - Codex output tokens no longer double-count reasoning tokens.
+- `watch` missed files in directories created after startup on Bun 1.3 (the version release binaries are built with). It now also re-resolves the globs every 2 seconds.
+- The pre-commit hook reported "lint errors found" and blocked the commit when `agenteval` wasn't on PATH. It now skips with an install hint.
+- Placeholder and glob paths such as `src/<name>.test.ts` or `docs/$TOPIC.md` are no longer reported as missing files.
+- `skill/description-truncation` claimed descriptions over 250 characters get truncated. Claude Code truncates at 1536 (`skill/listing-truncated`); the note now explains the shared listing budget instead.
 
 ## [0.8.14] - 2026-04-06
 

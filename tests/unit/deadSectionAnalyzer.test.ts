@@ -115,6 +115,13 @@ describe("extractReferenceLinks", () => {
 });
 
 describe("extractFileReferences", () => {
+	test("skips glob and placeholder paths", () => {
+		const refs = extractFileReferences(
+			"Tests go in `src/<name>.test.ts`, docs in docs/$TOPIC.md, all of src/**/*.ts, and src/real.ts",
+		);
+		expect(refs.map((r) => r.path)).toEqual(["src/real.ts"]);
+	});
+
 	test("finds src/ paths", () => {
 		const refs = extractFileReferences("Check the code in src/services/auth.ts for details.");
 		expect(refs.length).toBeGreaterThan(0);

@@ -139,7 +139,8 @@ export function extractFileReferences(content: string): { path: string; line: nu
 		const regex = new RegExp(FILE_PATH_PATTERN.source, "gi");
 		for (const match of lines[i].matchAll(regex)) {
 			const filePath = match[1].replace(/[`"']/g, "");
-			if (filePath.includes("*") || filePath.includes("{")) continue;
+			// Globs and templates (`src/**/*.ts`, `src/<name>.test.ts`, `docs/$TOPIC.md`) are patterns, not files.
+			if (/[*{<>$[]/.test(filePath)) continue;
 			refs.push({ path: filePath, line: i + 1 });
 		}
 	}

@@ -76,6 +76,10 @@ const PRE_COMMIT_HOOK = `#!/bin/sh
 STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)(CLAUDE|AGENTS|GEMINI|SKILL|copilot-instructions)\\.md$|\\.instructions\\.md$|\\.mdc$|^\\.(claude|cursor|devin|windsurf|kiro|junie|agents)/' || true)
 
 if [ -n "$STAGED" ]; then
+  if ! command -v agenteval >/dev/null 2>&1; then
+    echo "agenteval: not found on PATH, skipping instruction lint (install: npm install -g agenteval-cli)"
+    exit 0
+  fi
   echo "agenteval: linting instruction files..."
   agenteval lint --severity error
   if [ $? -ne 0 ]; then

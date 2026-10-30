@@ -599,7 +599,7 @@ SkillValidator runs only on `SKILL.md` files. The rules follow the open [Agent S
 | `skill/name-xml-tags` | error | `name` contains XML tags. |
 | `skill/description-too-long` | error | `description` is over 1024 characters. |
 | `skill/description-xml-tags` | error | `description` contains XML tags. |
-| `skill/description-truncation` | info | `description` is over 250 characters. |
+| `skill/description-truncation` | info | `description` is over 250 characters. Descriptions share one always-loaded listing budget, and the least-used are dropped first when it runs out. |
 | `skill/listing-truncated` | info | `description` plus `when_to_use` is over 1536 characters, where Claude Code cuts the listing entry. |
 | `skill/description-not-trigger` | info | `description` doesn't start with a trigger ("Use when..."). |
 | `skill/compatibility-too-long` | error | `compatibility` is over 500 characters. |

@@ -201,7 +201,7 @@ export class SkillValidatorRule implements LintRule {
 			diagnostics.push({
 				ruleId: "skill/description-truncation",
 				severity: "info",
-				message: "Description exceeds 250 characters and will be truncated in skill listings.",
+				message: `Description is ${desc.length} characters. Every skill's description shares one listing budget (1% of the context window in Claude Code), and the least-used ones are dropped first when it runs out.`,
 				filePath,
 				meta: { length: desc.length, limit: DESCRIPTION_TRUNCATION_LENGTH },
 			});

@@ -1,5 +1,5 @@
 import { existsSync, watch } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { minimatch } from "minimatch";
@@ -11,6 +11,7 @@ import { DEFAULT_IGNORE, resolveInstructionFiles } from "../utils/glob.js";
 
 const SEVERITY_ORDER: Record<Severity, number> = { info: 0, warning: 1, error: 2 };
 const DEBOUNCE_MS = 300;
+const POLL_MS = 2_000;
 
 interface WatchOptions {
 	config?: string;
@@ -58,22 +59,42 @@ export function registerWatchCommand(program: Command): void {
 				!ignore.some((g) => minimatch(rel, g, { dot: true }));
 
 			let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-			const watcher = watch(cwd, { recursive: true }, (_event, filename) => {
-				if (!filename) return;
-				const rel = filename.toString().split("\\").join("/");
-				if (!isInstructionFile(rel)) return;
+			const relint = (what: string, rel: string) => {
 				if (debounceTimer) clearTimeout(debounceTimer);
 				debounceTimer = setTimeout(async () => {
-					const what = existsSync(resolve(cwd, rel)) ? "Change detected" : "File removed";
 					console.log(chalk.dim(`\n  ${what}: ${rel}`));
 					console.log(chalk.dim("  ─".repeat(35)));
 					await runAndPrint(config, cwd, options);
 				}, DEBOUNCE_MS);
+			};
+
+			const watcher = watch(cwd, { recursive: true }, (_event, filename) => {
+				if (!filename) return;
+				const rel = filename.toString().split("\\").join("/");
+				if (!isInstructionFile(rel)) return;
+				relint(existsSync(resolve(cwd, rel)) ? "Change detected" : "File removed", rel);
 			});
+
+			// Some Bun versions (1.3.x) don't watch directories created after
+			// startup, so also re-resolve the globs periodically to catch new files.
+			let known = new Set(files);
+			const poll = setInterval(async () => {
+				const current = await resolveInstructionFiles(
+					config.instructionGlobs,
+					cwd,
+					config.lint.ignore,
+				);
+				const added = current.filter((f) => !known.has(f));
+				const removed = [...known].filter((f) => !current.includes(f));
+				known = new Set(current);
+				const changed = added[0] ?? removed[0];
+				if (changed) relint(added[0] ? "New file" : "File removed", relative(cwd, changed));
+			}, POLL_MS);
 
 			// Keep process alive, clean up on exit
 			process.on("SIGINT", () => {
 				if (debounceTimer) clearTimeout(debounceTimer);
+				clearInterval(poll);
 				watcher.close();
 				console.log(chalk.dim("\n  Stopped watching."));
 				process.exit(0);

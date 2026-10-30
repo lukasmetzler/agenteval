@@ -156,9 +156,9 @@ export const RULE_EXPLANATIONS: Record<string, RuleExplanation> = {
 		fix: "Follow the Anthropic skill specification for frontmatter fields.",
 	},
 	"skill/description-truncation": {
-		what: "Warns when a skill description exceeds 250 characters.",
-		why: "Descriptions longer than 250 characters are truncated in skill listings, potentially hiding important information.",
-		fix: "Shorten the description to 250 characters or less for full visibility in listings.",
+		what: "Notes skill descriptions over 250 characters.",
+		why: "All skill descriptions are always loaded and share one budget (1% of the context window in Claude Code). When the budget runs out, the least-used descriptions are dropped, so long descriptions make other skills disappear. Hard truncation happens at 1536 characters (see skill/listing-truncated).",
+		fix: "Keep the trigger conditions and cut identity the body already explains.",
 	},
 	"skill/unknown-field": {
 		what: "Detects frontmatter fields not in the Anthropic skill specification.",

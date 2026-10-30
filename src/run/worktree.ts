@@ -5,23 +5,16 @@ import { logger } from "../utils/logger.js";
 const DEFAULT_MAX_AGE_MS = 3_600_000; // 1 hour
 
 /**
- * Generate a unique run ID in the format "run-YYYYMMDD-HHMMSS".
- * Appends a counter suffix on collision.
+ * Generate a unique run ID: "run-YYYYMMDD-HHMMSS-xxxxxx". The random suffix
+ * keeps IDs unique for parallel runs and trials started in the same second,
+ * which a check against already-written result files cannot catch.
  */
-export function generateRunId(resultsDir?: string): string {
+export function generateRunId(): string {
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, "0");
-	const base = `run-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-
-	if (!resultsDir || !existsSync(resultsDir)) return base;
-
-	let id = base;
-	let counter = 2;
-	while (existsSync(join(resultsDir, `${id}.json`))) {
-		id = `${base}-${counter}`;
-		counter++;
-	}
-	return id;
+	const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+	const suffix = crypto.getRandomValues(new Uint8Array(3));
+	return `run-${stamp}-${Buffer.from(suffix).toString("hex")}`;
 }
 
 /**

@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ConfigSchema } from "../../src/config/schema.js";
 import { MockAdapter } from "../../src/harness/mock.js";
+import type { HarnessAdapter } from "../../src/harness/types.js";
 import { executeRun } from "../../src/run/index.js";
 import type { TaskDefinition } from "../../src/run/types.js";
 
@@ -74,5 +75,35 @@ describe("lint-delta assertion with real oxlint", () => {
 		expect(result.lint?.newDiagnostics).toEqual([]);
 		expect(result.assertions[0]?.passed).toBe(true);
 		expect(result.scores.conventions).toBe(1);
+	});
+});
+
+describe("baseline arm", () => {
+	test("removes every instruction file before the agent runs", async () => {
+		const seen: string[] = [];
+		const probe: HarnessAdapter = {
+			name: "probe",
+			instructionTarget: "CLAUDE.md",
+			isAvailable: async () => true,
+			injectInstructions: async () => {},
+			runTask: async (worktree) => {
+				seen.push(existsSync(join(worktree, "CLAUDE.md")) ? "present" : "absent");
+				return { stdout: "", stderr: "", exitCode: 0, durationMs: 1, timedOut: false };
+			},
+			parseMetrics: () => ({
+				tokensInput: null,
+				tokensOutput: null,
+				tokensTotal: null,
+				tokenSource: "unavailable",
+			}),
+		};
+		const config = ConfigSchema.parse({ version: 1 });
+		const withInstructions = await executeRun(config, task, { sourcePath: "CLAUDE.md" }, repo, {
+			adapter: probe,
+		});
+		const baseline = await executeRun(config, task, { sourcePath: null }, repo, { adapter: probe });
+		expect(seen).toEqual(["present", "absent"]);
+		expect(baseline.instructions).toBe("(baseline: no instructions)");
+		expect(withInstructions.instructions).toBe("CLAUDE.md");
 	});
 });

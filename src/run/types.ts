@@ -16,6 +16,10 @@ export interface TaskDefinition {
 	/** Model passed to the agent CLI (its --model flag); the CLI default when unset. */
 	model?: string;
 	timeout: number;
+	/** Independent attempts per run (default 1). Agents are nondeterministic; 3+ is recommended. */
+	trials?: number;
+	/** Shell commands run in the worktree before the agent starts (e.g. "bun install"). */
+	setup?: string[];
 	assertions: TaskAssertion[];
 	scoring: ScoringWeights;
 	sourceCommit?: string;
@@ -48,6 +52,16 @@ export const CONVENTION_ASSERTIONS: ReadonlySet<string> = new Set<TaskAssertion[
 	"convention",
 	"lint-delta",
 ]);
+
+export interface TrialInfo {
+	/** Shared by every trial and arm started by one `agenteval run`. */
+	group: string;
+	/** 1-based trial number within its arm. */
+	index: number;
+	of: number;
+	/** "instructions" = with the instruction file; "baseline" = all instruction files removed. */
+	arm: "instructions" | "baseline";
+}
 
 /** Linter findings an agent's diff introduced, stored with the run. */
 export interface LintSummary {
@@ -102,6 +116,10 @@ export interface StoredResult {
 	assertions: AssertionResult[];
 	diffSummary: string;
 	model: string | null;
+	/** Wall-clock time of the agent process. */
+	durationMs?: number;
+	/** Set when the run is one of several trials or arms of the same task. */
+	trial?: TrialInfo;
 	lint?: LintSummary;
 	error?: string;
 	sourceCommit?: string;

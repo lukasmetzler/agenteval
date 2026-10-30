@@ -8,6 +8,7 @@ import { isKnownHarness, knownHarnesses } from "../harness/registry.js";
 import { header, kvLine, rule, scoreColor } from "../output/terminal.js";
 import { executeRun } from "../run/index.js";
 import { loadTask } from "../run/task-loader.js";
+import { runTrials } from "../run/trials.js";
 import type { InstructionSet, StoredResult } from "../run/types.js";
 import { listResults, writeResult } from "../store/index.js";
 import { logger } from "../utils/logger.js";
@@ -20,6 +21,7 @@ interface CIOptions {
 	harness?: string;
 	config?: string;
 	parallel?: string;
+	trials?: string;
 }
 
 interface CITaskResult {
@@ -41,6 +43,7 @@ interface ResolvedCIConfig {
 	maxRegression: number;
 	instructions: InstructionSet;
 	harness?: string;
+	trials?: number;
 }
 
 export function registerCICommand(program: Command): void {
@@ -53,6 +56,7 @@ export function registerCICommand(program: Command): void {
 		.option("--instructions <path>", "instruction file to use")
 		.option("--harness <name>", "override harness for all tasks")
 		.option("--parallel <n>", "run up to N tasks in parallel")
+		.option("--trials <n>", "attempts per task; the gate uses the mean score")
 		.option("-c, --config <path>", "path to agenteval.yaml")
 		.action(async (options: CIOptions) => {
 			try {
@@ -96,6 +100,7 @@ function resolveCIConfig(options: CIOptions): ResolvedCIConfig {
 		maxRegression,
 		instructions,
 		harness: options.harness,
+		trials: options.trials !== undefined ? Number.parseInt(options.trials, 10) : undefined,
 	};
 }
 
@@ -109,14 +114,19 @@ function validateThresholds(minScore: number, maxRegression: number): void {
 }
 
 function evaluateTaskResult(
-	result: StoredResult,
+	results: StoredResult[],
 	resultsDir: string,
 	minScore: number,
 	maxRegression: number,
 ): CITaskResult {
-	const previous = findPreviousResult(resultsDir, result.task, result.id);
-	const overall = result.scores.overall ?? 0;
-	const previousScore = previous?.scores.overall ?? null;
+	const first = results[0];
+	if (!first) throw new Error("no results to evaluate");
+	const overall = meanScore(results);
+	const previousScore = findPreviousScore(
+		resultsDir,
+		first.task,
+		new Set(results.map((r) => r.id)),
+	);
 	const delta = previousScore !== null ? overall - previousScore : null;
 
 	let status: "pass" | "fail" = "pass";
@@ -130,15 +140,38 @@ function evaluateTaskResult(
 		reason = `regressed ${Math.abs(delta).toFixed(2)} (max: ${maxRegression})`;
 	}
 
+	const failed = results.find((r) => r.status !== "success");
 	return {
-		task: result.task,
+		task: first.task,
 		score: overall,
 		previousScore,
 		delta,
 		status,
 		reason,
-		runStatus: result.status,
+		runStatus: failed?.status ?? "success",
 	};
+}
+
+/** Mean overall score; runs without a score count as 0. */
+function meanScore(results: StoredResult[]): number {
+	return results.reduce((sum, r) => sum + (r.scores.overall ?? 0), 0) / results.length;
+}
+
+/**
+ * Score of the most recent earlier run of a task. When that run was one of
+ * several trials, the mean over its whole trial group.
+ */
+export function findPreviousScore(
+	resultsDir: string,
+	taskName: string,
+	currentIds: Set<string>,
+): number | null {
+	const all = listResults(resultsDir, { task: taskName }).filter((r) => !currentIds.has(r.id));
+	const latest = all.find((r) => r.trial?.arm !== "baseline");
+	if (!latest) return null;
+	const group = latest.trial?.group;
+	if (!group) return latest.scores.overall ?? 0;
+	return meanScore(all.filter((r) => r.trial?.group === group && r.trial.arm === "instructions"));
 }
 
 function formatDelta(delta: number | null): string {
@@ -160,10 +193,23 @@ async function runSingleTask(
 	process.stderr.write(chalk.dim(`  ${label} Running ${task.name}...`));
 
 	try {
-		const result = await executeRun(rc.config, task, rc.instructions, rc.cwd);
-		writeResult(result, rc.resultsDir);
+		const trials = rc.trials ?? task.trials ?? 1;
+		const runs =
+			trials > 1
+				? (
+						await runTrials({
+							config: rc.config,
+							task,
+							instructions: rc.instructions,
+							cwd: rc.cwd,
+							trials,
+							baseline: false,
+						})
+					).instructions
+				: [await executeRun(rc.config, task, rc.instructions, rc.cwd)];
+		for (const run of runs) writeResult(run, rc.resultsDir);
 
-		const taskResult = evaluateTaskResult(result, rc.resultsDir, rc.minScore, rc.maxRegression);
+		const taskResult = evaluateTaskResult(runs, rc.resultsDir, rc.minScore, rc.maxRegression);
 		const icon = taskResult.status === "pass" ? chalk.green("\u2713") : chalk.red("\u2717");
 		const scoreStr = scoreColor(taskResult.score, 1);
 		const deltaStr = formatDelta(taskResult.delta);
@@ -232,17 +278,6 @@ async function runCI(options: CIOptions): Promise<void> {
 	if (failures.length > 0) {
 		process.exit(1);
 	}
-}
-
-export function findPreviousResult(
-	resultsDir: string,
-	taskName: string,
-	currentRunId: string,
-): StoredResult | null {
-	const all = listResults(resultsDir, { task: taskName });
-	// Skip the result we just wrote (it's the current run)
-	const previous = all.find((r) => r.id !== currentRunId);
-	return previous ?? null;
 }
 
 async function runTasksParallel(

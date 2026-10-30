@@ -34,6 +34,8 @@ const TaskDefinitionSchema = z.object({
 	harness: z.string().default("auto"),
 	model: z.string().optional(),
 	timeout: z.number().min(1).default(300),
+	trials: z.number().int().min(1).optional(),
+	setup: z.array(z.string()).optional(),
 	assertions: z.array(TaskAssertionSchema).default([]),
 	scoring: ScoringWeightsSchema.default(ScoringWeightsSchema.parse({})),
 	sourceCommit: z.string().optional(),

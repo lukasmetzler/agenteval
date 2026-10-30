@@ -34,7 +34,7 @@ export async function executeRun(
 	cwd: string,
 	options: { adapter?: HarnessAdapter } = {},
 ): Promise<StoredResult> {
-	const runId = generateRunId(config.run.resultsDir);
+	const runId = generateRunId();
 	const timestamp = new Date().toISOString();
 
 	// Step 1: Clean stale worktrees
@@ -69,6 +69,10 @@ export async function executeRun(
 		worktreePath = await createWorktree(runId, cwd, config.run.worktreesDir);
 		logger.info(`Running task "${task.name}" with ${harnessName} in ${worktreePath}`);
 
+		const setupError = await runSetup(task, worktreePath);
+		if (setupError) {
+			return makeErrorResult(runId, timestamp, task, harnessName, instructions, setupError);
+		}
 		await prepareWorktree(adapter, worktreePath, instructions, cwd);
 
 		// Run agent
@@ -139,6 +143,7 @@ export async function executeRun(
 			assertions: assertionResults,
 			diffSummary: summarizeDiff(diff),
 			model: metrics.model ?? task.model ?? null,
+			durationMs: Math.round(rawResult.durationMs),
 			lint: summarizeLint(lintDeltas),
 			sourceCommit: task.sourceCommit,
 			instructionSnapshot: task.instructionSnapshot,
@@ -211,6 +216,22 @@ async function prepareWorktree(
 		await adapter.injectInstructions(worktreePath, resolve(cwd, instructions.sourcePath));
 	}
 	await commitBaseline(worktreePath);
+}
+
+/** Run task.setup commands in the worktree; returns an error message if one fails. */
+async function runSetup(task: TaskDefinition, worktreePath: string): Promise<string | null> {
+	for (const command of task.setup ?? []) {
+		const raw = await spawnAgent({
+			command: ["sh", "-c", command],
+			cwd: worktreePath,
+			timeoutSeconds: task.timeout,
+		});
+		if (raw.exitCode !== 0 || raw.timedOut) {
+			const why = raw.timedOut ? "timed out" : `exited ${raw.exitCode}`;
+			return `Setup command "${command}" ${why}: ${raw.stderr.trim().slice(0, 300)}`;
+		}
+	}
+	return null;
 }
 
 /** How a result records which instructions it ran with. */

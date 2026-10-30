@@ -517,9 +517,19 @@ describe("emitTaskYaml", () => {
 		}
 	});
 
-	test("detectTestCommand returns bun test for this repo", () => {
+	test("detectTestCommand runs this repo's test script through bun", () => {
 		const cmd = detectTestCommand(repoRoot);
-		expect(cmd).toBe("bun test");
+		expect(cmd).toBe("bun run test");
+	});
+
+	test("detectTestCommand uses the repo's package manager", () => {
+		const cmd = detectTestCommand(join(repoRoot, "tests/fixtures/toolchain/pnpm-eslint-prettier"));
+		expect(cmd).toBe("pnpm run test");
+	});
+
+	test("detectTestCommand falls back to the ecosystem runner without a test script", () => {
+		const cmd = detectTestCommand(join(repoRoot, "tests/fixtures/toolchain/python-ruff"));
+		expect(cmd).toBe("uv run pytest");
 	});
 
 	test("detectTestCommand returns fallback for non-existent path", () => {

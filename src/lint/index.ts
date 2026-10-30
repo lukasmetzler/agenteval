@@ -14,6 +14,7 @@ import { OverlapDetectorRule } from "./overlapDetector.js";
 import { parseInstructionFile } from "./parse.js";
 import { SkillValidatorRule } from "./skillValidator.js";
 import { TokenCounterRule } from "./tokenCounter.js";
+import { ToolchainCheckerRule } from "./toolchainChecker.js";
 import type { Diagnostic, LintContext, LintResult, LintRule, ParsedFile } from "./types.js";
 
 export const ALL_RULES: LintRule[] = [
@@ -27,6 +28,7 @@ export const ALL_RULES: LintRule[] = [
 	new FrontmatterValidatorRule(),
 	new ImportResolverRule(),
 	new AgentLimitsRule(),
+	new ToolchainCheckerRule(),
 	new DriftDetectorRule(),
 ];
 

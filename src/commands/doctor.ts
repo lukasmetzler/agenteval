@@ -1,9 +1,10 @@
-import { basename } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { findConfigFile, loadConfig } from "../config/loader.js";
 import { header, rule } from "../output/terminal.js";
+import { detectToolchain } from "../toolchain/detect.js";
 import { resolveInstructionFiles } from "../utils/glob.js";
+import { displayPath } from "../utils/path.js";
 
 interface CheckResult {
 	label: string;
@@ -64,9 +65,15 @@ function checkConfig(): CheckResult {
 
 async function checkInstructions(): Promise<CheckResult> {
 	const config = loadConfig();
-	const files = await resolveInstructionFiles(config.instructionGlobs, process.cwd());
+	const files = await resolveInstructionFiles(
+		config.instructionGlobs,
+		process.cwd(),
+		config.lint.ignore,
+	);
 	if (files.length > 0) {
-		const names = files.map((f) => basename(f)).join(", ");
+		const shown = files.slice(0, 5).map((f) => displayPath(f));
+		const more = files.length > shown.length ? `, +${files.length - shown.length} more` : "";
+		const names = `${shown.join(", ")}${more}`;
 		return {
 			label: "instructions",
 			status: "pass",
@@ -78,6 +85,28 @@ async function checkInstructions(): Promise<CheckResult> {
 		status: "warn",
 		message: "no instruction files found — create a CLAUDE.md in your project root",
 	};
+}
+
+function checkToolchain(): CheckResult {
+	const toolchain = detectToolchain(process.cwd());
+	const parts: string[] = [];
+	if (toolchain.jsPackageManager) parts.push(toolchain.jsPackageManager);
+	parts.push(...toolchain.packageManagers.filter((pm) => pm !== toolchain.jsPackageManager));
+	for (const tool of toolchain.tools) {
+		const version =
+			tool.id === "tsc" && toolchain.typescriptMajor !== null
+				? ` ${toolchain.typescriptMajor}`
+				: "";
+		parts.push(`${tool.spec.label}${version}`);
+	}
+	if (parts.length === 0) {
+		return {
+			label: "toolchain",
+			status: "warn",
+			message: "no package manager, linter, or type checker detected",
+		};
+	}
+	return { label: "toolchain", status: "pass", message: parts.join(" · ") };
 }
 
 async function checkClaudeCli(): Promise<CheckResult> {
@@ -136,6 +165,7 @@ export function registerDoctorCommand(program: Command): void {
 			results.push(await checkRepository());
 			results.push(checkConfig());
 			results.push(await checkInstructions());
+			results.push(checkToolchain());
 			results.push(await checkClaudeCli());
 			results.push(await checkGhCli());
 

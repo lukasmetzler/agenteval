@@ -34,14 +34,34 @@ jobs:
 
 The GitHub Action installs agenteval automatically. No Bun or build step needed.
 
-You can also lint instruction files on every PR:
+You can also lint instruction files on every PR. `--format github` turns each finding into an inline annotation on the diff:
 
 ```yaml
       - uses: lukasmetzler/agenteval@v0
         with:
           command: lint
-          args: "--severity error"
+          args: "--severity warning --format github"
 ```
+
+Or upload SARIF to GitHub code scanning:
+
+```yaml
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukasmetzler/agenteval@v0
+        with:
+          command: --version
+      - run: agenteval lint --format sarif > agenteval.sarif || true
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: agenteval.sarif
+```
+
+The action passes `command` and `args` to the shell as environment variables and splits them on spaces, so shell syntax like `>` and `||` in `args` is not interpreted. That is why the SARIF example runs the binary in its own `run:` step after the action installed it.
+
+The action installs the release binary for linux-x64, darwin-arm64, or darwin-x64 into the runner's temp directory and adds it to `PATH`. On linux-arm64 runners, use `npm install -g agenteval-cli` instead. Set `version:` to pin a release (`0.9.0` or `v0.9.0`). agenteval skips its update check when `CI` is set.
 
 ## Command Reference
 
@@ -57,6 +77,8 @@ agenteval ci [options]
 | `--instructions <path>` | string | `CLAUDE.md` | Instruction file to evaluate |
 | `--harness <name>` | string | `auto` | Override harness for all tasks |
 | `--parallel <n>` | number | `1` | Run up to N tasks concurrently |
+| `--trials <n>` | number | task `trials`, else `1` | Attempts per task. The gate uses the mean score, and the regression check compares it with the mean of the previous run's trial group. |
+| `--format <format>` | string | `console` | `console`, `json`, or `junit`. With `json` and `junit` the report goes to stdout and progress to stderr. |
 | `-c, --config <path>` | string | auto-discover | Path to agenteval.yaml |
 
 ## How It Works
@@ -152,6 +174,15 @@ CLI flags override config values.
   CI FAILED
 ```
 
+### Machine-readable reports
+
+```bash
+agenteval ci --format junit > agenteval-junit.xml   # for CI test report widgets
+agenteval ci --format json | jq '.summary'
+```
+
+JUnit marks a task below the threshold as `<failure>` and a task whose run errored or timed out as `<error>`. The JSON report has `passed`, `summary` (`tasks`, `passed`, `failed`, `elapsedSeconds`), and one entry per task with `score`, `previousScore`, `delta`, `status`, and `reason`.
+
 ## Exit Codes
 
 | Code | Meaning |
@@ -166,4 +197,5 @@ CLI flags override config values.
 - **Run `agenteval harvest` periodically** to add new tasks from recent AI commits.
 - **Use `agenteval ci --tasks-dir tasks/curated/`** with hand-picked tasks for a focused benchmark suite.
 - **Check `agenteval results`** after a CI failure to see full details of each run.
-- **First run has no baseline** — tasks show "new" instead of a delta. They pass if above `minScore`.
+- **First run has no baseline**. Tasks show "new" instead of a delta and pass if above `minScore`.
+- **Use `--trials 3`** when a gate flips between runs. Single-trial scores of a nondeterministic agent are noisy.

@@ -45,12 +45,21 @@ version: 1
 
 # Glob patterns for auto-discovering instruction files to lint.
 # These are scanned by `agenteval lint` when no arguments are provided.
+# The default (shown) covers every format agenteval knows; set this only to narrow it.
 instructionGlobs:
-  - "CLAUDE.md"
-  - "AGENTS.md"
-  - ".github/copilot-instructions.md"
+  - "**/CLAUDE.md"
+  - "CLAUDE.local.md"
+  - "**/AGENTS.md"
+  - "**/GEMINI.md"
   - ".claude/**/*.md"
-  - ".github/instructions/*.md"
+  - ".agents/skills/**/*.md"
+  - ".github/copilot-instructions.md"
+  - ".github/instructions/**/*.instructions.md"
+  - ".cursor/rules/**/*.{md,mdc}"
+  - ".devin/rules/*.md"
+  - ".windsurf/rules/*.md"
+  - ".kiro/steering/*.md"
+  - ".junie/**/*.md"
 
 # Explicit instruction file sources. Use this when different files
 # should be associated with different harnesses.
@@ -64,12 +73,12 @@ instructions:
 
 # Model name for context window calculations.
 # Used by the context budget checker to determine token limits.
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # What fraction of the model's context window your instruction
 # files should consume (0.0 to 1.0).
-# At 0.3, with a 200k context model, instruction files can use
-# up to ~60,000 tokens total before triggering a warning.
+# At 0.3, with a 1M context model, the files loaded at session start
+# (plus their @imports) can use up to ~300,000 tokens before an error.
 contextBudget: 0.3
 
 # ─── Lint Settings ────────────────────────────────────────
@@ -143,7 +152,8 @@ harvest:
   minConfidence: 0.5
 
   # Harness field set in generated task YAML files.
-  # Options: claude-code, opencode, copilot, generic, auto
+  # A built-in harness (claude-code, codex, gemini, antigravity, copilot,
+  # cursor, opencode, devin, amp), a harnesses: key, or auto
   defaultHarness: auto
 
   # Timeout field set in generated task YAML files (seconds).
@@ -152,6 +162,8 @@ harvest:
 # ─── Live Review ─────────────────────────────────────────
 
 liveReview:
+  # Model for the --analyze rubrics: a Claude Code alias or a full model id.
+  judgeModel: sonnet
   rubrics:
     scopeDiscipline:
       enabled: true
@@ -160,6 +172,9 @@ liveReview:
       enabled: true
       weight: 1.0
     diffHygiene:
+      enabled: true
+      weight: 1.0
+    lintDelta:             # repo linters on the changed lines
       enabled: true
       weight: 1.0
     conventionCompliance:
@@ -209,9 +224,9 @@ harnesses:
 | Field | Type | Default | Validation | Description |
 |-------|------|---------|------------|-------------|
 | `version` | integer | **required** | Must be `1` | Config schema version. |
-| `instructionGlobs` | string[] | `["CLAUDE.md", "AGENTS.md", ...]` | | Glob patterns for instruction file discovery. |
+| `instructionGlobs` | string[] | every known format (see [Auto-Discovery](lint.md#auto-discovery)) | | Glob patterns for instruction file discovery. |
 | `instructions` | object[] | `[]` | Each must have `path` | Explicit instruction sources with optional harness binding. |
-| `model` | string | `claude-sonnet-4-6` | | Model name for context window lookup. |
+| `model` | string | `claude-opus-5-5` | | Model name for context window lookup. |
 | `contextBudget` | number | `0.3` | 0.0-1.0 | Fraction of context window budgeted for instructions. |
 
 ### `lint` Section
@@ -221,9 +236,9 @@ harnesses:
 | `overlapThreshold` | number | `0.3` | 0.0-1.0 | Similarity score above which two files are flagged as overlapping. |
 | `bloatThreshold` | number | `0.5` | 0.0-1.0 | Information density below which sections are flagged as bloated. |
 | `maxTokensPerFile` | number | `8000` | | Token limit per file before a warning is emitted. |
-| `maxTotalTokens` | number | none | | Hard token limit across all files. Overrides `contextBudget * window`. |
+| `maxTotalTokens` | number | none | | Token limit for everything loaded at session start (root files, rules without `paths`, and their `@imports`). Overrides `contextBudget * window`. |
 | `antiPatterns` | string[] | `[]` | Valid regex | Custom regex patterns. Each match in any instruction file produces a warning. |
-| `ignore` | string[] | `[]` | Valid glob | Glob patterns for files to exclude from linting. |
+| `ignore` | string[] | `[]` | Valid glob | Glob patterns for files to exclude from linting. `node_modules`, `.git`, `dist`, and `.agenteval` are always excluded. |
 
 ### `run` Section
 
@@ -260,12 +275,15 @@ Controls the `harvest --live` rubric system.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `judgeModel` | string | `sonnet` | Model for the `--analyze` rubrics. A Claude Code alias tracks the current model of that tier. |
 | `rubrics.scopeDiscipline.enabled` | boolean | `true` | Enable scope-discipline rubric. |
 | `rubrics.scopeDiscipline.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.testCoverage.enabled` | boolean | `true` | Enable test-coverage rubric. |
 | `rubrics.testCoverage.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.diffHygiene.enabled` | boolean | `true` | Enable diff-hygiene rubric. |
 | `rubrics.diffHygiene.weight` | number | `1.0` | Weight in overall score calculation. |
+| `rubrics.lintDelta.enabled` | boolean | `true` | Enable the lint-delta rubric (detected linters on changed lines). |
+| `rubrics.lintDelta.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.conventionCompliance.enabled` | boolean | `true` | Enable LLM convention-compliance rubric (requires `--analyze`). |
 | `rubrics.conventionCompliance.weight` | number | `1.0` | Weight in overall score calculation. |
 | `rubrics.progressiveDisclosure.enabled` | boolean | `true` | Enable LLM progressive-disclosure rubric (requires `--analyze`). |
@@ -275,32 +293,37 @@ Disabled rubrics are excluded from results and the weighted average. The `conven
 
 ### `harnesses` Section
 
-Each key under `harnesses` defines a custom harness adapter:
+Each key under `harnesses` defines a custom harness adapter. A key with a built-in name (for example `codex`) replaces the built-in. See [Harnesses](harnesses.md).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `command` | string | Yes | The CLI executable to run. Must be on PATH or an absolute path. |
 | `args` | string[] | No | Command-line arguments passed to the executable. |
-| `instructionPath` | string | No | Override which instruction file is injected for this harness. |
+| `instructionPath` | string | No | Where the instruction file is copied in the worktree. Default `AGENTS.md`. |
 
 ## Supported Models
 
-The model field determines the context window size used for budget calculations:
+The model field determines the context window size used for budget calculations. Claude values come from the Claude API model table as of 2026-10-06.
 
 | Model ID | Context Window | Provider |
 |----------|---------------|----------|
-| `claude-opus-4-6` | 1,000,000 | Anthropic |
-| `claude-sonnet-4-6` | 200,000 | Anthropic |
+| `claude-fable-5-1`, `claude-fable-5` | 1,000,000 | Anthropic |
+| `claude-opus-5-5`, `claude-opus-5` | 1,000,000 | Anthropic |
+| `claude-sonnet-5-5`, `claude-sonnet-5` | 1,000,000 | Anthropic |
+| `claude-haiku-5-5` | 1,000,000 | Anthropic |
+| `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6` | 1,000,000 | Anthropic |
+| `claude-sonnet-4-6` | 1,000,000 | Anthropic |
 | `claude-haiku-4-5` | 200,000 | Anthropic |
-| `gpt-5.4` | 1,000,000 | OpenAI |
-| `gpt-5.3` | 1,000,000 | OpenAI |
-| `gpt-5.3-codex` | 1,000,000 | OpenAI |
+| `fable`, `opus`, `sonnet`, `haiku` (Claude Code aliases) | 1,000,000 | Anthropic |
+| `gpt-5.4`, `gpt-5.3`, `gpt-5.3-codex`, `gpt-4.1` | 1,000,000 | OpenAI |
+| `gpt-4o` | 128,000 | OpenAI |
+| `o3` | 200,000 | OpenAI |
 | `gemini-3.1` | 2,000,000 | Google |
 | `gemini-2.5-pro` | 1,000,000 | Google |
 
-Legacy models (`claude-sonnet-4-6`, `claude-opus-4-20250514`, `gpt-4o`, `gpt-4.1`, `o3`) are still recognized for backward compatibility.
+The OpenAI and Google entries have not been rechecked since v0.8.
 
-Models not in this table default to 200,000 tokens. Set the `model` field to any string and the context budget calculator will use 200,000 as the window size.
+Models not in this table use a 200,000-token window, and lint reports `context-budget/unknown-model` so the fallback isn't silent. Set `lint.maxTotalTokens` for a model that isn't listed.
 
 ## Token Counting
 

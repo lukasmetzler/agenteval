@@ -59,6 +59,14 @@ agenteval run --task tasks/refactor-auth.yaml --harness claude-code
 agenteval run --task tasks/refactor-auth.yaml --instructions instructions-v2/CLAUDE.md
 ```
 
+### Run several trials and compare against no instructions
+
+```bash
+agenteval run --task tasks/refactor-auth.yaml --trials 5 --baseline
+```
+
+See [Trials and the baseline arm](#trials-and-the-baseline-arm).
+
 ### Point to a specific config file
 
 ```bash
@@ -72,8 +80,12 @@ agenteval run --task tasks/refactor-auth.yaml -c ./my-agenteval.yaml
 | Flag | Short | Required | Default | Description |
 |---|---|---|---|---|
 | `--task <task>` | | Yes | | YAML file path, task name from `tasks/`, or inline description |
-| `--harness <name>` | | No | Value from task YAML, or `auto` | Harness adapter: `claude-code`, `opencode`, `copilot`, `generic`, `mock`, `auto` |
-| `--instructions <path>` | | No | `CLAUDE.md` | Instruction file to copy into the worktree |
+| `--harness <name>` | | No | Value from task YAML, or `auto` | `claude-code`, `codex`, `gemini`, `antigravity`, `copilot`, `cursor`, `opencode`, `devin`, `amp`, a `harnesses:` key, `mock`, or `auto`. See [Harnesses](harnesses.md). |
+| `--model <model>` | | No | Task `model`, else the CLI's default | Model passed to the agent CLI |
+| `--instructions <path>` | | No | `CLAUDE.md` | Instruction file to inject. The harness decides the target name (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, ...). |
+| `--trials <n>` | | No | Task `trials`, else `1` | Independent attempts (1-100) |
+| `--baseline` | | No | off | Also run every trial with all instruction files removed and report the difference |
+| `--format <format>` | | No | `console` | `console` or `json` (trial report on stdout, progress on stderr) |
 | `--config <path>` | `-c` | No | Auto-discovered `agenteval.yaml` | Path to the agenteval configuration file |
 
 ### Task resolution order
@@ -83,6 +95,45 @@ The `--task` value is resolved in this order:
 1. **File path.** If the value is a path to an existing `.yaml` or `.yml` file, parse it directly.
 2. **Name lookup.** If a file named `tasks/<value>.yaml` or `tasks/<value>.yml` exists, parse it.
 3. **Inline description.** Otherwise, treat the value as a plain-text task description. An ad-hoc task is created with no assertions, `auto` harness, 300-second timeout, and default scoring weights.
+
+---
+
+## Trials and the baseline arm
+
+Agents are nondeterministic. The same task with the same instructions can pass once and fail the next time, so one run says little about whether an instruction file helps. Studies of AGENTS.md/CLAUDE.md files also find the effect mostly in tokens and time, less in correctness ([research notes](research/2026-10-30-agent-ecosystem.md#6-agent-eval-best-practices-2026)). Measure both.
+
+`--trials N` runs the task N times. `--baseline` runs each trial a second time with every instruction, rule, skill, and agent file removed from the worktree. The two arms alternate, so a slow or flaky backend affects both alike. Example output:
+
+```
+  agenteval run  ·  refactor-auth  ·  5 trial(s)
+  ──────────────────────────────────────
+
+                    with instructions     baseline (none)       Δ
+  pass rate         4/5 (80%)             3/5 (60%)             +20pp
+  pass@k / pass^k   yes / no              yes / no
+  score             0.84 ± 0.12           0.71 ± 0.18           +0.13
+  tokens            41210 ± 5120          58930 ± 9802          -17720
+  cost              $0.4120 ± 0.0510      $0.5893 ± 0.0980      -$0.1773
+  turns             12.4 ± 2.1            17.0 ± 3.4            -4.6
+  duration (s)      96.2 ± 11.0           131.5 ± 20.3          -35.3
+```
+
+| Row | Meaning |
+|---|---|
+| pass rate | Trials where the run succeeded and every assertion passed |
+| pass@k | At least one of the k trials passed (k = `--trials`) |
+| pass^k | All k trials passed. A low pass^k with a high pass@k means the agent can do it but not reliably. |
+| score, tokens, cost, turns, duration | Mean ± sample standard deviation; `n/a` when the harness doesn't report the metric |
+| Δ | With instructions minus baseline. Green means better (higher score and pass rate, lower tokens, cost, turns, and time). |
+
+With fewer than 3 trials the report warns that differences may be noise. Every trial is saved as its own result with `trial: { group, index, of, arm }`, so `agenteval results` and `trends` see all of them. `--format json` prints the report as JSON for scripts.
+
+Set a default in the task file:
+
+```yaml
+name: refactor-auth
+trials: 3
+```
 
 ---
 
@@ -196,8 +247,11 @@ scoring:
 | `name` | string | Yes | | Short identifier for the task. Used in result filenames and comparison output. |
 | `description` | string | Yes | | Human-readable explanation of what the task does. |
 | `prompt` | string | No | Same as `description` | The exact text sent to the AI agent. Use this when the agent prompt should differ from the human description. |
-| `harness` | enum | No | `auto` | Which harness adapter to use. One of: `claude-code`, `opencode`, `copilot`, `generic`, `auto`. |
-| `timeout` | number | No | `300` | Maximum seconds to wait for the agent to finish. The agent process is killed with `SIGTERM` after this duration. |
+| `harness` | string | No | `auto` | A built-in harness, a `harnesses:` key from `agenteval.yaml`, or `auto`. See [Harnesses](harnesses.md). |
+| `model` | string | No | CLI default | Model passed to the agent CLI. `--model` overrides it. |
+| `timeout` | number | No | `300` | Maximum seconds to wait for the agent (and for each setup or assertion command). The agent gets `SIGTERM`, then `SIGKILL` 10 seconds later. |
+| `trials` | number | No | `1` | Independent attempts per run. `--trials` overrides it. |
+| `setup` | string[] | No | | Shell commands run in the worktree before the agent starts, for example `bun install`. A failing command fails the run. |
 | `assertions` | array | No | `[]` | List of assertion objects evaluated after the agent completes. See below. |
 | `scoring` | object | No | See defaults | Weight configuration for the four scoring dimensions. See the scoring section. |
 | `sourceCommit` | string | No | | Source commit hash. Set automatically by `agenteval harvest`. |
@@ -205,11 +259,12 @@ scoring:
 | `prUrl` | string | No | | GitHub PR URL. Set by harvest with `--github`. |
 | `prBody` | string | No | | GitHub PR body text. Set by harvest with `--github`. |
 | `detectionConfidence` | number | No | | AI detection confidence (0.0-1.0). Set by harvest. Used for confidence-weighted scoring. |
+| `detectedModel` | string | No | | Model named in the source commit's attribution, for example `Claude Opus 5.5`. Set by harvest. |
 | `harvestDate` | string | No | | ISO 8601 timestamp when the task was harvested. |
 
 The `sourceCommit`, `instructionSnapshot`, `prUrl`, `prBody`, `detectionConfidence`, and `harvestDate` fields are set automatically by `agenteval harvest`. You don't need to set them manually in hand-written task YAML. When present, they enable snapshot-aware comparison and confidence-weighted scoring.
 
-The `test-pass` assertion type may also be auto-generated by harvest when the commit diff includes test files (matching `test`, `spec`, or `__tests__` patterns).
+The `test-pass` assertion type may also be auto-generated by harvest when the commit diff includes test files (matching `test`, `spec`, or `__tests__` patterns). Harvest also adds a `lint-delta` assertion when the repo has a linter agenteval can run.
 
 ---
 
@@ -274,24 +329,39 @@ assertions:
 
 Use this to verify that tests still pass after the agent's changes.
 
+### lint-delta
+
+Runs the repo's own linters and type checker on the files the agent changed and counts the findings on lines it added (or anywhere in files it created). Findings on untouched lines don't count.
+
+```yaml
+assertions:
+  - type: lint-delta              # every detected linter and type checker
+  - type: lint-delta
+    tools: [oxlint, tsc]
+    maxNew: 1
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `tools` | No | `auto` (default) or a list of `oxlint`, `eslint`, `biome`, `ruff`, `tsc` |
+| `maxNew` | No | New findings tolerated. Default `0`. |
+
+**Passes when:** At most `maxNew` new findings and at least one tool ran.
+**Fails when:** More new findings, or no listed tool could run.
+
+Scored in the **conventions** dimension. The findings are saved in the result's `lint` field. See [Toolchain checks](toolchain.md#lint-delta-linters-as-an-eval-signal) for how each tool is invoked.
+
 ### no-new-warnings
 
-Runs a shell command (typically a linter) and checks that it exits with code 0.
+Without a `command`, `no-new-warnings` is the same as `lint-delta` with `tools: auto`.
+
+With a `command`, it keeps its v0.8 meaning: the command runs via `sh -c` in the worktree and must exit 0. Prefer `lint-delta`, which ignores problems that existed before the agent started.
 
 ```yaml
 assertions:
   - type: no-new-warnings
     command: "bun run lint"
 ```
-
-| Field | Required | Description |
-|---|---|---|
-| `command` | Yes | Shell command executed via `sh -c` in the worktree directory. |
-
-**Passes when:** The command exits with code 0.
-**Fails when:** The command exits with a non-zero code.
-
-Functionally identical to `test-pass` in evaluation. The separate type exists for semantic clarity in task definitions and result reports.
 
 ### convention
 
@@ -477,54 +547,9 @@ The worktree is always removed in a `finally` block, so cleanup happens even if 
 
 ## Harness adapters
 
-A harness adapter is the bridge between agenteval and an AI coding tool. Each adapter knows how to check availability, inject instructions, spawn the agent, and parse metrics from the output.
+Each built-in harness runs an agent CLI headless, copies the instruction file to where that agent reads it, and parses tokens, cost, turns, and model from the CLI's JSON output. `auto` picks the first installed CLI whose instruction file exists in the repo.
 
-### Built-in harnesses
-
-| Harness | Tool | Command executed | Token parsing |
-|---|---|---|---|
-| `claude-code` | Claude Code CLI | `claude --print --dangerously-skip-permissions <prompt>` | Parses `total_tokens`, `input_tokens`, `output_tokens` from stdout/stderr |
-| `generic` | Any CLI tool | Configured via `agenteval.yaml` | Not available (tokens reported as `unavailable`) |
-| `mock` | None (testing) | No process spawned. Writes predefined files to the worktree. | Optional fixed token count |
-| `auto` | Automatic | Detects installed tools by checking for instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) | Depends on detected harness |
-
-### Auto-detection logic
-
-When `harness` is set to `auto` (the default), agenteval checks the working directory for known instruction files:
-
-| File found | Harness selected |
-|---|---|
-| `CLAUDE.md` | `claude-code` |
-| `AGENTS.md` | `opencode` |
-| `.github/copilot-instructions.md` | `copilot` |
-
-If zero or more than one instruction file is found, auto-detection fails with an error. Use `--harness` to specify explicitly.
-
-### Configuring a custom harness
-
-Add a harness entry to `agenteval.yaml` to use any CLI-based AI tool:
-
-```yaml
-harnesses:
-  my-agent:
-    command: "my-agent-cli"
-    args: ["--run", "--non-interactive"]
-    instructionPath: "AGENTS.md"
-```
-
-| Field | Required | Default | Description |
-|---|---|---|---|
-| `command` | Yes | | The executable name or path. Must be on your `PATH`. |
-| `args` | No | `[]` | Arguments passed before the task prompt. The prompt is appended as the final argument. |
-| `instructionPath` | No | `AGENTS.md` | Where the instruction file is placed in the worktree. |
-
-Then reference it by name:
-
-```bash
-agenteval run --task tasks/refactor-auth.yaml --harness my-agent
-```
-
-The generic adapter checks availability with `which <command>`. If the command is not found, the run fails immediately with a clear error rather than hanging.
+The full table with exact invocations, metrics, and custom harness setup is in [Harnesses](harnesses.md).
 
 ---
 
@@ -644,22 +669,15 @@ timeout: 600
 
 **Causes and fixes:**
 
-- The AI tool is not installed or not on your `PATH`. Verify with `which claude` (or the relevant command).
+- The AI tool is not installed or not on your `PATH`. `agenteval doctor` lists the agent CLIs it found.
 - For custom harnesses, verify the `command` in `agenteval.yaml` is correct.
 - Use `--harness mock` to test the pipeline without a real agent.
 
 ### Auto-detection fails
 
-**Symptom:** Error `No instruction files found. Cannot auto-detect harness.`
+**Symptom:** Error `No supported agent CLI found on PATH`.
 
-**Causes and fixes:**
-
-- No `CLAUDE.md`, `AGENTS.md`, or `.github/copilot-instructions.md` exists in the project root.
-- Create the appropriate instruction file or use `--harness` to specify explicitly.
-
-**Symptom:** Error `Multiple instruction files found`.
-
-**Fix:** The project has instruction files for more than one tool. Use `--harness` to pick one.
+**Fix:** Install one of the agent CLIs listed in [Harnesses](harnesses.md), or pass `--harness` (for example `mock` or a custom `harnesses:` entry).
 
 ### Worktree creation fails
 
@@ -705,5 +723,5 @@ Check the error message for specifics and validate your YAML against the schemas
 | Code | Meaning |
 |---|---|
 | 0 | Run completed successfully |
-| 1 | Run completed with an error or timed out |
+| 1 | Run completed with an error or timed out (with `--trials`/`--baseline`: any trial did) |
 | 2 | Configuration error (invalid task file, unknown harness, bad instruction path) |

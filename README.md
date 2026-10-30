@@ -1,6 +1,6 @@
 # agenteval
 
-Your CLAUDE.md is untested. So is your AGENTS.md, your copilot-instructions.md, and your .cursorrules.
+Your CLAUDE.md is untested. So is your AGENTS.md, your GEMINI.md, your Cursor rules, and your skills.
 
 agenteval is a linter, benchmarker, and CI gate for AI coding instructions. It finds dead references, token bloat, contradictions, and stale instructions before your agent does. Then it scores agent performance so you can measure whether your instruction changes actually help.
 
@@ -32,6 +32,8 @@ No Bun, no Node at runtime. The binary is self-contained.
 ```bash
 agenteval lint                    # Find problems in your instruction files
 agenteval lint --explain          # Same, with explanations for each rule
+agenteval doctor                  # Show detected agent CLIs and toolchain
+agenteval run --task t.yaml --trials 3 --baseline   # Do your instructions help?
 agenteval harvest --dry-run       # Preview what AI commits are in your history
 agenteval ci                      # Run all tasks, fail on regressions
 ```
@@ -45,20 +47,27 @@ agenteval ci                      # Run all tasks, fail on regressions
 - Token budget overruns that crowd out code context
 - Vague instructions without actionable specifics
 - Stale instructions referencing code that was refactored weeks ago
-- Invalid skill metadata (per Anthropic spec)
+- Invalid skill metadata (per the open Agent Skills spec) and broken rule, subagent, and command frontmatter
+- Missing or circular `@imports`
+- Files an agent silently truncates or ignores (Codex's 32 KiB AGENTS.md cap, `.md` files in `.cursor/rules`, AGENTS.md shadowed by CLAUDE.md)
+- Commands that don't match the repo: `npm install` in a bun repo, `bun run format` with no such script, `npx eslint` in an oxlint repo
 - Broken markdown links and heading anchors
 
 ## Supported Formats
 
 | Format | Pattern |
 |--------|---------|
-| Claude Code | `CLAUDE.md` |
-| OpenAI Codex / AGENTS | `AGENTS.md` |
-| GitHub Copilot | `.github/copilot-instructions.md` |
-| Scoped Copilot | `.github/instructions/*.instructions.md` |
-| Anthropic Skills | `.claude/skills/*/SKILL.md` |
-| Cursor | `.cursorrules`, `.cursor/rules/*.mdc` |
-| Windsurf | `.windsurfrules` |
+| Claude Code | `CLAUDE.md` (nested too), `CLAUDE.local.md`, `.claude/rules/`, `.claude/agents/`, `.claude/commands/` |
+| AGENTS.md (Codex, Copilot, Cursor, OpenCode, Amp, Devin, ...) | `AGENTS.md` (nested too) |
+| Gemini CLI / Antigravity | `GEMINI.md` |
+| GitHub Copilot | `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md` |
+| Agent Skills | `.claude/skills/*/SKILL.md`, `.agents/skills/*/SKILL.md` |
+| Cursor | `.cursor/rules/**/*.mdc` |
+| Devin / Windsurf | `.devin/rules/*.md`, `.windsurf/rules/*.md` |
+| Kiro | `.kiro/steering/*.md` |
+| JetBrains Junie | `.junie/**/*.md` |
+
+Evals run on Claude Code, Codex, Gemini CLI, Antigravity, Copilot CLI, Cursor CLI, OpenCode, Devin, and Amp, or any CLI you configure. See [Harnesses](docs/harnesses.md).
 
 ## Commands
 
@@ -70,9 +79,12 @@ agenteval ci                      # Run all tasks, fail on regressions
 | `agenteval harvest` | Build eval tasks from AI commit history | [Harvesting](docs/harvest.md) |
 | `agenteval harvest --live` | Score working tree changes before committing | [Harvesting](docs/harvest.md) |
 | `agenteval run --task <file>` | Run an AI agent, score the result | [Running Evals](docs/run.md) |
+| `agenteval run --trials 3 --baseline` | Repeat, and compare against no instructions | [Running Evals](docs/run.md#trials-and-the-baseline-arm) |
 | `agenteval compare <A> <B>` | Diff two runs side by side | [Results](docs/results.md) |
 | `agenteval ci` | Run all tasks, gate on regressions | [CI Guide](docs/ci.md) |
 | `agenteval ci --parallel <n>` | Run tasks concurrently | [CI Guide](docs/ci.md) |
+| `agenteval lint --format sarif` | SARIF for code scanning (also `github` annotations) | [Linting](docs/lint.md) |
+| `agenteval doctor` | Check agent CLIs, toolchain, and config | [Toolchain](docs/toolchain.md) |
 | `agenteval trends` | Score history and trend analysis | [Trends](docs/trends.md) |
 | `agenteval init` | Create a starter config | [Configuration](docs/configuration.md) |
 | `agenteval init --hook` | Add pre-commit lint hook | [Configuration](docs/configuration.md) |
@@ -135,7 +147,9 @@ See the [CI Guide](docs/ci.md) for thresholds, configuration, and examples.
 | [Core Concepts](docs/concepts.md) | Instructions, tasks, assertions, harnesses, scoring |
 | [Getting Started](docs/getting-started.md) | Installation, first run, full walkthrough |
 | [Linting](docs/lint.md) | All lint rules, output formats, CI integration |
-| [Running Evals](docs/run.md) | Task definitions, harness adapters, scoring pipeline |
+| [Running Evals](docs/run.md) | Task definitions, trials, baseline arm, assertions, scoring |
+| [Harnesses](docs/harnesses.md) | Every supported agent CLI, invocation, and metrics |
+| [Toolchain checks](docs/toolchain.md) | Toolchain detection, `toolchain/*` rules, `lint-delta` |
 | [Harvesting](docs/harvest.md) | AI commit detection, task generation, live review |
 | [CI Guide](docs/ci.md) | Regression detection, thresholds, GitHub Actions example |
 | [Trends](docs/trends.md) | Score history and trend analysis |

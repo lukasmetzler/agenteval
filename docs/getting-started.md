@@ -127,16 +127,20 @@ agenteval auto-discovers instruction files matching these default globs:
 
 | Pattern | Description |
 |---|---|
-| `CLAUDE.md` | Claude Code project instructions |
-| `AGENTS.md` | Multi-agent instruction file |
-| `.github/copilot-instructions.md` | GitHub Copilot instructions |
-| `.claude/**/*.md` | Claude skill and config files |
-| `.github/instructions/*.md` | GitHub Copilot workspace instructions |
+| `**/CLAUDE.md`, `CLAUDE.local.md` | Claude Code project instructions, including nested ones |
+| `**/AGENTS.md` | The cross-agent standard (Codex, Copilot, Cursor, OpenCode, Amp, Devin, ...) |
+| `**/GEMINI.md` | Gemini CLI and Antigravity |
+| `.claude/**/*.md` | Claude Code rules, skills, subagents, and commands |
+| `.agents/skills/**/*.md` | Agent Skills shared across tools |
+| `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md` | GitHub Copilot |
+| `.cursor/rules/**/*.mdc` | Cursor rules |
+| `.devin/rules/*.md`, `.windsurf/rules/*.md` | Devin / Windsurf rules |
+| `.kiro/steering/*.md`, `.junie/**/*.md` | Kiro and JetBrains Junie |
 
-You can also pass explicit globs:
+The full table, including which agent reads which file, is in [Auto-Discovery](lint.md#auto-discovery). You can also pass explicit globs:
 
 ```bash
-agenteval lint "**/*.instructions.md" ".cursorrules"
+agenteval lint "docs/agents/*.md" ".cursorrules"
 ```
 
 Example output:
@@ -401,14 +405,15 @@ agenteval works with zero configuration. Every setting has a sensible default. W
 ```yaml
 version: 1
 
-# Which instruction files to scan (glob patterns)
+# Which instruction files to scan (glob patterns).
+# Leave this out to scan every known format.
 instructionGlobs:
   - "CLAUDE.md"
   - "AGENTS.md"
   - ".github/copilot-instructions.md"
 
 # Target model for context budget calculations
-model: claude-sonnet-4-6
+model: claude-opus-5-5
 
 # Max fraction of context window your instructions should consume
 contextBudget: 0.3
@@ -471,20 +476,23 @@ scoring:
 
 ## Supported Harnesses
 
-A harness is the adapter between agenteval and your AI tool (called a "harness" because it wraps the tool in a standard interface). Each harness knows how to inject instructions and spawn the agent.
+A harness is the adapter between agenteval and your AI tool. Each one knows where the agent reads instructions, how to run it headless, and how to read token and cost numbers from its output.
 
-| Harness | Tool | Status |
+| Harness | Tool | Metrics |
 |---|---|---|
-| `claude-code` | Claude Code CLI | Supported |
-| `cursor` | Cursor AI | Supported |
-| `opencode` | OpenCode | Supported |
-| `windsurf` | Windsurf (Codeium) | Supported |
-| `copilot` | GitHub Copilot | Supported |
-| `generic` | Any CLI tool | Supported (configure via `harnesses` in config) |
+| `claude-code` | Claude Code (`claude`) | tokens, cost, turns, model |
+| `codex` | OpenAI Codex CLI | tokens, turns |
+| `gemini` | Gemini CLI | tokens, model |
+| `antigravity` | Antigravity CLI (`agy`) | tokens, turns |
+| `copilot` | GitHub Copilot CLI | none |
+| `cursor` | Cursor CLI (`agent`) | none |
+| `opencode` | OpenCode | tokens, cost |
+| `devin` | Devin CLI (`windsurf` is an alias) | none |
+| `amp` | Amp | tokens, turns |
 | `mock` | Built-in mock | For testing agenteval itself |
-| `auto` | Auto-detect | Picks the best available harness |
+| `auto` | Auto-detect | First installed CLI whose instruction file exists |
 
-To configure a custom harness for a tool not listed above:
+Any other CLI works through `harnesses:` in the config:
 
 ```yaml
 version: 1
@@ -495,31 +503,29 @@ harnesses:
     instructionPath: ".my-tool/instructions.md"
 ```
 
+Exact invocations and metric fields are in [Harnesses](harnesses.md).
+
 ## Common Questions
 
 ### Do I need an API key?
 
-Not for agenteval itself. agenteval does not call any AI APIs directly. It spawns your locally installed AI coding tool (Claude Code, Copilot, etc.) as a subprocess. You need whatever credentials that tool requires -- typically an API key or OAuth session configured in the tool itself.
+Not for agenteval itself. agenteval does not call any AI APIs directly. It spawns your locally installed AI coding tool (Claude Code, Codex, Copilot, etc.) as a subprocess. You need whatever credentials that tool requires -- typically an API key or OAuth session configured in the tool itself.
 
 ### Does it work with GitHub Copilot?
 
-Yes. Set the harness to `copilot` either in your task YAML or on the command line:
+Yes. Install the Copilot CLI (`copilot`) and set the harness to `copilot` in your task YAML or on the command line:
 
 ```bash
 agenteval run --task my-task.yaml --harness copilot
 ```
 
-agenteval discovers `.github/copilot-instructions.md` by default during lint.
+Lint discovers `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` by default and checks their `applyTo` frontmatter. The Copilot CLI documents no JSON output, so runs report no token counts.
 
 ### Does it work with Cursor / .cursorrules?
 
-You can lint `.cursorrules` files by adding the glob to your config or passing it directly:
+Lint discovers `.cursor/rules/**/*.mdc` by default, checks `description`, `globs`, and `alwaysApply`, and warns about `.md` files in that folder, which Cursor ignores. The legacy `.cursorrules` file isn't in current Cursor docs; lint it explicitly with `agenteval lint ".cursorrules"` if you still have one.
 
-```bash
-agenteval lint ".cursorrules"
-```
-
-For running evals with Cursor, use the `generic` harness and configure the command in `agenteval.yaml`.
+For evals, use `--harness cursor`. It runs the Cursor CLI (`agent -p --force`) with instructions in `AGENTS.md`.
 
 ### Can I run this in CI?
 

@@ -204,11 +204,11 @@ agenteval compare run-20260401-143022 run-20260401-150000
 # Run with Claude Code
 agenteval run --task tasks/benchmarks/harvest-abc123d.yaml --harness claude-code
 
-# Run with Copilot
-agenteval run --task tasks/benchmarks/harvest-abc123d.yaml --harness copilot
+# Run with Codex
+agenteval run --task tasks/benchmarks/harvest-abc123d.yaml --harness codex
 
 # Compare
-agenteval compare <claude-run-id> <copilot-run-id>
+agenteval compare <claude-run-id> <codex-run-id>
 ```
 
 ## Configuration
@@ -305,7 +305,9 @@ agenteval harvest --live
 
 **diff-hygiene** (0-10): Detects common issues in the diff: `console.log`/`debugger` statements, TODO/FIXME/HACK comments, and formatting-only hunks. Starts at 10, loses 1 point per issue found.
 
-All heuristic rubrics are pure functions with no external dependencies. Execution takes <1 second.
+**lint-delta** (0-10): Runs the repo's detected linters (oxlint, ESLint, Biome, Ruff) on the changed files and counts findings on the lines you added. Starts at 10, loses 2 points per new error and 1 per new warning. Left out when no linter is installed. The live review skips the type checker because a whole-project `tsc` run takes too long here. See [Toolchain checks](toolchain.md).
+
+The first three rubrics are pure functions and finish in under a second. lint-delta takes as long as your linters.
 
 ### Rubric Configuration
 
@@ -323,6 +325,9 @@ liveReview:
     diffHygiene:
       enabled: true
       weight: 1.0
+    lintDelta:
+      enabled: true
+      weight: 1.0
     conventionCompliance:
       enabled: true
       weight: 1.5
@@ -330,6 +335,8 @@ liveReview:
       enabled: true
       weight: 1.0
 ```
+
+`liveReview.judgeModel` (default `sonnet`) picks the model for the `--analyze` rubrics. It accepts a Claude Code alias (`sonnet`, `opus`, `haiku`) or a full model id like `claude-sonnet-5-5`.
 
 Disabled rubrics are excluded from results and the overall score. Weights control how much each rubric contributes to the weighted average.
 
@@ -350,7 +357,9 @@ Requirements:
 - `--analyze` requires `--live`
 - Instruction files (CLAUDE.md, AGENTS.md, etc.) must exist in the repo
 
-LLM rubrics take 10-30 seconds (one LLM call per rubric). Heuristic rubrics still run in <1 second. If the LLM response can't be parsed, the rubric falls back to score 5 with a note.
+LLM rubrics take 10-30 seconds (one LLM call per rubric). If the call fails or the answer can't be parsed, the rubric is left out of the score. Before 0.9 it silently scored 5/10.
+
+The judge runs as `claude -p --tools "" --permission-mode dontAsk` with the prompt on stdin. With every tool disabled, a diff that contains instructions aimed at the judge can't make it run commands or edit files. The prompt also fences the diff and instructions as data.
 
 ## Advanced
 
@@ -377,46 +386,58 @@ Git commit
         No  --> skip
 ```
 
-#### Co-Authored-By Trailer (confidence: 0.9)
+#### Co-authored-by and session trailers (confidence: 0.9)
 
-The most reliable signal. AI coding tools typically add a `Co-authored-by` trailer to commits:
+The most reliable signal. Most agents add a `Co-authored-by` trailer, and some add a trailer linking the commit to the agent session:
 
 ```
-Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+Agent-Logs-Url: https://github.com/acme/app/agents/12345
 ```
 
-agenteval matches these email patterns:
-
-| Pattern | Tool | Notes |
+| Signal | Tool | Notes |
 |---------|------|-------|
-| `noreply@anthropic.com` | Claude Code | All Claude Code commits |
-| `noreply@github.com` (with "copilot" in name) | GitHub Copilot | Name check prevents false positives from human squash-merges |
-| Email containing `cursor` | Cursor | Matches cursor.sh domain |
-| Email containing `devin` | Devin | Matches cognition.ai domain |
-| Email containing `aider` | Aider | Matches aider.chat domain |
-| Email containing `amazon-q` or `codewhisperer` | Amazon Q Developer | Formerly CodeWhisperer |
-| Email containing `gemini` or `jules` (with name check) | Gemini / Jules | Name check prevents false positives on generic Google emails |
-| Email containing `codeium` or `windsurf` | Codeium / Windsurf | Windsurf is Codeium's IDE product |
-| Email containing `tabnine` | Tabnine | |
-| Email containing `cody` or `sourcegraph` | Sourcegraph Cody | |
-| Email containing `codex` (with "codex" in name) | Codex CLI (OpenAI) | Name check prevents false positives |
-| Email containing `sweep` (with "sweep" in name) | Sweep AI | Name check prevents false positives |
-| Email matching `grit.io` | Grit.io | |
-| Email matching `continue.dev` | Continue.dev | |
+| `noreply@anthropic.com` | Claude Code | The trailer name is the model ("Claude Opus 5.5"), recorded as `detectedModel` |
+| `noreply@openai.com` | Codex | Off by default in Codex (`commit_attribution_enabled`) |
+| `copilot@github.com` | Copilot in VS Code | `git.addAICoAuthor` setting |
+| `noreply@github.com` with "copilot" in the name | GitHub Copilot | Name check avoids human squash-merges |
+| `Agent-Logs-Url:` trailer | Copilot coding agent | |
+| `@ampcode.com`, `Amp-Thread-ID:` trailer | Amp | Both on by default |
+| `aider@aider.chat` | Aider | "aider (gpt-5)" puts the model in the name; recorded as `detectedModel` |
+| Email containing `cursor` | Cursor | |
+| `cognition.ai` or `devin-ai-integration` | Devin | |
+| Email containing `gemini` or `jules` (name must match too) | Gemini / Jules | |
+| `amazon-q` or `codewhisperer` | Amazon Q Developer | |
+| `factory.ai` | Factory | |
+| `opencode` | OpenCode | No default trailer known; matches if you add one |
+| `codeium` or `windsurf` | Codeium / Windsurf | |
+| `tabnine`, `cody`/`sourcegraph`, `sweep`, `grit.io`, `continue.dev` | Tabnine, Cody, Sweep, Grit, Continue | |
 
-#### Author Email (confidence: 0.8)
+#### Agent-authored commits (confidence: 0.8)
 
-Checks if the commit author email itself matches known bot patterns. Same pattern list as co-author detection. Less common but catches commits made directly by bot accounts.
+Matches commits whose author is the agent's own account. Only bot-specific addresses count, so a human named `jules.smith@corp.com` or `codex.fan@example.com` is not flagged.
 
-#### Commit Message Pattern (confidence: 0.6)
+| Author | Tool |
+|---|---|
+| `…+Copilot@users.noreply.github.com` | Copilot coding agent |
+| `…+claude[bot]@users.noreply.github.com` | Claude GitHub app |
+| `…+chatgpt-codex-connector[bot]@…` | Codex cloud |
+| `…+cursor[bot]@…`, `cursoragent@cursor.com`, author name "Cursor Agent" | Cursor background agents |
+| `…+devin-ai-integration[bot]@…` | Devin |
+| `…+google-labs-jules[bot]@…`, `…+gemini-code-assist[bot]@…` | Jules, Gemini Code Assist |
+| `…+amazon-q-developer[bot]@…` | Amazon Q Developer |
+| `…+factory-droid[bot]@…` | Factory |
+| Author name ending in `(aider)` | Aider |
 
-Regex match on the commit subject line:
+#### Commit message pattern (confidence: 0.6)
+
+Regex match on the subject and the body:
 
 ```
-/generated by|co-authored-by.*(claude|copilot|cursor|gemini|codex)|bot:|auto-generated|ai-generated/i
+/generated by|generated with|co-authored-by.*(claude|copilot|cursor|gemini|codex)|🤖|bot:|auto-generated|ai-generated/i
 ```
 
-Lower confidence because commit messages are less structured than trailers. Useful as a fallback when tools don't add trailers.
+"Generated with [Claude Code]" and "Generated with [Codex]" footers name the tool. Other matches report `unknown`. Before 0.9 only the subject line was scanned, so body footers were missed.
 
 ### Tuning Detection Sensitivity
 

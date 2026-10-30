@@ -113,12 +113,15 @@ Lint catches problems statically. Harvest builds benchmarks from your git histor
 
 ## Agent Skill
 
-`skills/agenteval/SKILL.md` teaches a coding agent to lint instruction files after editing them and to fix what agenteval reports. It follows the open [Agent Skills](https://agentskills.io/specification) spec, so Claude Code, Codex, Cursor, Gemini CLI, and other clients can load it.
+`skills/agenteval/SKILL.md` tells a coding agent to run `agenteval lint` after it edits an instruction file, and to fix each finding by changing the instructions to match the repo. Before an eval, which runs a paid agent, the skill makes the agent ask you first. It follows the open [Agent Skills](https://agentskills.io/specification) spec.
+
+Copy the file into the skills directory your agent reads. Claude Code reads `.claude/skills/`. Codex, Antigravity, and Zed read `.agents/skills/`.
 
 ```bash
-mkdir -p .agents/skills/agenteval   # or .claude/skills/agenteval for Claude Code only
+dir=.claude/skills/agenteval   # .agents/skills/agenteval for Codex, Antigravity, or Zed
+mkdir -p "$dir"
 curl -fsSL https://raw.githubusercontent.com/lukasmetzler/agenteval/main/skills/agenteval/SKILL.md \
-  -o .agents/skills/agenteval/SKILL.md
+	-o "$dir/SKILL.md"
 ```
 
 Agents often skip a skill unless something points them at it. Add one line to your CLAUDE.md or AGENTS.md:
